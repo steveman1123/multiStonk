@@ -6,7 +6,7 @@ Another stock trading bot that's designed to have multiple algorithms running si
 
 You bet your panties it's another one. Somehow I gotta make money, and what better way to get it than by working hard to be lazy?
 
-This one is a way to get multiple algorithms to run side by side using (alpaca)[https://alpaca.markets]
+This one is a way to get multiple algorithms to run side by side using [alpaca](https://alpaca.markets)
 
 ## How does it work?
 
@@ -17,6 +17,17 @@ The ONLY thing these algorithms should be looking at outside of their designated
 The overall idea of this is that you'd have virtual brokers working for you (but they're really stupid and are computers, but hey, can't complain if you don't have to pay them a salary).
 
 This one is supposed to supersede/integrate stonkBot and stonk2
+
+## Reqs for each algorithm
+
+Every algo needs a few basic things:
+
+* Keeping track of its own trades (date/time executed, amount, price, side, whether it was accepted or not)
+* Marking if something should be traded (to allow for checking while market is closed
+* Portfolio value of itself
+
+The algos should NOT rely on alpaca account or position info as that is the sum total of all algos, not each individual one
+
 
 ## Disclaimer
 
