@@ -49,10 +49,8 @@ def scrapeYF(symb):
 
 #this might not actually work?
 def scrapeNASDAQ(symb):
-  print("Getting nasdaq news...")
-  r = a.o.requests.get(f"https://www.nasdaq.com/market-activity/stocks/{symb}",headers={"user-agent":"-"},timeout=5).text
-  s = a.o.bs(r,'html.parser')
-  
+  url = 'https://www.nasdaq.com/api/v1/quote-news/31867/7'
+  print("TODO: figure out how to use this api")
 
 
 #TODO: check out the html from this site to see their quote api (in js near the top of the page)

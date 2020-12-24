@@ -1,0 +1,1 @@
+using other nasdaq apis (calendar, financials, etc) and headline scraping

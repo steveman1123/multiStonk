@@ -1,3 +1,6 @@
+#This module should be any function that requires alpaca keys
+
+#TODO: move stuff from this file into individual algos (such as isPaper, location of config files, etc)
 import otherfxns as o
 
 isPaper = bool(o.c['isPaper']) #set up as paper trading (testing), or actual trading

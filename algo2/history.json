@@ -1,0 +1,16 @@
+{
+  symb: {
+    tradeDate: {
+      tradeType:
+      pricePershare:
+      shares:
+    }
+  }
+  symb2: {
+    tradeDateTime: {
+      tradeType:
+      pricePershare:
+      shares:
+    }
+  }
+}
