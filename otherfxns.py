@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup as bs
 from math import ceil
 
 c = configparser.ConfigParser()
-c.read('./stonkBot.config')
+c.read('./stonkbot.config')
 
 stockDir = c['file locations']['stockDataDir']
 

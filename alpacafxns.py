@@ -131,9 +131,9 @@ def createOrder(side, qty, sym, orderType="market", time_in_force="day", limPric
       print(f"Order to {r['side']} {r['qty']} share(s) of {r['symbol']} for ${r['filled_avg_price']} at {r['updated_at'].split('.')[0]} - {r['status']}")
       return r
     except Exception:
-      return "Error: "+o.json.dumps(r)
+      return {f"{symb} error":r}
   else:
-    return sym+" is not tradable"
+    return {f"{symb} error":"not tradable"}
 
 #check if the market is open
 def marketIsOpen():

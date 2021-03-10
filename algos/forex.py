@@ -2,6 +2,7 @@
 #best way to trade currencies?
 #TODO: make sure we can access the market via either alpaca or etrade
 #https://www.dailyfx.com/technical-analysis
+#in the event that etrade doesn't work, try this one: https://www.forex.com/en-us/trading-platforms/more-services/api-trading/
 
 import sys
 sys.path.append('../') #might not need this line?
