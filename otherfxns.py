@@ -207,3 +207,33 @@ def reverseSplitters():
   return [e[0] for e in out if e[1]<1]
   
   
+
+
+#set up the position list and do some error checking to make sure it's correct (take list of algos as arg in the event the pos list needs to be populated)
+def setPosList(algoList):
+  posList={}
+  #if the posList file doesn't exist
+  if(not os.path.isfile(c['file locations']['posList'])):
+    with open(c['file locations']['posList'],'w') as f:
+      f.write(json.dumps({e:{} for e in algoList}))
+    posList = open(c['file locations']['posList'],'r').read()
+  else: #if it does exist
+    try: #try reading any json data from it
+      #TODO: also check len() to make sure that all algos are present in the list? Might not have to, but will need to be tested
+      with open(c['file locations']['posList'],'r') as f:
+        posList = json.loads(f.read())
+        if(len(posList)<len(algoList)):
+          print("Adding missing algos to posList file")
+          #TODO: the following loop could probably be replaced with a single line, something like: posList = {posList[e] for e in algoList if e in posList else algoList[e]}
+          for algo in algoList:
+            if(algo not in posList):
+              posList[algo] = {}
+    except Exception: #if it fails, then just write the empty algoList to the file
+      #TODO: this is dangerous! This could potentially overwrite all saved position data if there's any error above. Make this more robust
+      print("something went wrong. Overwriting file")
+      with open(c['file locations']['posList'],'w') as f:
+        f.write(json.dumps({e:{} for e in algoList}))
+      posList = json.loads(open(c['file locations']['posList'],'r').read())
+
+  return posList
+

@@ -2,61 +2,26 @@ import otherfxns as o
 import alpacafxns as a
 import random, time, json, threading, sys, os
 from glob import glob
+from operator import eq
 import datetime as dt
 #import the algorithms
 sys.path.append(o.c['file locations']['algosDir'])
-import dj, fda#, divs #ADD NEW ALGO FUNCTIONS HERE
 
 #http://bettersystemtrader.com/088-protect-and-grow-capital-during-corrections-with-ivanhoff/
-#other algo ideas: splits, divs, earnings, ema, forex, gap up, high volume breakout
+#other algo ideas: splits, divs, earnings, ema, forex, gap up, high volume breakout, ipo
 
-#TODO: mark to sell if rev splitting (in market close section)
+#TODO: mark to sell if rev splitting (in market close section) (as it's own function?)
 
-#TODO: add squeezing times? Different for every algo
+
 algoList = {'dj':[],'fda':[]} #list of algorithms to be used and their corresponding stock lists to be bought
 
-#if the posList file doesn't exist
-if(not os.path.isfile(o.c['file locations']['posList'])):
-  with open(o.c['file locations']['posList'],'w') as f:
-    f.write(json.dumps({e:{} for e in algoList}))
-  posList = open(o.c['file locations']['posList'],'r').read()
-else: #if it does exist
-  try: #try reading any json data from it
-    #TODO: also check len() to make sure that all algos are present in the list? Might not have to, but will need to be tested
-    with open(o.c['file locations']['posList'],'r') as f:
-      posList = json.loads(f.read())
-      if(len(posList)<len(algoList)):
-        #TODO: the following loop could probably be replaced with a single line, something like: posList = {posList[e] for e in algoList if e in posList else algoList[e]}
-        for algo in algoList:
-          if(algo not in posList):
-            posList[algo] = {}
-  except Exception: #if it fails, then just write the empty algoList to the file
-    #TODO: this is dangerous! This could potentially overwrite all saved position data if there's any error above. Make this more robust
-    with open(o.c['file locations']['posList'],'w') as f:
-      f.write(json.dumps({e:{} for e in algoList}))
-    posList = open(o.c['file locations']['posList'],'r').read()
+posList = o.setPosList(algoList) #initiate/populate the list of positions by algo
 
+#the algos must be added after the pos list is updated (for now)
+#TODO: have each algo call setPosList, that way this can be put before o.setPosList() here
+#      then define algoList as the list of files in ./algos and those that are imported here so only this line has to change in order to incorporate new algos
+import dj, fda #, divs #ADD NEW ALGO FUNCTIONS HERE
 
-'''
-posList should be structured something like this:
-{
-  algo1: {
-    symb1: {
-      sharesheld:##,
-      lastTradeDate:##,
-      lastTradeType:XX,
-      shouldSell:XXXX
-    },
-    symb2: {
-      ...
-    }
-  },
-  algo2: {
-    ...
-  }
-  ...
-}
-'''
 
 
 listsUpdatedToday = False
@@ -97,12 +62,16 @@ def main():
     
     else: #market is closed
       #update the max port val
-      print("Updating max portfolio value")
+      print("Updating max portfolio value... ", end="")
       portHist = a.getProfileHistory(str(dt.date.today()),'1M')['equity']
       portHist = [e for e in portHist if e is not None]
       maxPortVal=max(portHist)
+      print(f"${maxPortVal}")
 
       #TODO: sync up posList and if there are any positions that are held that aren't accounted for in an algo (or vise versa, an algo thinks there are shares when there aren't)
+      print("Syncing reality and recordings...")
+      syncPosList()
+
       if(o.dt.date.today().weekday()==4 and o.dt.datetime.now().time()>o.dt.time(12)): #if it's friday afternoon
         #delete all csv files in stockDataDir
         print("Removing saved csv files")
@@ -233,7 +202,7 @@ def buy(shares, stock, algo):
   #basically just a market buy of this many shares of this stock for this algo
   global posList #TODO: may need to incorporate locking
   r = a.createOrder("buy",shares,stock)
-  print(r)
+  #print(r)
   if(r['status'] == "accepted"):
     posList[algo][stock] = {
         "sharesheld":r['qty'],
@@ -247,6 +216,113 @@ def buy(shares, stock, algo):
     return False
 
 
+
+
+#sync what we have recorded and what's actually going on in the account
+def syncPosList():
+  global posList
+  print("getting actually held positions...")
+  heldPos = {e['symbol']:float(e['qty']) for e in a.getPos()} #actually held positions
+  
+  #total stocks in posList
+  print("getting recorded positions...")
+  recPos = {} #recorded positions
+  for algo in posList: #for every algo in the posList
+    for stock in posList[algo]: #for every stock in that algo
+      if stock not in recPos: #if that stock isn't already in the recorded positions
+        recPos[stock] = posList[algo][stock]['sharesHeld'] #add it
+      else: #if it already is
+        recPos[stock] += posList[algo][stock]['sharesHeld'] #add the shares held
+
+  if(not eq(recPos,heldPos)):
+    #if there are any stocks recorded that aren't in the heldPos, remove them
+    #if there are an excess of shares in the recPos than the heldPos, look for any in the algos that match the disparity, and remove them from that algo
+      #if none match (i.e. heldPos and recPos both have a stock, but there's an unknown amount extra in recPos), then just sell it all
+  
+    #if there are any stocks in heldPos that aren't recorded, then compare to algoList
+      #if it's in algolist, assign to all algos that have it, else assign to algo with the smallest gain to offload it asap
+    #if there are an excess of shares in the heldPos than the recPos, then add the excess to the algo with the highest gain to increase gains as much as possible
+
+    #compare recPos to heldPos
+
+    #if there are any stocks recorded that aren't in the heldPos, remove them
+    for symb in [s for s in recPos if s not in heldPos]: #for all stocks in recorded and not in heldPos
+      for algo in posList: #check every algo
+        posList[algo].pop(symb,None) #remove from posList
+      recPos.pop(symb,None) #remove from recorded
+
+    #for each stock, if there are an excess of shares in the recPos than the heldPos, look for any in the algos that match the disparity, and remove them from that algo
+      #if none match (i.e. heldPos and recPos both have a stock, but there's an unknown amount extra in recPos), then trim off the amount extra from the algo that has the most above the disparity
+        #if no algo has any above it: then sell the whole lot TODO: this should probably be handled differently, but it's some complexity that can be saved for later
+    for symb in [s for s in recPos if recPos[s]>heldPos[s]]: #for all stocks where the recorded is greater than the held
+      for algo in posList: #for every algo
+        #remove any that may be exact matches
+        if posList[algo][symb]['sharesHeld']==recPos[symb]-heldPos[symb]:
+          recPos[symb] -= posList[algo][symb]['sharesHeld']
+          posList[algo].pop(symb,None)
+     
+      #if there's still a discrepency (ie. there is not an exact difference)
+      if(recPos[symb]>heldPos[symb]): #if the recorded still has more than the held
+        #get algos with the symbol and the number of shares of that symbol
+        algosWithStock = {e:posList[e][symb]['sharesHeld'] for e in posList if symb in posList[e]} #get the number of shares per algo if the algo has the stock
+        for algo in algosWithStock:
+          #TODO: this should probably be changed to spread out over multiple algos rather than just 1
+          if(algosWithStock[algo]>=recPos[symb]-heldPos[symb]): #if an algo has more than the disparity
+            posList[algo][symb]['sharesHeld'] -= recPos[symb]-heldPos[symb] #remove the disparity
+            recPos[symb] -= recPos[symb]-heldPos[symb]
+            break
+        if(recPos[symb]>heldPos[symb]): #if the disparity wasn't caught, then just sell the lot
+          sell(symb, algo)
+
+
+
+    #compare heldPos to recPos
+
+    #ensure algoList is up to date
+    #TODO: once the listsUpdatedToday is fixed in updateLists(), then the second half of the checks can be removed
+    if(not listsUpdatedToday and len([t for t in threading.enumerate() if t.getName().startswith('update')])==0):
+      updateLists()
+    print("Waiting for stock lists to finish updating...")
+    while(not listsUpdatedToday or len([t for t in threading.enumerate() if t.getName().startswith('update')])>0): #wait for the lists to finish updating
+      time.sleep(2)
+    print("lists done updating")
+
+    #check that symb is somewhere in algoList
+    #if it is, then add it to the algo that has it with the highest gain
+    #else append it to the algo with the smallest gain
+    for symb in [s for s in heldPos if s not in recPos]: #for all stocks actually held and not recorded
+
+      algosWithStock = [e for e in algoList if symb in algoList[e]] #try and find a home for a stock by looking in the stocks to be bought (get all algos that may have it)
+      if(len(algosWithStock)>0): #if an algo has it
+        maxAlgo = ['x',0] #algo and the max gain of the stock
+        #get the algo with the max gain for this stock
+        for algo in algosWithStock: #look thru each algo that could hold the stock
+          sellUp = eval(f"{algo}.sellUp('{symb}')") #find the sell up of that algo
+          maxAlgo = [algo,sellUp] if sellUp>maxAlgo[1] else maxAlgo #get the greater of the two algos
+        posList[maxAlgo[0]][symb] = {'lastTradeDate':'NA', #TODO: could add any info that's in the getPos call
+                                     'lastTradeType':'NA',
+                                     'sharesHeld':heldPos[symb],
+                                     'shouldSell':False
+                                    }
+
+      else: #if no algo has it
+        minAlgo = ['x',100000] #algo and the min gain of the stock
+        for algo in algoList: #for every algo that'll potentially gain
+          sellDn = eval(f"{algo}.sellDn('{symb}')") #get the sell dn of each algo
+          minAlgo = [algo,sellDn] if sellDn<minAlgo[1] else minAlgo #get the greater of the the two algos
+        #add to the algo with the least loss (to minimize risk)
+        posList[minAlgo[0]][symb] = {'lastTradeDate':'NA', #TODO: could add any info that's in the getPos call
+                                     'lastTradeType':'NA',
+                                     'sharesHeld':heldPos[symb],
+                                     'shouldSell':False
+                                    }
+
+
+    #write to the file
+    with open(o.c['file locations']['posList'],'w') as f:
+      f.write(json.dumps(posList,indent=2))
+
+  print("Done syncing lists")
 
 #run the main function
 if __name__ == '__main__':
