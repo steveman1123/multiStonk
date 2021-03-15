@@ -128,7 +128,7 @@ def createOrder(side, qty, sym, orderType="market", time_in_force="day", limPric
     # print(r)
     try:
       #TODO: add trade info here?
-      print(f"Order to {r['side']} {r['qty']} share(s) of {r['symbol']} for ${r['filled_avg_price']} at {r['updated_at'].split('.')[0]} - {r['status']}")
+      print(f"Order to {r['side']} {r['qty']} share(s) of {r['symbol']} - {r['status']}")
       return r
     except Exception:
       return {f"{symb} error":r}

@@ -6,10 +6,11 @@
 #these we want to look for high variance, or else for ones that follow a predictable curve (for 
 
 import otherfxns as o
+import statistics as stat
 
 algo = 'ema' #name of the algo
 #stocks held by this algo according to the records
-stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
+# stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
 
 def getList():
@@ -24,23 +25,113 @@ def getList():
 8 different 'goodBuy' states:
 is >1 stdev below ema(L/M/S)
 
-LMS 
+LMS isGoodBuy
+000 0
+001 1
+010 1
+011 1
+100 1
+101 1
+110 1
+111 1
+
+S(M+L)
 '''
-
-
 #determine whether the queries symb is a good one to buy or not
 def goodBuy(symb):
-  #a good buy is considered if current value is >1 stddev below ema
+  #a good buy is considered if current value is >1 stddev below ema as outlined above
+  emaDaysS = int(o.c['ema']['emaDaysS'])
+  emaDaysM = int(o.c['ema']['emaDaysM'])
+  emaDaysL = int(o.c['ema']['emaDaysL'])
   
+  hist = o.getHistory(symb,str(o.dt.date.today()-o.dt.timedelta(int(emaDaysL*12/5))),str(o.dt.date.today())) #get the history just over the long ema days to look
+  if(len(hist)<emaDaysL): #TODO: the length should always be longer than this. See the prev line for how long it actually should be
+    print(f"Not enough data for {symb}")
+    return False
+  #get the ema and stdev for the short period
+  emaS = getEMA(symb,emaDaysS,hist,0,float(o.c['ema']['smoothing']))
+  stdDevS = stat.stdev([float(cl[1]) for cl in hist[0:emaDaysS]])
+
+  #get the ema and stdev for the medium period
+  emaM = getEMA(symb,emaDaysM,hist,0,float(o.c['ema']['smoothing']))
+  stdDevM = stat.stdev([float(cl[1]) for cl in hist[0:emaDaysM]])
   
+  #get the ema and stdev for the long period
+  emaL = getEMA(symb,emaDaysL,hist,0,float(o.c['ema']['smoothing']))
+  stdDevL = stat.stdev([float(cl[1]) for cl in hist[0:emaDaysL]])
   
+  # print(emaS,stdDevS)
+  # print(emaM,stdDevM)
+  # print(emaL,stdDevL)
+  curPrice = float(hist[0][1])
+  
+  isGoodBuy = (curPrice<=emaS-stdDevS) or ((curPrice<=emaM-stdDevM) or (curPrice<=emaL-stdDevL))
+  if(isGoodBuy):
+    print(symb)
   return isGoodBuy
 
-
+#calculating the ema is a recursive function
+def getEMA(symb,totalDays,hist,daysAgo,smoothing):
+  #ema(today) = (price*(smoothing/(1+days)))+ema(yesterday)*(1-(smoothing/(1+days)))
+  if(daysAgo<totalDays):
+    emaYest = getEMA(symb,totalDays,hist,daysAgo+1,smoothing)
+    #TODO: ensure that hist[x][3] is the closing price
+    return (float(hist[0][1])*(smoothing/(1+totalDays)))+emaYest*(1-(smoothing/(1+totalDays)))
+  else:
+    return sum([float(cl[1]) for cl in hist[daysAgo:daysAgo+totalDays]])/totalDays
 
 #get a list of stocks to be sifted through
 def getUnsortedList():
-  return []
+  symbList = []
+  url = 'https://www.marketwatch.com/tools/stockresearch/screener/results.asp'
+  params = {
+            "submit":"Screen",
+            "Symbol":"true",
+            "ResultsPerPage":"OneHundred",
+            "TradesShareEnable":"true",
+            "TradesShareMin":o.c['ema']['minPrice'],
+            "TradesShareMax":o.c['ema']['maxPrice'],
+            "TradeVolEnable":"true",
+            "TradeVolMin":o.c['ema']['minVol'],
+            "MovAvgEnable":"false", #TODO: experiment whether enabling this makes a big difference
+            "MovAvgType":"Underperform",
+            "MovAvgTime":"FiftyDay",
+            "Exchange":"NASDAQ"
+            }
+  params['PagingIndex'] = 0 #this will change to show us where in the list we should be - increment by 100 (see ResultsPerPage key)
+  
+  while True:
+    try:
+      r = o.requests.get(url, params=params, timeout=5).text
+      totalStocks = int(r.split("matches")[0].split("floatleft results")[1].split("of ")[1]) #get the total number of stocks in the list - important because they're spread over multiple pages
+      break
+    except Exception:
+      print("No connection or other error encountered in getList (MW). Trying again...")
+      time.sleep(3)
+      continue
+      
+      
+  print("Getting MarketWatch data...")
+  for i in range(0,totalStocks,100): #loop through the pages (100 because ResultsPerPage is OneHundred)
+    print(f"page {int(i/100)+1} of {o.ceil(totalStocks/100)}")
+    params['PagingIndex'] = i
+    while True:
+      try:
+        r = o.requests.get(url, params=params, timeout=5).text
+        break
+      except Exception:
+        print("No connection or other error encountered in getList (MW). Trying again...")
+        time.sleep(3)
+        continue
+
+    table = o.bs(r,'html.parser').find_all('table')[0]
+    for e in table.find_all('tr')[1::]:
+      symbList.append(e.find_all('td')[0].get_text())
+  
+  return symbList
+
+
+
 
 #TODO: this should also account for squeezing
 def sellUp(symb=""):

@@ -10,50 +10,54 @@ algo = 'ema'
 
 exec(f"import {algo}")
 
+posListFile = o.c['file locations']['posList']
+stocks2buy = []
 
-while True:
-  if(a.marketIsOpen()):
-    print("Market is open")
-    #update stock list if need be
-    try:
-      posList = json.loads(open(o.c['file locations']['posList'],'r').read())
-    except Exception: #if it fails, populate it with the most recent data
-      print("Error reading posList file. Populating...")
-      posList = {}
-      for p in a.getPos():
-        trades = a.getStockTrades(symb)
-        posList[p] = {
-                  'tradeDate':trades[0]['transaction_time'][:10] if len(trades)>0 else 'NA',
-                  'tradeType':trades[0]['side'] if len(trades)>0 else 'NA',
-                  'shouldSell':False
-                  }
+def main():
+  global posList,posListFile,stocks2buy
+  while True:
+    if(a.marketIsOpen()):
+      print("Market is open")
+      #update stock list if need be
+      try:
+        posList = json.loads(open(posListFile,'r').read())
+      except Exception: #if it fails, populate it with the most recent data
+        print("Error reading posList file. Populating...")
+        posList = {}
+        for p in a.getPos():
+          trades = a.getStockTrades(symb)
+          posList[p] = {
+                        'tradeDate':trades[0]['transaction_time'][:10] if len(trades)>0 else 'NA',
+                        'tradeType':trades[0]['side'] if len(trades)>0 else 'NA',
+                        'shouldSell':False
+                        }
     
-      open(posListFile,'w').write(json.dumps(posList))
+        open(posListFile,'w').write(json.dumps(posList))
       
-    if(len(stocks2buy)==0):
-      updateThread = threading.Thread(target=updateList(),args=o.revSplits)
-      updateThread.setName("update")
-      updateThread.start()
+      if(len(stocks2buy)==0):
+        updateThread = threading.Thread(target=updateList(),args=o.reverseSplitters())
+        updateThread.setName("update")
+        updateThread.start()
     
-    acct = a.getAcct()
-    print(f"Portfolio value: ${acct['portfolio_value']}, cash: ${acct['cash']}")
+      acct = a.getAcct()
+      print(f"Portfolio value: ${acct['portfolio_value']}, cash: ${acct['cash']}")
     
-    check2sell()
-    if(a.timeTillClose()<10*60):
-      check2buy()
-    time.sleep(60)
-  else:
-    print("Market closed.")
-    tto = a.timeTillOpen()
-    print(f"Market opens in {round(tto/3600,2)} hours")
-    #wait some time before the market opens      
-    if(tto>60*float(o.c['time params']['updateLists'])):
-      print(f"Updating stock lists in {round((tto-60*float(o.c['time params']['updateLists']))/3600,2)} hours")
-      time.sleep(tto-60*float(o.c['time params']['updateLists']))
-    #update stock lists
-    stocks2buy = eval(f"{algo}.getList()")
+      check2sell()
+      if(a.timeTillClose()<10*60):
+        check2buy()
+      time.sleep(60)
+    else:
+      print("Market closed.")
+      tto = a.timeTillOpen()
+      print(f"Market opens in {round(tto/3600,2)} hours")
+      #wait some time before the market opens      
+      if(tto>60*float(o.c['time params']['updateLists'])):
+        print(f"Updating stock lists in {round((tto-60*float(o.c['time params']['updateLists']))/3600,2)} hours")
+        time.sleep(tto-60*float(o.c['time params']['updateLists']))
+      #update stock lists
+      stocks2buy = eval(f"{algo}.getList()")
     
-    time.sleep(a.timeTillOpen())
+      time.sleep(a.timeTillOpen())
     
   
 
@@ -105,7 +109,10 @@ def updateList(rm=[]):
   global stocks2buy
   algoBuys = eval(f"{algo}.getList()")
   algoBuys = [e for e in algoBuys if e not in rm] #remove any stocks that are in the rm list
-  stocks2buy[algo] = algoBuys
+  stocks2buy = algoBuys
   print("Done updating list")
   
+
+if(__name__ == '__main__'):
+  main()
 

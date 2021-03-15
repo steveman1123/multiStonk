@@ -214,7 +214,7 @@ def sellDn(symb=""):
       lastJump = o.dt.date.today()-o.dt.timedelta(1)
 
     #sellDn change of 0 if <=5 weeks after initial jump, +.05 for every week after 6 weeks for a max of 1
-    sellDn = round(min(1,mainSellDn+.05*max(0,int((a.o.dt.date.today()-(lastJump+a.o.dt.timedelta(6*7))).days/7))),2)
+    sellDn = round(min(1,mainSellDn+.05*max(0,int((o.dt.date.today()-(lastJump+o.dt.timedelta(6*7))).days/7))),2)
 
   else:
     sellDn = mainSellDn #account for squeeze here

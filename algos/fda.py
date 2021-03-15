@@ -19,7 +19,8 @@ def getList():
       print("No connection, or other error encountered in getDrugList. trying again...")
       o.time.sleep(3)
       continue
-  print('getting unsorted list for dj')
+
+  print(f"finding stocks for {algo}")
   try:
     arr = r.split("Company:</b>") #go down to stock list
     arr = [e.split("<br>")[0].strip() for e in arr][1::] #get list of companies
