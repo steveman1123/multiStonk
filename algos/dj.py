@@ -5,17 +5,16 @@
 import otherfxns as o
 
 algo = 'dj' #name of the algo
-#stocks held by this algo
+#stocks held by this algo according to the records
 stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
-
+#get a list of potential gainers according to this algo
 def getList():
   print(f"getting unsorted list for {algo}")
   symbs = getUnsortedList()
   print(f"finding stocks for {algo}")
   goodBuys = [e for e in symbs if goodBuy(e)[0].isnumeric()] #the only time that the first char is a number is if it is a valid/good buy
   print(f"{len(goodBuys)} found for {algo}")
-  # print(goodBuys)
   return goodBuys
 
 
@@ -88,8 +87,6 @@ def goodBuy(symb,days2look = int(o.c[algo]['simDays2look'])): #days2look=how far
                     validBuy = dateData[startDate][0] #return the date the stock initially jumped
     
   return validBuy
-  
-
   
 
 #get list of stocks from stocksUnder1 and marketWatch lists
@@ -191,7 +188,7 @@ def getUnsortedList():
   return symbList
 
 
-#get the sellUp value for a given symbol
+#get the sellUp value for a given symbol (default to the main value)
 def sellUp(symb=""):
   mainSellUp = float(o.c[algo]['sellUp']) #account for squeeze here
   if(symb in stockList):
@@ -207,10 +204,7 @@ def sellUp(symb=""):
     sellUp = mainSellUp #account for squeeze here
   return sellUp
 
-
-
-
-#get the sellDn value for a given symbol
+#get the sellDn value for a given symbol (default to the main value)
 def sellDn(symb=""):
   mainSellDn = float(o.c[algo]['sellDn'])
   if(symb in stockList):
@@ -226,5 +220,8 @@ def sellDn(symb=""):
     sellDn = mainSellDn #account for squeeze here
   return sellDn
 
+#get the stop loss for a symbol (default to the main value)
 def sellUpDn(symb=""):
-  return float(o.c[algo]['sellUpDn'])
+  mainSellUpDn = float(o.c[algo]['sellUpDn'])
+  #if there's ever any future enhancement that we want to add here, we can
+  return mainSellUpDn

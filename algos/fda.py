@@ -1,13 +1,11 @@
 #this file contains functions specifically for the FDA drug approval algo
 #we can see which companies are slated for an FDA drug approval. They almost always gain
 
-#import sys
-#sys.path.append('../') #might not need this line?
-
 import otherfxns as o
-#TODO: change file location to be from config file
-#total stocks held by this algo
-stockList = o.json.loads(open('../stockStuff/posList.json','r').read())['fda']
+
+algo = 'fda' #name of the algo
+#stocks held by this algo according to the records
+stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
 #get list of stocks pending FDA approvals
 def getList():
@@ -33,14 +31,14 @@ def getList():
   
   print(f"{len(arr)} found for fda.")
   #refine to max price (note, as of this time, this has not been tested)
-  # arr = [e for e in arr if a.getPrice(e)<=float(o.c['fda']['maxPrice'])]
+  # arr = [e for e in arr if a.getPrice(e)<=float(o.c[algo]['maxPrice'])]
   #TODO: check for price changes iver the past few days/weeks
   
   return arr
 
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
-  mainSellUp = float(o.c['fda']['sellUp'])
+  mainSellUp = float(o.c[algo]['sellUp'])
   if(symb in stockList):
     sellUp = mainSellUp #TODO: account for squeeze here
   else:
@@ -49,7 +47,7 @@ def sellUp(symb=""):
 
 #TODO: this should also account for squeezing
 def sellDn(symb=""):
-  mainSellDn = float(o.c['fda']['sellDn'])
+  mainSellDn = float(o.c[algo]['sellDn'])
   if(symb in stockList):
     sellDn = mainSellDn #TODO: account for squeeze here
   else:
@@ -57,7 +55,7 @@ def sellDn(symb=""):
   return sellDn
 
 def sellUpDn():
-  return float(o.c['fda']['sellUpDn'])
+  return float(o.c[algo]['sellUpDn'])
 
 def maxPrice():
-  return float(o.c['fda']['maxPrice'])
+  return float(o.c[algo]['maxPrice'])

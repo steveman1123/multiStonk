@@ -1,18 +1,32 @@
-#this file contains functions specifically for the high volume breakout algo
-#what changes when a stock has a high volume breakout? Can we see when that will happen? (also check earnings report)
+#this file contains functions specifically for the reddit algo
+#how do stocks move after being discussed on reddit (in wallstreetbets, etc)?
 
 import otherfxns as o
 
-algo = 'hivol' #name of the algo
+algo = 'ipos' #name of the algo
 #stocks held by this algo according to the records
 stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
+
 
 def getList():
   #perform checks to see which one ones will gain
   
-  
   return goodBuys
   
+
+#get a list of stocks to be sifted through
+#type can be spo, status can be priced|upcoming|filled|withdrawn
+def getUnsortedList(status="all", type=""):
+  while True:
+    try:
+      r = o.requests("reddit API for various market subs",timeout=5)
+      break
+    except Exception:
+      print("Error getting unsorted list for reddit algo. Trying again...")
+      o.time.sleep(3)
+      pass
+  
+  return []
 
 
 #TODO: this should also account for squeezing
@@ -35,8 +49,3 @@ def sellDn(symb=""):
 
 def sellUpDn():
   return float(o.c[algo]['sellUpDn'])
-
-
-#get a list of stocks to be sifted through
-def getUnsortedList():
-  return []

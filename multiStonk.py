@@ -11,21 +11,35 @@ sys.path.append(o.c['file locations']['algosDir'])
 #other algo ideas: splits, divs, earnings, ema, forex, gap up, high volume breakout, ipo
 
 #TODO: mark to sell if rev splitting (in market close section) (as it's own function?)
+#TODO: add setting to each algo in config file to determine if it should sell before the end of the day or not (eg dj should, but fda shouldn't)
+#TODO: incorporate minDolPerStock into check2buy
 
-
-algoList = {'dj':[],'fda':[]} #list of algorithms to be used and their corresponding stock lists to be bought
+#list of algorithms to be used and their corresponding stock lists to be bought (init with none)
+algoList = {
+            # 'divs':[],
+            'dj':[],
+            # 'earnings':[],
+            # 'ema':[],
+            'fda':[],
+            # 'forex':[],
+            # 'gapup':[],
+            # 'hivol':[],
+            # 'ipos':[],
+            # 'reddit':[],
+            # 'splits':[],
+           } #add any algos wanting to be used to this list
 
 posList = o.setPosList(algoList) #initiate/populate the list of positions by algo
-
-#the algos must be added after the pos list is updated (for now)
-#TODO: have each algo call setPosList, that way this can be put before o.setPosList() here
-#      then define algoList as the list of files in ./algos and those that are imported here so only this line has to change in order to incorporate new algos
-import dj, fda #, divs #ADD NEW ALGO FUNCTIONS HERE
+# print(posList)
+#import all algos that are in algoList (they require an up-to-date posList, so must be imported after it's updated)
+for algo in algoList:
+  exec(f"import {algo}")
 
 
 
 listsUpdatedToday = False
 
+#TODO: add comments
 def main():
   global algoList, posList, listsUpdatedToday
   portHist = a.getProfileHistory(str(dt.date.today()),'1M')['equity']
@@ -33,6 +47,7 @@ def main():
   maxPortVal=max(portHist) #get the max portfolio value over the last month
   acct = a.getAcct()
   
+  #make sure we're still above the threshold to trade
   while float(acct['portfolio_value'])>=maxPortVal*float(o.c['account params']['portStopLoss']): 
     
     acct = a.getAcct() #get account info
@@ -68,7 +83,7 @@ def main():
       maxPortVal=max(portHist)
       print(f"${maxPortVal}")
 
-      #TODO: sync up posList and if there are any positions that are held that aren't accounted for in an algo (or vise versa, an algo thinks there are shares when there aren't)
+      #sync up posList
       print("Syncing reality and recordings...")
       syncPosList()
 
@@ -78,6 +93,7 @@ def main():
         for f in glob(o.c['file locations']['stockDataDir']+"*.csv"):
           o.os.unlink(f)
         
+        #TODO: double check if this is even needed, since it should be covered in syncPosList()?
         #remove all stocks in the stock list that aren't currently held
         pos = [e['symbol'] for e in a.getPos()] #isolate just the symbols
         for algo in algoList: #look at every algo
@@ -158,7 +174,7 @@ def check2buy(algo, cashAvailable, stocks2buy):
 
   for stock in stocks2buy:
     if(stock not in posList[algo]):
-      posList[algo][stock] = {
+      posList[algo][stock] = { #TODO: this needs to account for the buy-price for each algo rather than using the overall avg buy price
           "sharesheld":0,
           "lastTradeDate":str(dt.date.today()),
           "lastTradeType":"NA",
@@ -214,8 +230,6 @@ def buy(shares, stock, algo):
     return True
   else:
     return False
-
-
 
 
 #sync what we have recorded and what's actually going on in the account

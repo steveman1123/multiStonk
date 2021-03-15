@@ -2,11 +2,11 @@
 #what changes when a stock has a dividend?
 #https://www.investopedia.com/articles/stocks/11/dividend-capture-strategy.asp
 
-import sys
-sys.path.append('../') #might not need this line?
-
 import otherfxns as o
 
+algo = 'divs' #name of the algo
+#stocks held by this algo according to the records
+stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
 def getList():
   #perform checks to see which one ones will gain
@@ -15,15 +15,26 @@ def getList():
   return goodBuys
   
 
+#TODO: this should also account for squeezing
+def sellUp(symb=""):
+  mainSellUp = float(o.c[algo]['sellUp'])
+  if(symb in stockList):
+    sellUp = mainSellUp #TODO: account for squeeze here
+  else:
+    sellUp = mainSellUp
+  return sellUp
 
-def sellUp():
-  return float(cfg['divs']['sell params']['sellUp'])
-
-def sellDn():
-  return float(cfg['divs']['sell params']['sellDn'])
+#TODO: this should also account for squeezing
+def sellDn(symb=""):
+  mainSellDn = float(o.c[algo]['sellDn'])
+  if(symb in stockList):
+    sellDn = mainSellDn #TODO: account for squeeze here
+  else:
+    sellDn = mainSellDn
+  return sellDn
 
 def sellUpDn():
-  return float(cfg['divs']['sell params']['sellUpDn'])
+  return float(o.c[algo]['sellUpDn'])
 
 
 #get a list of stocks to be sifted through

@@ -1,10 +1,11 @@
 #this file contains functions specifically for the exponential moving average algo
 #how do stocks move before and after an ipo (and/or spo?)?
 
-import sys
-sys.path.append('../') #might not need this line?
-
 import otherfxns as o
+
+algo = 'ipos' #name of the algo
+#stocks held by this algo according to the records
+stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
 
 def getList():
@@ -28,3 +29,25 @@ def getUnsortedList(status="all", type=""):
       pass
   
   return r['data'] if(status=="all") else r['data'][status]
+
+
+#TODO: this should also account for squeezing
+def sellUp(symb=""):
+  mainSellUp = float(o.c[algo]['sellUp'])
+  if(symb in stockList):
+    sellUp = mainSellUp #TODO: account for squeeze here
+  else:
+    sellUp = mainSellUp
+  return sellUp
+
+#TODO: this should also account for squeezing
+def sellDn(symb=""):
+  mainSellDn = float(o.c[algo]['sellDn'])
+  if(symb in stockList):
+    sellDn = mainSellDn #TODO: account for squeeze here
+  else:
+    sellDn = mainSellDn
+  return sellDn
+
+def sellUpDn():
+  return float(o.c[algo]['sellUpDn'])
