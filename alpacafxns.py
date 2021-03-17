@@ -104,10 +104,10 @@ def sellAll(isManual=1):
 #look to buy/sell a position
 #TODO: return something else other than the string (or include other info to return beyond it)
 # https://alpaca.markets/docs/api-documentation/api-v2/orders/
-def createOrder(side, qty, sym, orderType="market", time_in_force="day", limPrice=0):
-  if(o.isTradable(sym)):
+def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPrice=0):
+  if(o.isTradable(symb)):
     order = {
-      "symbol":sym,
+      "symbol":symb,
       "qty":qty,
       "type":orderType,
       "side":side,

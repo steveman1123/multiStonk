@@ -1,6 +1,7 @@
 #this file contains functions specifically for the gap up algo
 #what is a gap up, and how can we see it coming?
 #https://www.investopedia.com/articles/trading/05/playinggaps.asp
+#https://bullsonwallstreet.com/how-to-know-if-a-stock-gap-up-will-fade-or-explode/
 
 import otherfxns as o
 

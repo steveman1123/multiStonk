@@ -13,6 +13,7 @@ def getList():
   while True: #get page of pending stocks
     try:
       r = o.requests.get("https://www.drugs.com/new-drug-applications.html", timeout=5).text
+      #r1 = o.requests.get("https://biopharmacatalyst.c8m/calendars/fda-calendar",timeout=5).text
       #TODO: use in conjunction with this list too: https://www.biopharmcatalyst.com/calendars/fda-calendar
       break
     except Exception:
@@ -27,9 +28,19 @@ def getList():
     arr = [o.getSymb(e) for e in arr] #get the symbols and exchanges of the companies
     arr = [e[0] for e in arr if e[1]=="NAS"] #get the nasdaq only ones
   except Exception:
-    print("Bad data")
+    print("Bad data from drugs.com")
     arr = []
-  
+
+  '''
+  try:
+    arr1 = #get stock list
+    #get symbols from list
+    #get only the nasdaq listed ones
+    print(arr1)
+  except Exception:
+    print("Bad data from biopharmacatalyst.com")
+    arr1 = []
+  '''
   print(f"{len(arr)} found for fda.")
   #refine to max price (note, as of this time, this has not been tested)
   # arr = [e for e in arr if a.getPrice(e)<=float(o.c[algo]['maxPrice'])]
