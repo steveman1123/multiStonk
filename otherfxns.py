@@ -31,9 +31,9 @@ def isTradable(symb):
 
 #returns as 2d array order of Date, Close/Last, Volume, Open, High, Low sorted by dates newest to oldest (does not include today's info)
 #get the history of a stock from the nasdaq api (date format is yyyy-mm-dd)
-def getHistory(symb, startDate, endDate, maxTries=3):
+#default to returning the last year's worth of data
+def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today().month,dt.date.today().day)), endDate=str(dt.date.today()), maxTries=3):
   #try checking the modified date of the file, if it throws an error, just set it to yesterday
-
   try:
     modDate = dt.datetime.strptime(time.strftime("%Y-%m-%d",time.localtime(os.stat(stockDir+symb+'.csv').st_mtime)),"%Y-%m-%d").date() #if ANYONE knows of a better way to get the modified date into a date format, for the love of god please let me know
   except Exception:
@@ -65,6 +65,45 @@ def getHistory(symb, startDate, endDate, maxTries=3):
       else:
         out.write(r)
   
+  else:
+    # print("file exists. Checking for proper data")
+    with open(stockDir+symb+".csv") as csv_file:
+      csv_reader = csv.reader(csv_file, delimiter=',')
+      lines = [[ee.replace('$','').replace('N/A','0').strip() for ee in e] for e in csv_reader][1::] #trim first line to get rid of headers, also replace $'s and N/A volumes to calculable values
+    
+    rows = [e for e in lines if(dt.datetime.strptime(e[0],"%m/%d/%Y")<=dt.datetime.strptime(endDate,"%Y-%m-%d") and dt.datetime.strptime(e[0],"%m/%d/%Y")>=dt.datetime.strptime(startDate,"%Y-%m-%d"))]
+    if(len(rows)>0 and dt.datetime.strptime(rows[0][0],"%m/%d/%Y")==dt.datetime.strptime(endDate,"%Y-%m-%d") and dt.datetime.strptime(rows[-1][0],"%m/%d/%Y")==dt.datetime.strptime(startDate,"%Y-%m-%d")):
+      # print("file contains data")
+      return rows
+    else:
+      # print("file does not contain data. Repulling")
+      #rm file and repull the data like the first part
+      os.unlink(stockDir+symb+".csv")
+      
+      tries=0 #set this to maxTries in the event that the old one dies (again)
+      while tries<maxTries: #only try getting history with this method a few times before trying the next method
+        tries += 1
+        try:
+          url = f'https://www.nasdaq.com/api/v1/historical/{symb}/stocks/{startDate}/{endDate}' #old api url (depreciated?)
+          r = requests.get(url, headers={"user-agent":"-"}, timeout=5).text #send request and store response - cannot have empty user-agent
+          if(len(r)<10):
+            startDate = str(dt.datetime.strptime(startDate,"%Y-%m-%d").date()-dt.timedelta(1)) #try scooting back a day if at first we don't succeed (sometimes it returns nothing for some reason?)
+          if('html' in r or len(r)<10): #sometimes response returns invalid data. This ensures that it's correct (not html error or blank data)
+            raise Exception('Returned invalid data') #sometimes the page will return html data that cannot be successfully parsed
+          break
+        except Exception:
+          print(f"No connection, or other error encountered in getHistory for {symb}. Trying again...")
+          time.sleep(3)
+          continue
+      
+      with open(stockDir+symb+'.csv','w',newline='') as out: #write to file for later usage - old api used csv format
+        if(tries>=maxTries):
+          r = getHistory2(symb, startDate, endDate) #getHistory2 uses more requests and is more complex, so use it as a backup rather than a primary
+          r = [['Date','Close/Last','Volume','Open','High','Low']]+r
+          csv.writer(out,delimiter=',').writerows(r)
+        else:
+          out.write(r)
+    
   #read csv and convert to array
   #TODO: see if we can not have to save it to a file if possible due to high read/writes - can also eliminate csv library
   #     ^ or at least research where it should be saved to avoid writing to sdcard
@@ -79,12 +118,12 @@ def getHistory(symb, startDate, endDate, maxTries=3):
 #TODO: shouldn't be an issue for this case, but here's some logic:
 #   if(todate-fromdate<22 and todate>1 month ago): 0-1 days will be returned
 def getHistory2(symb, startDate, endDate, maxTries=3):
-  maxDays = 14 #max rows returned per request
+  maxDays = 5000 #max rows returned per request (~250 per year - so 5000=20 years max)
   tries=1
   j = {}
   while tries<=maxTries: #get the first set of dates
     try:
-      j = json.loads(requests.get(f'https://api.nasdaq.com/api/quote/{symb}/historical?assetclass=stocks&fromdate={startDate}&todate={endDate}',headers={'user-agent':'-'}).text)
+      j = json.loads(requests.get(f'https://api.nasdaq.com/api/quote/{symb}/historical?assetclass=stocks&fromdate={startDate}&todate={endDate}&limit={maxDays}',headers={'user-agent':'-'}).text)
       break
     except Exception:
       print(f"Error in getHistory2 for {symb}. Trying again ({tries}/{maxTries})...")
@@ -100,7 +139,7 @@ def getHistory2(symb, startDate, endDate, maxTries=3):
         tries=1
         while tries<=maxTries:
           try:
-            r = json.loads(requests.get(f'https://api.nasdaq.com/api/quote/{symb}/historical?assetclass=stocks&fromdate={startDate}&todate={endDate}&offset={i*(maxDays+1)}',headers={'user-agent':'-'}).text)
+            r = json.loads(requests.get(f'https://api.nasdaq.com/api/quote/{symb}/historical?assetclass=stocks&fromdate={startDate}&todate={endDate}&offset={i*(maxDays)}',headers={'user-agent':'-'}).text)
             j['data']['tradesTable']['rows'] += r['data']['tradesTable']['rows'] #append the sets together
             break
           except Exception:
@@ -217,15 +256,18 @@ def setPosList(algoList):
     posList = open(c['file locations']['posList'],'r').read()
   else: #if it does exist
     try: #try reading any json data from it
-      #TODO: also check len() to make sure that all algos are present in the list? Might not have to, but will need to be tested
       with open(c['file locations']['posList'],'r') as f:
         posList = json.loads(f.read())
-        if(len(posList)<len(algoList)):
-          print("Adding missing algos to posList file")
-          #TODO: the following loop could probably be replaced with a single line, something like: posList = {posList[e] for e in algoList if e in posList else algoList[e]}
-          for algo in algoList:
-            if(algo not in posList):
-              posList[algo] = {}
+      
+      missingAlgos = [algo for algo in algoList if algo not in posList]
+      print("" if len(missingAlgos)==0 else f"Adding {len(missingAlgos)} algo{'s' if len(missingAlgos)>1 else ''} to posList")
+      for algo in missingAlgos:
+        posList[algo] = {}
+        
+      #write the missing algos to the file
+      with open(c['file locations']['posList'],'w') as f:
+        f.write(json.dumps(posList))
+        
     except Exception: #if it fails, then just write the empty algoList to the file
       #TODO: this is dangerous! This could potentially overwrite all saved position data if there's any error above. Make this more robust
       print("something went wrong. Overwriting file")
@@ -235,3 +277,49 @@ def setPosList(algoList):
 
   return posList
 
+
+def getPrice(symb, withCap=False):
+  url = f'https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
+  while True:
+    try:
+      response = requests.get(url,headers={"User-Agent": "-"}, timeout=5).text #nasdaq url requires a non-empty user-agent string
+      break
+    except Exception:
+      print("No connection, or other error encountered in getPrice. Trying again...")
+      time.sleep(3)
+      continue
+  try:
+    latestPrice = float(json.loads(response)["data"]["primaryData"]["lastSalePrice"][1:])
+    if(withCap):
+      try:
+        #sometimes there isn't a listed market cap, so we look for one, and if it's not there, then we estimate one
+        mktCap = float(json.loads(response)['data']['keyStats']['MarketCap']['value'].replace(',',''))
+      except Exception:
+        print(f"Invalid market cap found for {symb}. Calculating an estimate")
+        vol = float(json.loads(response)['data']['keyStats']['Volume']['value'].replace(',',''))
+        mktCap = vol*latestPrice #this isn't the actual cap, but it's better than nothing
+      return [latestPrice,mktCap]
+    else:
+      return latestPrice
+  except Exception:
+    print("Invalid Stock - "+symb)
+    return [0,0] if(withCap) else 0
+  
+#get minute to minute prices for the current day
+def getDayMins(symb, maxTries=3):
+  tries=0
+  while tries<maxTries:
+    try:
+      r = json.loads(requests.get(f"https://api.nasdaq.com/api/quote/{symb}/chart?assetclass=stocks",headers={'user-agent':'-'}).text)
+      break
+    except Exception:
+      print(f"No connection or other error encountered in getDayMins. Trying again ({tries}/{maxTries})...")
+      time.sleep(3)
+      continue
+  
+  if(tries==maxTries):
+    print("Failed to get minute data")
+    return []
+  else:
+    out = {e['z']['dateTime']:float(e['z']['value']) for e in r['data']['chart']}
+    return out

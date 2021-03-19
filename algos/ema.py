@@ -3,10 +3,9 @@
 #https://www.alphaexcapital.com/ema-trading-strategy/
 #https://www.investopedia.com/terms/e/ema.asp
 #also, an ema can work across multiple exchange types, not just for stocks
-#these we want to look for high variance, or else for ones that follow a predictable curve (for 
+#this specific one will look at stocks over a period of days
 
 import otherfxns as o
-import statistics as stat
 
 algo = 'ema' #name of the algo
 #stocks held by this algo according to the records
@@ -21,85 +20,70 @@ def getList():
   print(f"{len(goodBuys)} found for {algo}")
   return goodBuys
  
-'''
-8 different 'goodBuy' states:
-is >1 stdev below ema(L/M/S)
 
-LMS isGoodBuy
-000 0
-001 1
-010 1
-011 1
-100 1
-101 1
-110 1
-111 1
-
-S(M+L)
-'''
 #determine whether the queries symb is a good one to buy or not
 def goodBuy(symb):
   #a good buy is considered if current value is >1 stddev below ema as outlined above
-  emaDaysS = int(o.c['ema']['emaDaysS'])
-  emaDaysM = int(o.c['ema']['emaDaysM'])
-  emaDaysL = int(o.c['ema']['emaDaysL'])
+  emaSper = int(o.c[algo]['emaSper'])
+  emaLper = int(o.c[algo]['emaLper'])
   
-  hist = o.getHistory(symb,str(o.dt.date.today()-o.dt.timedelta(int(emaDaysL*12/5))),str(o.dt.date.today())) #get the history just over the long ema days to look
-  if(len(hist)<emaDaysL): #TODO: the length should always be longer than this. See the prev line for how long it actually should be
-    print(f"Not enough data for {symb}")
-    return False
-  #get the ema and stdev for the short period
-  emaS = getEMA(symb,emaDaysS,hist,0,float(o.c['ema']['smoothing']))
-  stdDevS = stat.stdev([float(cl[1]) for cl in hist[0:emaDaysS]])
+  #TODO: do we want to look at minute-to-minute data rather than day-to-day? Or somewhere in between? Might be good to look at like 2 hour intervals
+  hist = o.getHistory(symb) #get the history
+  closeList = [e[1] for e in hist] #(isolate just the closes of hist rather than passing the whole thing)
+  '''
+  TODO: should look at a few things:
+to buy:
+look for when the Sema first > Lema
+then look for first time where price is < Sema and >Lema after being above Sema, then look for second time of the same being above, then within
+then buy whenever the min <=Sema
 
-  #get the ema and stdev for the medium period
-  emaM = getEMA(symb,emaDaysM,hist,0,float(o.c['ema']['smoothing']))
-  stdDevM = stat.stdev([float(cl[1]) for cl in hist[0:emaDaysM]])
+to sell:
+look for when Lema>Sema, then look for the first time that the price >Sema and <Lema after being <Sema
   
-  #get the ema and stdev for the long period
-  emaL = getEMA(symb,emaDaysL,hist,0,float(o.c['ema']['smoothing']))
-  stdDevL = stat.stdev([float(cl[1]) for cl in hist[0:emaDaysL]])
+  needs to generate a list/running ema rather than just a single value
+  then, starting from today, loop back till we see an inversion (or up to a predetermined timeframe. If we don't see one, return false)
+  if we do see one, then start looking forward. If we see the price leave, then if we see the price be <Sema & >Lema, then if we see the price leave again, then if we see the price come back again like before, then go back above, then it's a good buy
   
-  # print(emaS,stdDevS)
-  # print(emaM,stdDevM)
-  # print(emaL,stdDevL)
-  curPrice = float(hist[0][1])
+  https://tradingstrategyguides.com/exponential-moving-average-strategy/
+  '''
+  emaS = getEMA(symb,emaSper,closeList,0,float(o.c[algo]['smoothing']))  #get the ema for the short period 
+  emaL = getEMA(symb,emaLper,closeList,0,float(o.c[algo]['smoothing']))  #get the ema for the long period
   
-  isGoodBuy = (curPrice<=emaS-stdDevS) or ((curPrice<=emaM-stdDevM) or (curPrice<=emaL-stdDevL))
-  if(isGoodBuy):
-    print(symb)
-  return isGoodBuy
+  curPrice = o.getPrice(symb)
+  
+  
+  
+  
+  return (curPrice>emaL>emaS) #should be a good buy if 
 
 #calculating the ema is a recursive function
-def getEMA(symb,totalDays,hist,daysAgo,smoothing):
+def getEMA(symb,totalDays,closeList,daysAgo,smoothing):
   #ema(today) = (price*(smoothing/(1+days)))+ema(yesterday)*(1-(smoothing/(1+days)))
-  if(daysAgo<totalDays):
-    emaYest = getEMA(symb,totalDays,hist,daysAgo+1,smoothing)
-    #TODO: ensure that hist[x][3] is the closing price
-    return (float(hist[0][1])*(smoothing/(1+totalDays)))+emaYest*(1-(smoothing/(1+totalDays)))
+  if(daysAgo<=totalDays):
+    emaYest = getEMA(symb,totalDays,closeList,daysAgo+1,smoothing)
+    return (float(closeList[daysAgo])*(smoothing/(1+totalDays)))+emaYest*(1-(smoothing/(1+totalDays)))
   else:
-    return sum([float(cl[1]) for cl in hist[daysAgo:daysAgo+totalDays]])/totalDays
+    return float(closeList[daysAgo])
 
 #get a list of stocks to be sifted through
 def getUnsortedList():
   symbList = []
+
+  print("Getting MarketWatch data...")
   url = 'https://www.marketwatch.com/tools/stockresearch/screener/results.asp'
   params = {
             "submit":"Screen",
             "Symbol":"true",
             "ResultsPerPage":"OneHundred",
             "TradesShareEnable":"true",
-            "TradesShareMin":o.c['ema']['minPrice'],
-            "TradesShareMax":o.c['ema']['maxPrice'],
+            "TradesShareMin":o.c[algo]['minPrice'],
+            "TradesShareMax":o.c[algo]['maxPrice'],
             "TradeVolEnable":"true",
-            "TradeVolMin":o.c['ema']['minVol'],
-            "MovAvgEnable":"false", #TODO: experiment whether enabling this makes a big difference
-            "MovAvgType":"Underperform",
-            "MovAvgTime":"FiftyDay",
+            "TradeVolMin":o.c[algo]['minVol'],
             "Exchange":"NASDAQ"
             }
   params['PagingIndex'] = 0 #this will change to show us where in the list we should be - increment by 100 (see ResultsPerPage key)
-  
+
   while True:
     try:
       r = o.requests.get(url, params=params, timeout=5).text
@@ -110,8 +94,6 @@ def getUnsortedList():
       time.sleep(3)
       continue
       
-      
-  print("Getting MarketWatch data...")
   for i in range(0,totalStocks,100): #loop through the pages (100 because ResultsPerPage is OneHundred)
     print(f"page {int(i/100)+1} of {o.ceil(totalStocks/100)}")
     params['PagingIndex'] = i

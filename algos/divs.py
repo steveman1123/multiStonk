@@ -5,12 +5,16 @@
 import otherfxns as o
 
 algo = 'divs' #name of the algo
+
+
 #stocks held by this algo according to the records
 stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
 def getList():
   #perform checks to see which one ones will gain
   #check history of the stocks. Look for pattern that denotes a gain after the initial div date (could possibly look like a buy low. Stock gains to div, div processes, dips, then gains again. Sell at that gain)
+  
+  #if today < ex div date, then buy
   
   return goodBuys
   

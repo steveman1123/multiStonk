@@ -1,12 +1,24 @@
 #use this file to test a single algo out of the algos folder
 #meant for a single alpaca acct
+#this program must be run from the ./multistonk/singletest dir
 
+'''
+this and multistonk should interact with the algos identically.
+The only differences should be posListFile location, apikeys file, 
+
+'''
+
+import datetime as dt
+import threading,json,time,sys
+sys.path.append("../") #allow the fxns files to be imported
+
+#use the same fxns files as multistonk
 import alpacafxns as a
 import otherfxns as o
-import threading,json,time,sys
-import datetime as dt
+sys.path.append(o.c['file locations']['algosDir']) #allow the algos to be imported
 
-algo = 'ema'
+algo = 'divs' #change this to change which algo gets tested (must match the name of the algo file exactly)
+o.setPosList([algo]) #setup the posList file in case it got messed up
 
 exec(f"import {algo}")
 
@@ -27,7 +39,7 @@ def main():
         for p in a.getPos():
           trades = a.getStockTrades(symb)
           posList[p] = {
-                        'tradeDate':trades[0]['transaction_time'][:10] if len(trades)>0 else 'NA',
+                        'tradeDate':trades[0]['transaction_time'][:10] if len(trades)>0 else 'NA', #date string is in the first 10 chars
                         'tradeType':trades[0]['side'] if len(trades)>0 else 'NA',
                         'shouldSell':False
                         }
@@ -114,5 +126,6 @@ def updateList(rm=[]):
   
 
 if(__name__ == '__main__'):
+  print(f"Testing algo '{algo}'")
   main()
 

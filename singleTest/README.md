@@ -1,9 +1,8 @@
 # singleTest
 
-This folder should be basically independent from the rest of the bot. 
+This should use the same files as multistonk except for the stonkbot.config file which is used to change parameters regarding the algo under test, and the file locations
 
-It's used to test a single algo's viability by itself before being incorporated into the main multistonk program.
+This script should be run directly from ./multistonk/singleTest/
 
-The algo file should be copy/pastable between this setup and the main program. That is, all ways that the main program interacts with it, this one should as well
-
+Locations of files/folders should be relative to this folder
 

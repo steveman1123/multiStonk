@@ -238,32 +238,7 @@ def getPrice(symb,withCap=False,isAlpaca=False):
       print(f"Invalid Stock - {symb}")
       return [0,0] if(withCap) else 0
   else: #using the nasdaq api
-    url = f'https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
-    while True:
-      try:
-        response = o.requests.get(url,headers={"User-Agent": "-"}, timeout=5).text #nasdaq url requires a non-empty user-agent string
-        break
-      except Exception:
-        print("No connection, or other error encountered in getPrice. Trying again...")
-        o.time.sleep(3)
-        continue
-  
-    try:
-      latestPrice = float(o.json.loads(response)["data"]["primaryData"]["lastSalePrice"][1:])
-      if(withCap):
-        try:
-          #sometimes there isn't a listed market cap, so we look for one, and if it's not there, then we estimate one
-          mktCap = float(o.json.loads(response)['data']['keyStats']['MarketCap']['value'].replace(',',''))
-        except Exception:
-          print(f"Invalid market cap found for {symb}. Calculating an estimate")
-          vol = float(o.json.loads(response)['data']['keyStats']['Volume']['value'].replace(',',''))
-          mktCap = vol*latestPrice #this isn't the actual cap, but it's better than nothing
-        return [latestPrice,mktCap]
-      else:
-        return latestPrice
-    except Exception:
-      print("Invalid Stock - "+symb)
-      return [0,0] if(withCap) else 0
+    return o.getPrice(symb, withCap)
 
 #make sure that we can trade it on alpaca too
 def isAlpacaTradable(symb):
@@ -398,3 +373,22 @@ def getProfileHistory(startDate=str(o.dt.date.today()), period='1A'):
       o.time.sleep(3)
       continue
   return o.json.loads(html)
+
+
+#get all transactions for a given stock from a given start date to today
+def getXtns(startDate=str(o.dt.date.today()),actType="TRANS"):
+  r = []
+  while True:
+    try:
+      d = o.json.loads(o.requests.get(f"{ACCTURL}/activities/{actType}", headers=HEADERS, params={"after":startDate}, timeout=5).text)
+      while(len(d)==100 or len(r)==100):
+        r = o.json.loads(o.requests.get(f"{ACCTURL}/activities/{actType}", headers=HEADERS, params={"after":startDate,"page_token":d[-1]['id']}, timeout=5).content)
+        d += r
+      break
+    except Exception:
+      print("No connection, or other error encountered in getStockTrades. Trying again...")
+      o.time.sleep(3)
+      continue
+  
+  out=d #pare down to some specified ones if desired  
+  return out

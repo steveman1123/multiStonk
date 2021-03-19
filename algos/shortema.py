@@ -3,12 +3,11 @@
 #https://www.alphaexcapital.com/ema-trading-strategy/
 #https://www.investopedia.com/terms/e/ema.asp
 #also, an ema can work across multiple exchange types, not just for stocks
-#these we want to look for high variance, or else for ones that follow a predictable curve (for 
+#this specific one will look at stocks over a period of minutes/hours
 
 import otherfxns as o
-import statistics as stat
 
-algo = 'ema' #name of the algo
+algo = 'shortema' #name of the algo
 #stocks held by this algo according to the records
 # stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
@@ -40,66 +39,55 @@ S(M+L)
 #determine whether the queries symb is a good one to buy or not
 def goodBuy(symb):
   #a good buy is considered if current value is >1 stddev below ema as outlined above
-  emaDaysS = int(o.c['ema']['emaDaysS'])
-  emaDaysM = int(o.c['ema']['emaDaysM'])
-  emaDaysL = int(o.c['ema']['emaDaysL'])
+  emaSper = int(o.c[algo]['emaSper'])
+  emaLper = int(o.c[algo]['emaLper'])
   
-  hist = o.getHistory(symb,str(o.dt.date.today()-o.dt.timedelta(int(emaDaysL*12/5))),str(o.dt.date.today())) #get the history just over the long ema days to look
-  if(len(hist)<emaDaysL): #TODO: the length should always be longer than this. See the prev line for how long it actually should be
+  #TODO: do we want to look at minute-to-minute data rather than day-to-day? Or somewhere in between? Might be good to look at like 2 hour intervals
+  hist = o.getShortHistory(symb) #get the history just over the long ema days to look
+  if(len(hist)<emaLper): #TODO: the length should always be longer than this. See the prev line for how long it actually should be
     print(f"Not enough data for {symb}")
     return False
-  #get the ema and stdev for the short period
-  emaS = getEMA(symb,emaDaysS,hist,0,float(o.c['ema']['smoothing']))
-  stdDevS = stat.stdev([float(cl[1]) for cl in hist[0:emaDaysS]])
 
-  #get the ema and stdev for the medium period
-  emaM = getEMA(symb,emaDaysM,hist,0,float(o.c['ema']['smoothing']))
-  stdDevM = stat.stdev([float(cl[1]) for cl in hist[0:emaDaysM]])
+  closeList = [e[1] for e in hist] #(isolate just the closes of hist rather than passing the whole thing)
+
+  emaS = getEMA(symb,emaSper,closeList,0,float(o.c[algo]['smoothing']))  #get the ema for the short period 
+  emaL = getEMA(symb,emaLper,closeList,0,float(o.c[algo]['smoothing']))  #get the ema for the long period
+
+  curPrice = o.getPrice(symb)
   
-  #get the ema and stdev for the long period
-  emaL = getEMA(symb,emaDaysL,hist,0,float(o.c['ema']['smoothing']))
-  stdDevL = stat.stdev([float(cl[1]) for cl in hist[0:emaDaysL]])
+  if()
   
-  # print(emaS,stdDevS)
-  # print(emaM,stdDevM)
-  # print(emaL,stdDevL)
-  curPrice = float(hist[0][1])
   
-  isGoodBuy = (curPrice<=emaS-stdDevS) or ((curPrice<=emaM-stdDevM) or (curPrice<=emaL-stdDevL))
-  if(isGoodBuy):
-    print(symb)
-  return isGoodBuy
+  return (curPrice>emaL>emaS) #should be a good buy if 
 
 #calculating the ema is a recursive function
-def getEMA(symb,totalDays,hist,daysAgo,smoothing):
+def getEMA(symb,totalDays,closeList,daysAgo,smoothing):
   #ema(today) = (price*(smoothing/(1+days)))+ema(yesterday)*(1-(smoothing/(1+days)))
-  if(daysAgo<totalDays):
-    emaYest = getEMA(symb,totalDays,hist,daysAgo+1,smoothing)
-    #TODO: ensure that hist[x][3] is the closing price
-    return (float(hist[0][1])*(smoothing/(1+totalDays)))+emaYest*(1-(smoothing/(1+totalDays)))
+  if(daysAgo<=totalDays):
+    emaYest = getEMA(symb,totalDays,closeList,daysAgo+1,smoothing)
+    return (float(closeList[daysAgo])*(smoothing/(1+totalDays)))+emaYest*(1-(smoothing/(1+totalDays)))
   else:
-    return sum([float(cl[1]) for cl in hist[daysAgo:daysAgo+totalDays]])/totalDays
+    return float(closeList[daysAgo])
 
 #get a list of stocks to be sifted through
 def getUnsortedList():
   symbList = []
+
+  print("Getting MarketWatch data...")
   url = 'https://www.marketwatch.com/tools/stockresearch/screener/results.asp'
   params = {
             "submit":"Screen",
             "Symbol":"true",
             "ResultsPerPage":"OneHundred",
             "TradesShareEnable":"true",
-            "TradesShareMin":o.c['ema']['minPrice'],
-            "TradesShareMax":o.c['ema']['maxPrice'],
+            "TradesShareMin":o.c[algo]['minPrice'],
+            "TradesShareMax":o.c[algo]['maxPrice'],
             "TradeVolEnable":"true",
-            "TradeVolMin":o.c['ema']['minVol'],
-            "MovAvgEnable":"false", #TODO: experiment whether enabling this makes a big difference
-            "MovAvgType":"Underperform",
-            "MovAvgTime":"FiftyDay",
+            "TradeVolMin":o.c[algo]['minVol'],
             "Exchange":"NASDAQ"
             }
   params['PagingIndex'] = 0 #this will change to show us where in the list we should be - increment by 100 (see ResultsPerPage key)
-  
+
   while True:
     try:
       r = o.requests.get(url, params=params, timeout=5).text
@@ -110,8 +98,6 @@ def getUnsortedList():
       time.sleep(3)
       continue
       
-      
-  print("Getting MarketWatch data...")
   for i in range(0,totalStocks,100): #loop through the pages (100 because ResultsPerPage is OneHundred)
     print(f"page {int(i/100)+1} of {o.ceil(totalStocks/100)}")
     params['PagingIndex'] = i

@@ -12,7 +12,7 @@ sys.path.append(o.c['file locations']['algosDir'])
 
 #TODO: mark to sell if rev splitting (in market close section) (as it's own function?) - currently only checks incoming stocks, not held ones
 #TODO: add setting to each algo in config file to determine if it should sell before the end of the day or not (eg dj should, but fda shouldn't)
-#TODO: incorporate minDolPerStock into check2buy
+#TODO: incorporate minDolPerStock into check2buy (and make sure that appropriate cash is being used up entirely be each algo)
 #TODO: add note element to posList stocks for info specific to that algo (eg. initial jump date, date added to algo, ema crossover, etc)
 
 #list of algorithms to be used and their corresponding stock lists to be bought (init with none)
@@ -22,7 +22,6 @@ algoList = {
             # 'earnings':[],
             # 'ema':[],
             'fda':[],
-            # 'forex':[],
             # 'gapup':[],
             # 'hivol':[],
             # 'ipos':[],
@@ -53,6 +52,12 @@ listsUpdatedToday = False
 
 #TODO: add comments
 #TODO: change from acct['cash'] to adjusted cash amount
+'''
+cash distribution:
+tradableCash = actualCash if actual < minHold*margin elif minHold*margin>actual>minHold 0 else actual-minhold*margin
+cashPerAlgo = tradableCash/numAlgos
+cashPerStock = min(cashPerAlgo, max(minDolPerStock, cashPerAlgo/numStocksInAlgo))
+'''
 #TODO: mark to sell based on revsplits (currently only checks income stocks, not currently held ones)
 def main():
   global algoList, posList, listsUpdatedToday
@@ -377,7 +382,7 @@ def syncPosList():
     #TODO: figure out why it's adding blanks in the first place?? Where are they even coming from??
   print("Removing blanks")
   for algo in posList:
-    for symb in posList[algo]:
+    for symb in list(posList[algo]): #must be cast as list in order to not change dict size (this makes a copy)
       if(posList[algo][symb]['sharesHeld']==0):
         posList[algo].pop(symb,None)
 

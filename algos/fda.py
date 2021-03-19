@@ -9,19 +9,19 @@ stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo
 
 #get list of stocks pending FDA approvals
 def getList():
-  print('getting unsorted list for fda')
-  while True: #get page of pending stocks
+  print('getting unsorted list for {algo}')
+  while True: #get pages of pending stocks
     try:
       r = o.requests.get("https://www.drugs.com/new-drug-applications.html", timeout=5).text
-      #r1 = o.requests.get("https://biopharmacatalyst.c8m/calendars/fda-calendar",timeout=5).text
+      r1 = o.requests.get("https://www.biopharmcatalyst.com/calendars/fda-calendar",timeout=5).text
       #TODO: use in conjunction with this list too: https://www.biopharmcatalyst.com/calendars/fda-calendar
       break
     except Exception:
       print("No connection, or other error encountered in getDrugList. trying again...")
       o.time.sleep(3)
       continue
-
-  print(f"finding stocks for {algo}")
+  
+  print("{algo} getting stocks from drugs.com")
   try:
     arr = r.split("Company:</b>") #go down to stock list
     arr = [e.split("<br>")[0].strip() for e in arr][1::] #get list of companies
@@ -30,21 +30,28 @@ def getList():
   except Exception:
     print("Bad data from drugs.com")
     arr = []
-
-  '''
+  # print(f"drugs.com: {len(arr)}")
+  
+  print("{algo} getting stocks from biopharmcatalyst.com")
   try:
-    arr1 = #get stock list
-    #get symbols from list
-    #get only the nasdaq listed ones
-    print(arr1)
+    arr1 = r1.split("var tickers = [")[1].split("];")[0].replace("'","").replace(" ","").split(",") #get stock list
+    arr1 = list(set(arr1)) #remove duplicates? Might not actually have to do this
+    arr1 = [e for e in arr1 if(e!="" and float(o.c['fda']['minPrice'])<o.getPrice(e)<float(o.c['fda']['maxPrice']))] #remove blanks and ensure that it's listed in ndaq (o.getPrice will return 0 if it throws an error (ie. is not listed and won't show up)) and within our price range
   except Exception:
-    print("Bad data from biopharmacatalyst.com")
+    print("Bad data from biopharmcatalyst.com")
     arr1 = []
+  # print(f"biopharmcatalyst.com: {len(arr1)}")
+  
+  
+  arr = list(set(arr+arr1)) #combine lists and remove duplicates  
+  #TODO: look at company anaylsis from API to keep or toss
+  '''
+  print("Checking company wellness")
+  do research on what to look for prior to the approval/rejection
+  create it as a function in this doc
+  arr = [e for e in arr if somefxn(e)]
   '''
   print(f"{len(arr)} found for fda.")
-  #refine to max price (note, as of this time, this has not been tested)
-  # arr = [e for e in arr if a.getPrice(e)<=float(o.c[algo]['maxPrice'])]
-  #TODO: check for price changes iver the past few days/weeks
   
   return arr
 
