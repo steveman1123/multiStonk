@@ -277,7 +277,9 @@ def setPosList(algoList):
 
   return posList
 
-
+#get the current price of a stock, optionally include the market cap
+#TODO: move market cap to its own function, and have it return volume instead
+#alternateively, return an additional dict containing other specified info (like vol or cap or exchange or whatever)
 def getPrice(symb, withCap=False):
   url = f'https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
   while True:
@@ -305,6 +307,25 @@ def getPrice(symb, withCap=False):
     print("Invalid Stock - "+symb)
     return [0,0] if(withCap) else 0
   
+#TODO: remove this function once getPrice is redone
+def getVol(symb):
+  url = f'https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
+  while True:
+    try:
+      response = requests.get(url,headers={"User-Agent": "-"}, timeout=5).text #nasdaq url requires a non-empty user-agent string
+      break
+    except Exception:
+      print("No connection, or other error encountered in getVol. Trying again...")
+      time.sleep(3)
+      continue
+  vol=0
+  try:
+    vol = float(json.loads(response)['data']['keyStats']['Volume']['value'].replace(',',''))
+  except Exception:
+    print("Invalid Stock - "+symb)
+  return vol
+
+
 #get minute to minute prices for the current day
 def getDayMins(symb, maxTries=3):
   tries=0
@@ -323,3 +344,18 @@ def getDayMins(symb, maxTries=3):
   else:
     out = {e['z']['dateTime']:float(e['z']['value']) for e in r['data']['chart']}
     return out
+  
+
+def nextTradeDate():
+  while True:
+    try:
+      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers={"user-agent":'-'}).text)['data']['nextTradeDate']
+      break
+    except Exception:
+      print("No connection or other error encountered in nextTradeDate. Trying again...")
+      time.sleep(3)
+      continue
+  
+  r = dt.datetime.strptime(r,"%b %d, %Y").date()
+  
+  return str(r)

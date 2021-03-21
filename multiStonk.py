@@ -172,6 +172,32 @@ def updateList(algo,lock,rm=[]):
 #check to sell positions from a given algo (where algo is an aglo name, and pos is the output of a.getPos())
 def check2sell(algo, pos):
   #TODO: check that # of shares to sell (and in triggered up) is >0
+  '''
+  this should be written a bit:
+  for each stock in each aglo
+  check that it's a goodSell()
+  if it is, run the triggered() thread (rename from triggeredup) - this should run on sellUp or sellDn triggers (it'll sell really quick if it's down anyway)
+  if not, don't do anything
+  '''
+  for e in pos:
+    if(e['symbol'] in posList[algo]):
+      print(f"{e['symbol']}\t{round(float(posList[algo][e['symbol']]['sharesHeld']),2)}\t{bcolor.FAIL if cngToday<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t{bcolor.FAIL if cngToday<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}")
+
+      if(posList[algo][e['symbol']]['shouldSell']): #if marked to sell, get rid of it immediately
+        print(f"{e['symbol']} marked for immediate sale.")
+        sell(e['symbol'],algo) #record and everything in the sell function
+        
+      else:
+        goodSell = eval(f"{algo}.goodSell({e['symbol']})") #TODO: need to add shouldSell checking on held positions
+        if(gooddSell):
+          if(f"{algo}-{e['symbol']}" not in [t.getName() for t in threading.enumerate()]): #make sure that the thread isn't already running
+            #TODO: look at locking if need be
+            triggerThread = threading.Thread(target=triggeredUp, args=(e['symbol'],algo)) #init the thread - note locking is required here
+            triggerThread.setName(f"{algo}-{e['symbol']}") #set the name to the algo and stock symb
+            triggerThread.start() #start the thread
+      
+  
+  '''
   for e in pos: #TODO: check last trade date/type
     if(e['symbol'] in posList[algo]):
       sellUp = eval(algo+".sellUp(e['symbol'])")
@@ -188,7 +214,7 @@ def check2sell(algo, pos):
           triggerThread = threading.Thread(target=triggeredUp, args=(e['symbol'],algo)) #init the thread - note locking is required here
           triggerThread.setName(f"{algo}-{e['symbol']}") #set the name to the algo and stock symb
           triggerThread.start() #start the thread
-        
+  '''
 
 #TODO: add comments
 def check2buy(algo, cashAvailable, stocks2buy):

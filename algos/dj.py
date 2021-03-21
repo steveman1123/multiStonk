@@ -187,6 +187,17 @@ def getUnsortedList():
   print("Done getting stock lists")
   return symbList
 
+def goodSell(symb):
+  #check if price<sellDn
+  buyPrice = float(posList[algo][symb]['buyPrice'])
+  curPrice = o.getPrice(symb)
+  if(curPrice/buyPrice<sellDn(symb)):
+    return True
+  elif(curPrice/buyPrice>=sellUp(symb)):
+    return True
+  else:
+    return False
+  
 
 #get the sellUp value for a given symbol (default to the main value)
 def sellUp(symb=""):

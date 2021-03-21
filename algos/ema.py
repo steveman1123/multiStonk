@@ -1,6 +1,6 @@
 #this file contains functions specifically for the exponential moving average algo
 #how can we apply an ema to various stocks?
-#https://www.alphaexcapital.com/ema-trading-strategy/
+#https://tradingstrategyguides.com/exponential-moving-average-strategy/
 #https://www.investopedia.com/terms/e/ema.asp
 #also, an ema can work across multiple exchange types, not just for stocks
 #this specific one will look at stocks over a period of days
@@ -112,13 +112,17 @@ def getUnsortedList():
   
   return symbList
 
-
+#return whether symb is a good sell or not
+def goodSell(symb):
+  #needs stuff here
+  return True
 
 
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
   mainSellUp = float(o.c[algo]['sellUp'])
   if(symb in stockList):
+    #TODO: add exit condition (see it in goodBuys)
     sellUp = mainSellUp #TODO: account for squeeze here
   else:
     sellUp = mainSellUp
