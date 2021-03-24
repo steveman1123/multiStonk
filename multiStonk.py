@@ -81,8 +81,8 @@ def main():
       if(not listsUpdatedToday):
         updateLists() #TODO: thread here
       
-      print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\tsell params")
-      print("----\t------\t-----\t-----------\t-----------\t-----------")
+      print("algo\tshares\tsymb \tcng frm buy\tcng frm cls")
+      print("----\t------\t-----\t-----------\t-----------")
       #look to sell things
       for algo in algoList:
         check2sell(algo,pos) #only look at the ones currently held
@@ -186,15 +186,15 @@ def check2sell(algo, pos):
   '''
   for e in pos:
     if(e['symbol'] in posList[algo]):
-      print(f"{e['symbol']}\t{round(float(posList[algo][e['symbol']]['sharesHeld']),2)}\t{bcolor.FAIL if cngToday<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t{bcolor.FAIL if cngToday<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}")
+      print(f"{algo}\t{round(float(posList[algo][e['symbol']]['sharesHeld']),2)}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}")
 
       if(posList[algo][e['symbol']]['shouldSell']): #if marked to sell, get rid of it immediately
         print(f"{e['symbol']} marked for immediate sale.")
         sell(e['symbol'],algo) #record and everything in the sell function
         
       else:
-        goodSell = eval(f"{algo}.goodSell({e['symbol']})") #TODO: need to add shouldSell checking on held positions
-        if(gooddSell):
+        goodSell = eval(f"{algo}.goodSell('{e['symbol']}')") #TODO: need to add shouldSell checking on held positions
+        if(goodSell):
           if(f"{algo}-{e['symbol']}" not in [t.getName() for t in threading.enumerate()]): #make sure that the thread isn't already running
             #TODO: look at locking if need be
             triggerThread = threading.Thread(target=triggeredUp, args=(e['symbol'],algo)) #init the thread - note locking is required here
@@ -236,6 +236,7 @@ def check2buy(algo, cashAvailable, stocks2buy):
           "sharesHeld":0,
           "lastTradeDate":str(dt.date.today()),
           "lastTradeType":"NA",
+          "buyPrice":0,
           "shouldSell":False
         }
     stockInfo = posList[algo][stock]
@@ -272,6 +273,7 @@ def sell(stock, algo):
         "sharesHeld":0,
         "lastTradeDate":str(dt.date.today()),
         "lastTradeType":"sell",
+        "buyPrice":0,
         "shouldSell":False
       }
     open(o.c['file locations']['posList'],'w').write(json.dumps(posList,indent=2))
@@ -279,7 +281,7 @@ def sell(stock, algo):
   else:
     return False
 
-def buy(shares, stock, algo):
+def buy(shares, stock, algo, price):
   #basically just a market buy of this many shares of this stock for this algo
   global posList #TODO: may need to incorporate locking
   r = a.createOrder("buy",shares,stock)
@@ -289,6 +291,7 @@ def buy(shares, stock, algo):
         "sharesHeld":float(posList[algo][stock]['sharesHeld'])+float(r['qty']),
         "lastTradeDate":str(dt.date.today()),
         "lastTradeType":"buy",
+        "buyPrice":(posList[algo][stock]['buyPrice']*posList[algo][stock]['sharesHeld']+price)/(posList[algo][stock]['sharesHeld']+float(r['qty'])),
         "shouldSell":False
       }
     open(o.c['file locations']['posList'],'w').write(json.dumps(posList,indent=2))
@@ -303,7 +306,9 @@ def buy(shares, stock, algo):
 def syncPosList():
   global posList
   print("getting actually held positions...")
-  heldPos = {e['symbol']:float(e['qty']) for e in a.getPos()} #actually held positions
+  p = a.getPos()
+  heldPos = {e['symbol']:float(e['qty']) for e in p} #actually held positions
+  heldBuyPrices = {e['symbol']:float(e['avg_entry_price']) for e in p} #TODO: combine this into heldPos and either rework recPos or change some conditionals to account for the addition
   
   #total stocks in posList
   print("getting recorded positions...")
@@ -396,7 +401,8 @@ def syncPosList():
         posList[maxAlgo[0]][symb] = {'lastTradeDate':'NA', #TODO: could add any info that's in the getPos call
                                      'lastTradeType':'NA',
                                      'sharesHeld':heldPos[symb],
-                                     'shouldSell':False
+                                     'shouldSell':False,
+                                     'buyPrice':heldBuyPrices[symb]
                                     }
 
       else: #if no algo has it
@@ -410,6 +416,7 @@ def syncPosList():
         posList[minAlgo[0]][symb] = {'lastTradeDate':'NA', #TODO: could add any info that's in the getPos call
                                      'lastTradeType':'NA',
                                      'sharesHeld':heldPos[symb],
+                                     'buyPrice':heldBuyPrices[symb],
                                      'shouldSell':False
                                     }
 
