@@ -303,15 +303,15 @@ def buy(shares, stock, algo, price):
 
 #sync what we have recorded and what's actually going on in the account
 #TODO: go through and mark to sell in this fxn (towards the end after everything is synced, then go through every stock of every algo and check if it should be sold)
-def syncPosList():
+def syncPosList(verbose=True):
   global posList
-  print("getting actually held positions...")
+  if(verbose): print("getting actually held positions...")
   p = a.getPos()
   heldPos = {e['symbol']:float(e['qty']) for e in p} #actually held positions
   heldBuyPrices = {e['symbol']:float(e['avg_entry_price']) for e in p} #TODO: combine this into heldPos and either rework recPos or change some conditionals to account for the addition
   
   #total stocks in posList
-  print("getting recorded positions...")
+  if(verbose): print("getting recorded positions...")
   recPos = {} #recorded positions
   for algo in posList: #for every algo in the posList
     if(len(posList)>0):
@@ -319,10 +319,31 @@ def syncPosList():
         if stock not in recPos: #if that stock isn't already in the recorded positions
           recPos[stock] = float(posList[algo][stock]['sharesHeld']) #add it
         else: #if it already is
+          #TODO: ensure that all fields are present
+          
+          if(verbose): print(f"Ensuring correct data for {stock}")
+          if('sharesHeld' not in posList[algo][stock]):
+            if(verbose): print("Missing sharesHeld")
+            posList[algo][stock]['sharesHeld'] = 0
+          if('lastTradeDate' not in posList[algo][stock]):
+            if(verbose): print("Missing lastTradeDate")
+            posList[algo][stock]['lastTradeDate'] = str(dt.date.today()-dt.timedelta(1))
+          if('lastTradeType' not in posList[algo][stock]):
+            if(verbose): print("Missing lastTradeType")
+            posList[algo][stock]['lastTradeType'] = 'NA'
+          if('shouldSell' not in posList[algo][stock]):
+            if(verbose): print("Missing shouldSell")
+            posList[algo][stock]['shouldSell'] = False
+          if('buyPrice' not in posList[algo][stock]):
+            if(verbose): print("Missing buyPrice")
+            posList[algo][stock]['buyPrice'] = 0
+          
+          
+          
           recPos[stock] += float(posList[algo][stock]['sharesHeld']) #add the shares held
 
   if(not eq(recPos,heldPos)):
-    print("discrepency found between records and actuals")
+    if(verbose): print("discrepency found between records and actuals")
     #if there are any stocks recorded that aren't in the heldPos, remove them
     #if there are an excess of shares in the recPos than the heldPos, look for any in the algos that match the disparity, and remove them from that algo
       #if none match (i.e. heldPos and recPos both have a stock, but there's an unknown amount extra in recPos), then just sell it all
@@ -336,7 +357,7 @@ def syncPosList():
     #if there are any stocks recorded that aren't in the heldPos, remove them
     for symb in [s for s in recPos if s not in heldPos]: #for all stocks in recorded and not in heldPos
       for algo in posList: #check every algo
-        print(f"{symb} not found in actuals. Removing from {algo} records")
+        if(verbose): print(f"{symb} not found in actuals. Removing from {algo} records")
         posList[algo].pop(symb,None) #remove from posList
       recPos.pop(symb,None) #remove from recorded
     
@@ -347,7 +368,7 @@ def syncPosList():
       for algo in posList: #for every algo
         #remove any that may be exact matches
         if float(posList[algo][symb]['sharesHeld'])==recPos[symb]-heldPos[symb]:
-          print(f"Removing {float(posList[algo][symb]['sharesHeld'])} shares of {symb} from {algo} records")
+          if(verbose): print(f"Removing {float(posList[algo][symb]['sharesHeld'])} shares of {symb} from {algo} records")
           recPos[symb] -= float(posList[algo][symb]['sharesHeld'])
           if(recPos[symb]==0):
             recPos.pop(symb,None)
@@ -356,12 +377,12 @@ def syncPosList():
       #if there's still a discrepency (ie. there is not an exact difference)
       if(recPos[symb]>heldPos[symb]): #if the recorded still has more than the held
         #get algos with the symbol and the number of shares of that symbol
-        print(f"more shares of {symb} in records than actuals")
+        if(verbose): print(f"more shares of {symb} in records than actuals")
         algosWithStock = {e:float(posList[e][symb]['sharesHeld']) for e in posList if symb in posList[e]} #get the number of shares per algo if the algo has the stock
         for algo in algosWithStock:
           #TODO: this should probably be changed to spread out over multiple algos rather than just 1
           if(algosWithStock[algo]>=recPos[symb]-heldPos[symb]): #if an algo has more than the disparity
-            print(f"{algo} has {algosWithStock[algo]} shares of {symb}. Removing {recPos[symb]-heldPos[symb]} shares")
+            if(verbose): print(f"{algo} has {algosWithStock[algo]} shares of {symb}. Removing {recPos[symb]-heldPos[symb]} shares")
             posList[algo][symb]['sharesHeld'] -= recPos[symb]-heldPos[symb] #remove the disparity
             recPos[symb] -= recPos[symb]-heldPos[symb]
             break
@@ -380,10 +401,10 @@ def syncPosList():
   if(not eq(recPos, heldPos)): #compare again after the initial comparison
     if(not listsUpdatedToday and len([t for t in threading.enumerate() if t.getName().startswith('update')])==0):
       updateLists() #TODO: thread here
-    print("Waiting for stock lists to finish updating...")
+    if(verbose): print("Waiting for stock lists to finish updating...")
     while(not listsUpdatedToday or len([t for t in threading.enumerate() if t.getName().startswith('update')])>0): #wait for the lists to finish updating
       time.sleep(2)
-    print("lists done updating")
+    if(verbose): print("lists done updating")
 
     #check that symb is somewhere in algoList
     #if it is, then add it to the algo that has it with the highest gain
@@ -397,7 +418,7 @@ def syncPosList():
         for algo in algosWithStock: #look thru each algo that could hold the stock
           sellUp = eval(f"{algo}.sellUp('{symb}')") #find the sell up of that algo
           maxAlgo = [algo,sellUp] if sellUp>maxAlgo[1] else maxAlgo #get the greater of the two algos
-        print(f"Adding {heldPos[symb]} shares of {symb} to {maxAlgo[0]}.")
+        if(verbose): print(f"Adding {heldPos[symb]} shares of {symb} to {maxAlgo[0]}.")
         posList[maxAlgo[0]][symb] = {'lastTradeDate':'NA', #TODO: could add any info that's in the getPos call
                                      'lastTradeType':'NA',
                                      'sharesHeld':heldPos[symb],
@@ -412,7 +433,7 @@ def syncPosList():
           #TODO: figure out the logic here if it shoud be < or >, and what we value more (least loss, or highest variance)
           minAlgo = [algo,sellDn] if sellDn<minAlgo[1] else minAlgo #get the greater of the the two algos
         #add to the algo with the least loss (to minimize risk)
-        print(f"No algo found to have {symb}. Adding {heldPos[symb]} shares to {minAlgo[0]}.")
+        if(verbose): print(f"No algo found to have {symb}. Adding {heldPos[symb]} shares to {minAlgo[0]}.")
         posList[minAlgo[0]][symb] = {'lastTradeDate':'NA', #TODO: could add any info that's in the getPos call
                                      'lastTradeType':'NA',
                                      'sharesHeld':heldPos[symb],
@@ -421,19 +442,19 @@ def syncPosList():
                                     }
 
     #TODO: figure out why it's adding blanks in the first place?? Where are they even coming from??
-  print("Removing blanks")
+  if(verbose): print("Removing blanks")
   for algo in posList:
     for symb in list(posList[algo]): #must be cast as list in order to not change dict size (this makes a copy)
       if(posList[algo][symb]['sharesHeld']==0):
         posList[algo].pop(symb,None)
 
   
-  print("Marking to be sold")
+  if(verbose): print("Marking to be sold")
   revSplits = o.reverseSplitters()
   for algo in posList:
     for symb in posList[algo]:
       if(symb in revSplits):
-        print(f"{algo} - {symb} marked for sale")
+        if(verbose): print(f"{algo} - {symb} marked for sale")
         posList[algo][symb]['shouldSell'] = True
   
   
