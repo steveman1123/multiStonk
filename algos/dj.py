@@ -6,7 +6,6 @@ import otherfxns as o
 
 algo = 'dj' #name of the algo
 #stocks held by this algo according to the records
-stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
 #get a list of potential gainers according to this algo
 def getList():
@@ -189,35 +188,45 @@ def getUnsortedList():
 
 def goodSell(symb):
   #check if price<sellDn
-  buyPrice = float(posList[algo][symb]['buyPrice'])
+  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
+  buyPrice = float(stockList[symb]['buyPrice'])
   curPrice = o.getPrice(symb)
   if(curPrice/buyPrice<sellDn(symb)):
     return True
   elif(curPrice/buyPrice>=sellUp(symb)):
-    return True
+  return True
   else:
     return False
   
 
 #get the sellUp value for a given symbol (default to the main value)
 def sellUp(symb=""):
+  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
   mainSellUp = float(o.c[algo]['sellUp']) #account for squeeze here
+  startSqueeze = float(o.c[algo]['startSqueeze'])
+  squeezeTime = float(o.c[algo]['squeezeTime'])
+
   if(symb in stockList):
     try: #try setting the last jump, if it doesn't work, set it to yesterday TODO: this is logically wrong and should be fixed (something should change in the actual posList file)
-      lastJump = o.dt.datetime.strptime(posList[algo][symb]['lastJumpDate'],"%Y-%m-%d").date()
+      lastJump = o.dt.datetime.strptime(stockList[symb]['lastJumpDate'],"%Y-%m-%d").date()
     except Exception:
       lastJump = o.dt.date.today()-o.dt.timedelta(1)
 
     #sellUp change of 0 if <=5 weeks after initial jump, -.05 for every week after 6 weeks for a min of 1
+    #TODO: logic here is wrong and should be changed to change daily rather than weekly
     sellUp = round(max(1,mainSellUp-.05*max(0,int((o.dt.date.today()-(lastJump+o.dt.timedelta(6*7))).days/7))),2)
 
   else:
-    sellUp = mainSellUp #account for squeeze here
+    sellUp = mainSellUp
   return sellUp
 
 #get the sellDn value for a given symbol (default to the main value)
 def sellDn(symb=""):
+  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
   mainSellDn = float(o.c[algo]['sellDn'])
+  startSqueeze = float(o.c[algo]['startSqueeze'])
+  squeezeTime = float(o.c[algo]['squeezeTime'])
+  
   if(symb in stockList):
     try: #try setting the last jump, if it doesn't work, set it to yesterday TODO: this is logically wrong and should be fixed (something should change in the actual posList file)
       lastJump = o.dt.datetime.strptime(stockList[symb]['lastJumpDate'],"%Y-%m-%d").date()
@@ -225,10 +234,11 @@ def sellDn(symb=""):
       lastJump = o.dt.date.today()-o.dt.timedelta(1)
 
     #sellDn change of 0 if <=5 weeks after initial jump, +.05 for every week after 6 weeks for a max of 1
+    #TODO: logic here is wrong and should be changed to change daily rather than weekly
     sellDn = round(min(1,mainSellDn+.05*max(0,int((o.dt.date.today()-(lastJump+o.dt.timedelta(6*7))).days/7))),2)
 
   else:
-    sellDn = mainSellDn #account for squeeze here
+    sellDn = mainSellDn
   return sellDn
 
 #get the stop loss for a symbol (default to the main value)

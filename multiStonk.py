@@ -26,6 +26,7 @@ algoList = {
             # 'hivol':[],
             # 'ipos':[],
             # 'reddit':[],
+            # 'sma':[],
             # 'splits':[],
            } #add any algos wanting to be used to this list
 
@@ -292,6 +293,7 @@ def buy(shares, stock, algo):
 
 
 #sync what we have recorded and what's actually going on in the account
+#TODO: go through and mark to sell in this fxn (towards the end after everything is synced, then go through every stock of every algo and check if it should be sold)
 def syncPosList():
   global posList
   print("getting actually held positions...")
@@ -412,10 +414,20 @@ def syncPosList():
       if(posList[algo][symb]['sharesHeld']==0):
         posList[algo].pop(symb,None)
 
+  
+  print("Marking to be sold")
+  revSplits = o.reverseSplitters()
+  for algo in posList:
+    for symb in posList[algo]:
+      if(symb in revSplits):
+        print(f"{algo} - {symb} marked for sale")
+        posList[algo][symb]['shouldSell'] = True
+  
+  
   #write to the file
   with open(o.c['file locations']['posList'],'w') as f:
     f.write(json.dumps(posList,indent=2))
-
+  
   print("Done syncing lists")
 
 #run the main function

@@ -9,7 +9,10 @@ stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo
 
 def getList():
   #perform checks to see which one ones will gain
-  
+  maxPrice =
+  minPrice = 
+
+#https://seekingalpha.com/article/1445911-a-remarkably-reliable-way-to-predict-post-earnings-price-moves
   
   return goodBuys
   

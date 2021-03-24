@@ -6,30 +6,86 @@
 #this specific one will look at stocks over a period of days
 
 import otherfxns as o
+from workdays import workday as wd
+from workdays import networkdays as nwd
+
+#TODO: add verbose setting to (at the very least) getList, goodBuy, and goodSell
 
 algo = 'ema' #name of the algo
-#stocks held by this algo according to the records
-# stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
 
-def getList():
-  print(f"getting unsorted list for {algo}")
+
+def getList(verbose=False):
+  if(verbose): print(f"getting unsorted list for {algo}")
   symbs = getUnsortedList()
-  print(f"finding stocks for {algo}")
-  goodBuys = [e for e in symbs if goodBuy(e)] #the only time that the first char is a number is if it is a valid/good buy
-  print(f"{len(goodBuys)} found for {algo}")
+  if(verbose): print(f"{len(symbs)} potential gainers for {algo}")
+  if(verbose): print(f"finding stocks for {algo}")
+  goodBuys = [s for s in symbs if goodBuy(s)]
+  if(verbose): print(f"{len(goodBuys)} found for {algo}")
   return goodBuys
  
 
 #determine whether the queries symb is a good one to buy or not
-def goodBuy(symb):
-  #a good buy is considered if current value is >1 stddev below ema as outlined above
-  emaSper = int(o.c[algo]['emaSper'])
-  emaLper = int(o.c[algo]['emaLper'])
+def goodBuy(symb, verbose=False):
   
-  #TODO: do we want to look at minute-to-minute data rather than day-to-day? Or somewhere in between? Might be good to look at like 2 hour intervals
-  hist = o.getHistory(symb) #get the history
-  closeList = [e[1] for e in hist] #(isolate just the closes of hist rather than passing the whole thing)
+  emaSper = int(o.c[algo]['emaSper']) #period length of the short EMA (typically 8 or 9 or 20)
+  emaLper = int(o.c[algo]['emaLper']) #period length of the long EMA (typically 20, 50 or 200)
+  timeLim = int(o.c[algo]['timeLim']) #days to look back for the EMA crossover
+  testNum = int(o.c[algo]['testNum']) #number of EMA tests to limit at (where the price exits and re-enteres the sema/lema range)
+  
+  
+  #get the short and long period EMAs
+  sema = getEMAs(symb,str(wd(o.dt.date.today(),-(timeLim+2))),str(o.dt.date.today()),emaSper)
+  lema = getEMAs(symb,str(wd(o.dt.date.today(),-(timeLim+2))),str(o.dt.date.today()),emaLper)
+  price = [float(e[1]) for e in o.getHistory(symb,str(wd(o.dt.date.today(),-(timeLim+2))),str(o.dt.date.today()))] #get the closing prices of the stock
+  
+  if(len(sema)<=timeLim):
+    if(verbose): print(f"Not enough data for {symb}")
+    return False
+  
+  #look for the crossover when sema > lema
+  daysBack = 0
+  while(daysBack<timeLim or sema[daysBack]<lema[daysBack]):
+    daysBack += 1
+  
+  #if it is
+  if(sema[daysBack]>lema[daysBack]):
+    daysFor = daysBack
+    tests = 0
+    priceAboveRangeSinceLastTest = False
+    priceInRangeSinceLastExit = False
+    while daysFor>0: #start moving forward in time from the inversion point back to today
+      #TODO: these conditionals could probably stand to be cleaned up a bit
+      
+      #if the price is above the EMA range
+      if(price[daysFor]>sema[daysFor]):
+        priceAboveRangeSinceLastTest = True
+        priceInRangeSinceLastExit = False
+      #else if the price is within the EMA range (and the )
+      elif(lema[daysFor]<price[daysFor]<sema[daysFor] and priceAboveRangeSinceLastTest):
+        priceAboveRangeSinceLastTest = False
+        priceInRangeSinceLastExit = True
+      
+      if(priceInRangeSinceLastExit):
+        tests += 1
+        priceAboveRangeSinceLastTest = False
+        priceAboveRangeSinceLastTest = False
+      
+      daysFor -= 1
+      
+    if(tests<testNum):
+      if(verbose): print(f"Not enough tests for {symb}")
+      return False
+    elif(tests>testNum):
+      if(verbose): print(f"Too many tests for {symb}")
+      return False
+    else:
+      if(verbose): print(f"{testNum} tests found for {symb}")
+      return True
+  else:
+    if(verbose): print(f"No EMA crossover for {symb}")
+    return False
+  
   '''
   TODO: should look at a few things:
 to buy:
@@ -37,33 +93,42 @@ look for when the Sema first > Lema
 then look for first time where price is < Sema and >Lema after being above Sema, then look for second time of the same being above, then within
 then buy whenever the min <=Sema
 
-to sell:
-look for when Lema>Sema, then look for the first time that the price >Sema and <Lema after being <Sema
   
-  needs to generate a list/running ema rather than just a single value
-  then, starting from today, loop back till we see an inversion (or up to a predetermined timeframe. If we don't see one, return false)
-  if we do see one, then start looking forward. If we see the price leave, then if we see the price be <Sema & >Lema, then if we see the price leave again, then if we see the price come back again like before, then go back above, then it's a good buy
+x  needs to generate a list/running ema rather than just a single value
+x  then, starting from today, loop back till we see an inversion (or up to a predetermined timeframe. If we don't see one, return false)
+x  if we do see one, then start looking forward. If we see the price leave, then if we see the price be <Sema & >Lema, then if we see the price leave again, then if we see the price come back again like before, then go back above, then it's a good buy
   
   https://tradingstrategyguides.com/exponential-moving-average-strategy/
   '''
-  emaS = getEMA(symb,emaSper,closeList,0,float(o.c[algo]['smoothing']))  #get the ema for the short period 
-  emaL = getEMA(symb,emaLper,closeList,0,float(o.c[algo]['smoothing']))  #get the ema for the long period
   
-  curPrice = o.getPrice(symb)
-  
-  
-  
-  
-  return (curPrice>emaL>emaS) #should be a good buy if 
 
-#calculating the ema is a recursive function
-def getEMA(symb,totalDays,closeList,daysAgo,smoothing):
-  #ema(today) = (price*(smoothing/(1+days)))+ema(yesterday)*(1-(smoothing/(1+days)))
-  if(daysAgo<=totalDays):
-    emaYest = getEMA(symb,totalDays,closeList,daysAgo+1,smoothing)
-    return (float(closeList[daysAgo])*(smoothing/(1+totalDays)))+emaYest*(1-(smoothing/(1+totalDays)))
+  
+#where closelist has the most recent close first (and is the EMA that is being calculated)
+def getEMA(priceList,k):
+  if(len(priceList)>1):
+    return (priceList[0]*k)+(getEMA(priceList[1:],k)*(1-k))
   else:
-    return float(closeList[daysAgo])
+    return priceList[0]
+  
+#get the EMAs for all prices in a given set
+# where priceList is the list that the EMAs should be gotten for, and n is the length of the ema
+# https://www.dummies.com/personal-finance/investing/stocks-trading/how-to-calculate-exponential-moving-average-in-trading/
+def getEMAs(symb,startDate,endDate,n):
+  k = 2/(1+n)
+  extraDays = 0 #add in some more days to get a better reading of the earlier EMAs
+  
+  hist = o.getHistory(symb,str(o.dt.datetime.strptime(startDate,"%Y-%m-%d").date()-o.dt.timedelta(extraDays)),endDate)
+  totalEntries = len(o.getHistory(symb,str(o.dt.datetime.strptime(startDate,"%Y-%m-%d").date()),endDate))
+  
+  #isolate the closing prices
+  priceList = [float(e[1]) for e in hist]
+  
+  out = []
+  for i in range(len(priceList)):
+    out.append(getEMA(priceList[i:],k))
+  #TODO: might have to check that enough data was returned?
+  return out[:totalEntries] #trim off extra days
+
 
 #get a list of stocks to be sifted through
 def getUnsortedList():
@@ -106,22 +171,78 @@ def getUnsortedList():
         time.sleep(3)
         continue
 
-    table = o.bs(r,'html.parser').find_all('table')[0]
-    for e in table.find_all('tr')[1::]:
-      symbList.append(e.find_all('td')[0].get_text())
-  
+    try:
+      table = o.bs(r,'html.parser').find_all('table')[0]
+      for e in table.find_all('tr')[1::]:
+        symbList.append(e.find_all('td')[0].get_text())
+    except Exception:
+      print("Error in MW website.")
+    
   return symbList
 
 #return whether symb is a good sell or not
-def goodSell(symb):
-  #needs stuff here
-  return True
+def goodSell(symb, verbose=False):
+  #TODO: to sell: look for when Lema>Sema, then look for the first time that the price >Sema and <Lema after being <Sema
+  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo] #stocks held by this algo according to the records
+  
+  #mark to sell (just in case it's not caught somewhere else)
+  if(symb in stockList):
+    if(stockList[symb]['shouldSell']):
+      return True
+  
+  emaSper = int(o.c[algo]['emaSper']) #period length of the short EMA (typically 8 or 9 or 20)
+  emaLper = int(o.c[algo]['emaLper']) #period length of the long EMA (typically 20, 50 or 200)
+  timeLim = int(o.c[algo]['timeLim']) #days to look back for the EMA crossover
+  
+  #get the short and long period EMAs
+  sema = getEMAs(symb,str(wd(o.dt.date.today(),-(timeLim+2))),str(o.dt.date.today()),emaSper)
+  lema = getEMAs(symb,str(wd(o.dt.date.today(),-(timeLim+2))),str(o.dt.date.today()),emaLper)
+  price = [float(e[1]) for e in o.getHistory(symb,str(wd(o.dt.date.today(),-(timeLim+2))),str(o.dt.date.today()))] #get the closing prices of the stock
+  
+  #this should never be triggered because we shouldn't've been able to buy in the first place then
+  if(len(sema)<=timeLim):
+    if(verbose): print(f"Not enough data for {symb}")
+    return True
+  
+  #look for the crossover when lema > sema again
+  daysBack = 0
+  while(daysBack<timeLim or sema[daysBack]>lema[daysBack]):
+    daysBack += 1
+  
+  if(sema[daysBack]<lema[daysBack]):
+    daysFor = daysBack
+    tests = 0
+    priceBelowRangeSinceLastTest = False
+    while daysFor>0: #start moving forward in time from the reversion point back to today
+      #TODO: these conditionals could probably stand to be cleaned up a bit
+      
+      #if the price is above the EMA range
+      if(price[daysFor]<sema[daysFor]):
+        priceBelowRangeSinceLastTest = True
+      #else if the price is within the EMA range (and the )
+      elif(lema[daysFor]>price[daysFor]>sema[daysFor] and priceBelowRangeSinceLastTest):
+        return True
+      
+      daysFor -= 1
+    
+    if(verbose): print("exit test not hit yet")
+    return False
+    
+    else:
+      if(verbose): print("reversion has not occurred yet")
+      return False
+    
+  
 
 
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
+  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo] #stocks held by this algo according to the records
   mainSellUp = float(o.c[algo]['sellUp'])
-  if(symb in stockList):
+  startSqueeze = float(o.c[algo]['startSqueeze'])
+  squeezeTime = float(o.c[algo]['squeezeTime'])
+
+if(symb in stockList):
     #TODO: add exit condition (see it in goodBuys)
     sellUp = mainSellUp #TODO: account for squeeze here
   else:
@@ -130,6 +251,7 @@ def sellUp(symb=""):
 
 #TODO: this should also account for squeezing
 def sellDn(symb=""):
+  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo] #stocks held by this algo according to the records
   mainSellDn = float(o.c[algo]['sellDn'])
   if(symb in stockList):
     sellDn = mainSellDn #TODO: account for squeeze here
@@ -137,5 +259,6 @@ def sellDn(symb=""):
     sellDn = mainSellDn
   return sellDn
 
+#get the stop loss for a symbol after its been triggered (default to the main value)
 def sellUpDn():
   return float(o.c[algo]['sellUpDn'])

@@ -8,7 +8,7 @@ algo = 'divs' #name of the algo
 
 
 #stocks held by this algo according to the records
-stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
+posList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
 def getList():
   #perform checks to see which one ones will gain
@@ -16,7 +16,6 @@ def getList():
   
   #if today < ex div date, then buy
   
-  #if div is collected and price > buyPrice+div, then sell
 
   print(f"getting unsorted list for {algo}")
   symbs = getUnsortedList()
@@ -27,11 +26,12 @@ def getList():
   
 
 #return whether symb is a good sell or not
+#if div is collected and price > buyPrice+div, then sell
 def goodSell(symb):
   dates = getDivDates(symb)
   if(o.getPrice(symb)/posList[algo][symb]['buyprice']<=sellDn(symb)):
     return True
-  elif(dt.date.today()>dt.datetime.strptime(dates['payment'],"%Y-%m-%d").date() and
+  elif(str(dt.date.today())>dates['payment'] and
        o.getPrice(symb)/posList[algo][symb]['buyprice']>=sellUp(symb)):
     return True
   else:
@@ -40,7 +40,7 @@ def goodSell(symb):
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
   mainSellUp = float(o.c[algo]['sellUp'])
-  if(symb in stockList):
+  if(symb in posList):
     #TODO: add exit condition (see it in getList)
     sellUp = mainSellUp #TODO: account for squeeze here
   else:
@@ -50,7 +50,7 @@ def sellUp(symb=""):
 #TODO: this should also account for squeezing
 def sellDn(symb=""):
   mainSellDn = float(o.c[algo]['sellDn'])
-  if(symb in stockList):
+  if(symb in posList):
     sellDn = mainSellDn #TODO: account for squeeze here
   else:
     sellDn = mainSellDn

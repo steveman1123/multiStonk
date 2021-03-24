@@ -5,7 +5,7 @@ import otherfxns as o
 
 algo = 'fda' #name of the algo
 #stocks held by this algo according to the records
-stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
+posList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
 #get list of stocks pending FDA approvals
 def getList():
@@ -55,10 +55,21 @@ def getList():
   
   return arr
 
+def goodSell(symb):
+  #check if price<sellDn
+  buyPrice = float(posList[algo][symb]['buyPrice'])
+  curPrice = o.getPrice(symb)
+  if(curPrice/buyPrice<sellDn(symb)):
+    return True
+  elif(curPrice/buyPrice>=sellUp(symb)):
+  return True
+  else:
+    return False
+
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
   mainSellUp = float(o.c[algo]['sellUp'])
-  if(symb in stockList):
+  if(symb in posList):
     sellUp = mainSellUp #TODO: account for squeeze here
   else:
     sellUp = mainSellUp
@@ -67,7 +78,7 @@ def sellUp(symb=""):
 #TODO: this should also account for squeezing
 def sellDn(symb=""):
   mainSellDn = float(o.c[algo]['sellDn'])
-  if(symb in stockList):
+  if(symb in posList):
     sellDn = mainSellDn #TODO: account for squeeze here
   else:
     sellDn = mainSellDn

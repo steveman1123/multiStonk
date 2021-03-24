@@ -4,6 +4,7 @@ import json,requests,os,time,re,csv,sys,configparser
 import datetime as dt
 from bs4 import BeautifulSoup as bs
 from math import ceil
+from workdays import workday as wd
 
 c = configparser.ConfigParser()
 c.read('./stonkbot.config')
@@ -32,7 +33,10 @@ def isTradable(symb):
 #returns as 2d array order of Date, Close/Last, Volume, Open, High, Low sorted by dates newest to oldest (does not include today's info)
 #get the history of a stock from the nasdaq api (date format is yyyy-mm-dd)
 #default to returning the last year's worth of data
-def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today().month,dt.date.today().day)), endDate=str(dt.date.today()), maxTries=3):
+#TODO: possibly make a blank file for those that have failed as mark to show it's been tried but failed in the past?
+def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today().month,dt.date.today().day)), endDate=str(dt.date.today()), maxTries=3,verbose=False):
+  if(endDate<=startDate):
+    raise Exception("Invalid Date Range (end<=start)")
   #try checking the modified date of the file, if it throws an error, just set it to yesterday
   try:
     modDate = dt.datetime.strptime(time.strftime("%Y-%m-%d",time.localtime(os.stat(stockDir+symb+'.csv').st_mtime)),"%Y-%m-%d").date() #if ANYONE knows of a better way to get the modified date into a date format, for the love of god please let me know
@@ -66,17 +70,31 @@ def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today(
         out.write(r)
   
   else:
-    # print("file exists. Checking for proper data")
-    with open(stockDir+symb+".csv") as csv_file:
+    if(verbose): print("file exists. Checking for proper data")
+    with open(stockDir+symb+".csv",'r') as csv_file:
       csv_reader = csv.reader(csv_file, delimiter=',')
       lines = [[ee.replace('$','').replace('N/A','0').strip() for ee in e] for e in csv_reader][1::] #trim first line to get rid of headers, also replace $'s and N/A volumes to calculable values
+      if(len(lines)==0): #if there's no data in the file, return nothing
+        if(verbose): print("file contains invalid data")
+        return []
     
-    rows = [e for e in lines if(dt.datetime.strptime(e[0],"%m/%d/%Y")<=dt.datetime.strptime(endDate,"%Y-%m-%d") and dt.datetime.strptime(e[0],"%m/%d/%Y")>=dt.datetime.strptime(startDate,"%Y-%m-%d"))]
-    if(len(rows)>0 and dt.datetime.strptime(rows[0][0],"%m/%d/%Y")==dt.datetime.strptime(endDate,"%Y-%m-%d") and dt.datetime.strptime(rows[-1][0],"%m/%d/%Y")==dt.datetime.strptime(startDate,"%Y-%m-%d")):
-      # print("file contains data")
-      return rows
+    #get all the rows between the start and end dates
+    rows = [e for e in lines if(startDate<=str(dt.datetime.strptime(e[0],"%m/%d/%Y").date())<=endDate)]
+    sd = dt.datetime.strptime(startDate,"%Y-%m-%d").date()
+    ed = dt.datetime.strptime(endDate,"%Y-%m-%d").date()
+
+    # ensure that the startdate and enddate are workdays (startdate should look at the next workday, and enddate should look at the previous one as those should both be in range)
+    sd = sd if sd.weekday()<=4 else wd(sd,1)
+    ed = ed if ed.weekday()<=4 and ed<dt.date.today() else wd(ed,-1) #also need to ensure that enddate is not today
+    
+    if(len(rows)>0 and
+       dt.datetime.strptime(rows[0][0],"%m/%d/%Y").date()==ed and
+       dt.datetime.strptime(rows[-1][0],"%m/%d/%Y").date()==sd):
+       if(verbose): print("file contains data")
+       return rows
+    
     else:
-      # print("file does not contain data. Repulling")
+      if(verbose): print("file does not contain data. Repulling")
       #rm file and repull the data like the first part
       os.unlink(stockDir+symb+".csv")
       
@@ -99,8 +117,11 @@ def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today(
       with open(stockDir+symb+'.csv','w',newline='') as out: #write to file for later usage - old api used csv format
         if(tries>=maxTries):
           r = getHistory2(symb, startDate, endDate) #getHistory2 uses more requests and is more complex, so use it as a backup rather than a primary
-          r = [['Date','Close/Last','Volume','Open','High','Low']]+r
-          csv.writer(out,delimiter=',').writerows(r)
+          if(len(r)>0):
+            r = [['Date','Close/Last','Volume','Open','High','Low']]+r
+            csv.writer(out,delimiter=',').writerows(r)
+          else:
+            out.write(f"no data as of {dt.date.today()}")
         else:
           out.write(r)
     
@@ -118,6 +139,10 @@ def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today(
 #TODO: shouldn't be an issue for this case, but here's some logic:
 #   if(todate-fromdate<22 and todate>1 month ago): 0-1 days will be returned
 def getHistory2(symb, startDate, endDate, maxTries=3):
+  if(endDate<=startDate):
+    print("Invalid Date Data (end<=start)")
+    return []
+  
   maxDays = 5000 #max rows returned per request (~250 per year - so 5000=20 years max)
   tries=1
   j = {}
