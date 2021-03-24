@@ -9,7 +9,7 @@ posList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
 #get list of stocks pending FDA approvals
 def getList():
-  print('getting unsorted list for {algo}')
+  print(f"getting unsorted list for {algo}")
   while True: #get pages of pending stocks
     try:
       r = o.requests.get("https://www.drugs.com/new-drug-applications.html", timeout=5).text
@@ -21,7 +21,7 @@ def getList():
       o.time.sleep(3)
       continue
   
-  print("{algo} getting stocks from drugs.com")
+  print(f"{algo} getting stocks from drugs.com")
   try:
     arr = r.split("Company:</b>") #go down to stock list
     arr = [e.split("<br>")[0].strip() for e in arr][1::] #get list of companies
@@ -32,7 +32,7 @@ def getList():
     arr = []
   # print(f"drugs.com: {len(arr)}")
   
-  print("{algo} getting stocks from biopharmcatalyst.com")
+  print(f"{algo} getting stocks from biopharmcatalyst.com")
   try:
     arr1 = r1.split("var tickers = [")[1].split("];")[0].replace("'","").replace(" ","").split(",") #get stock list
     arr1 = list(set(arr1)) #remove duplicates? Might not actually have to do this
@@ -62,7 +62,7 @@ def goodSell(symb):
   if(curPrice/buyPrice<sellDn(symb)):
     return True
   elif(curPrice/buyPrice>=sellUp(symb)):
-  return True
+    return True
   else:
     return False
 

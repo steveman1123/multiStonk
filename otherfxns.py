@@ -11,6 +11,10 @@ c.read('./stonkbot.config')
 
 stockDir = c['file locations']['stockDataDir']
 
+
+#TODO: add verbose option to fxns
+
+
 #query nasdaq api to see if something is tradable on the market
 def isTradable(symb):
   isTradable = False

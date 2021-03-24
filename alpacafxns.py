@@ -1,6 +1,6 @@
 import otherfxns as o
 
-isPaper = bool(o.c['account params']['isPaper']) #set up as paper trading (testing), or actual trading
+isPaper = bool(int(o.c['account params']['isPaper'])) #set up as paper trading (testing), or actual trading
 with open(o.c['file locations']['keyFile'],"r") as keyFile:
   apiKeys = o.json.loads(keyFile.read())
   

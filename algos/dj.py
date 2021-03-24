@@ -194,7 +194,7 @@ def goodSell(symb):
   if(curPrice/buyPrice<sellDn(symb)):
     return True
   elif(curPrice/buyPrice>=sellUp(symb)):
-  return True
+    return True
   else:
     return False
   

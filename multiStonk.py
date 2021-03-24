@@ -114,8 +114,10 @@ def main():
         #delete all csv files in stockDataDir
         print("Removing saved csv files")
         for f in glob(o.c['file locations']['stockDataDir']+"*.csv"):
-          o.os.unlink(f)
-        
+          try: #placed inside a try statement in the event that the file is removed before being removed here
+            o.os.unlink(f)
+          except Exception:
+            pass
         #TODO: double check if this is even needed, since it should be covered in syncPosList()?
         #remove all stocks in the stock list that aren't currently held
         pos = [e['symbol'] for e in a.getPos()] #isolate just the symbols
@@ -220,7 +222,9 @@ def check2sell(algo, pos):
 #TODO: add comments
 def check2buy(algo, cashAvailable, stocks2buy):
   global posList
-  cashPerStock = cashAvailable/len(stocks2buy)
+  cashPerStock = cashAvailable/len(stocks2buy) #TODO: this should incorporate minDolPerStock
+  
+  #TODO: add comments to justify why we're doing what we're doing
   #TODO: stocks2buy should be shuffled. Also other printing should happen rather than printing the actual response
   #TODO: also, this should probably loop forever/until a certain condition is met, and also needs to check that a stock isn't already trying to sell, and that this thread isn't already running
 
