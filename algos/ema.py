@@ -15,7 +15,7 @@ algo = 'ema' #name of the algo
 
 
 
-def getList(verbose=False):
+def getList(verbose=True):
   if(verbose): print(f"getting unsorted list for {algo}")
   symbs = getUnsortedList()
   if(verbose): print(f"{len(symbs)} potential gainers for {algo}")
@@ -228,9 +228,9 @@ def goodSell(symb, verbose=False):
     if(verbose): print("exit test not hit yet")
     return False
     
-    else:
-      if(verbose): print("reversion has not occurred yet")
-      return False
+  else:
+    if(verbose): print("reversion has not occurred yet")
+    return False
     
   
 
@@ -242,7 +242,7 @@ def sellUp(symb=""):
   startSqueeze = float(o.c[algo]['startSqueeze'])
   squeezeTime = float(o.c[algo]['squeezeTime'])
 
-if(symb in stockList):
+  if(symb in stockList):
     #TODO: add exit condition (see it in goodBuys)
     sellUp = mainSellUp #TODO: account for squeeze here
   else:

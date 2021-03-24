@@ -14,13 +14,14 @@ sys.path.append(o.c['file locations']['algosDir'])
 #TODO: add setting to each algo in config file to determine if it should sell before the end of the day or not (eg dj should, but fda shouldn't)
 #TODO: incorporate minDolPerStock into check2buy (and make sure that appropriate cash is being used up entirely be each algo)
 #TODO: add note element to posList stocks for info specific to that algo (eg. initial jump date, date added to algo, ema crossover, etc)
+#TODO: upon completion of list update, write list to a file so if it does crash at some point during the day it can just pick up from there rather than having to update everything again
 
 #list of algorithms to be used and their corresponding stock lists to be bought (init with none)
 algoList = {
-            # 'divs':[],
+            'divs':[],
             'dj':[],
             # 'earnings':[],
-            # 'ema':[],
+            'ema':[],
             'fda':[],
             # 'gapup':[],
             # 'hivol':[],
@@ -78,7 +79,7 @@ def main():
       #update the lists if not updated yet
       print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${totalCash}, {len(posList)} algos")
       if(not listsUpdatedToday):
-        updateLists()
+        updateLists() #TODO: thread here
       
       print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\tsell params")
       print("----\t------\t-----\t-----------\t-----------\t-----------")
@@ -137,7 +138,7 @@ def main():
         print(f"Updating stock lists in {round((tto-60*float(o.c['time params']['updateLists']))/3600,2)} hours")
         time.sleep(tto-60*float(o.c['time params']['updateLists']))
       #update stock lists
-      updateLists()
+      updateLists() #TODO: thread here
       
       time.sleep(a.timeTillOpen())
       
@@ -146,6 +147,7 @@ def main():
   a.sellAll(isManual=True) #if the portfolio value falls below our stop loss, automatically sell everything
 
 #update all lists to be bought
+#TODO: this should also be a thread?
 def updateLists():
   global algoList, listsUpdatedToday
   lock = threading.Lock()
@@ -372,7 +374,7 @@ def syncPosList():
     #TODO: once the listsUpdatedToday is fixed in updateLists(), then the second half of the checks can be removed
   if(not eq(recPos, heldPos)): #compare again after the initial comparison
     if(not listsUpdatedToday and len([t for t in threading.enumerate() if t.getName().startswith('update')])==0):
-      updateLists()
+      updateLists() #TODO: thread here
     print("Waiting for stock lists to finish updating...")
     while(not listsUpdatedToday or len([t for t in threading.enumerate() if t.getName().startswith('update')])>0): #wait for the lists to finish updating
       time.sleep(2)

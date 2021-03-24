@@ -276,7 +276,7 @@ def reverseSplitters():
   
 
 #set up the position list and do some error checking to make sure it's correct (take list of algos as arg in the event the pos list needs to be populated)
-def setPosList(algoList):
+def setPosList(algoList, verbose=True):
   posList={}
   #if the posList file doesn't exist
   if(not os.path.isfile(c['file locations']['posList'])):
@@ -289,7 +289,7 @@ def setPosList(algoList):
         posList = json.loads(f.read())
       
       missingAlgos = [algo for algo in algoList if algo not in posList]
-      print("" if len(missingAlgos)==0 else f"Adding {len(missingAlgos)} algo{'s' if len(missingAlgos)>1 else ''} to posList")
+      if(verbose): print("" if len(missingAlgos)==0 else f"Adding {len(missingAlgos)} algo{'s' if len(missingAlgos)>1 else ''} to posList")
       for algo in missingAlgos:
         posList[algo] = {}
         
@@ -299,7 +299,7 @@ def setPosList(algoList):
         
     except Exception: #if it fails, then just write the empty algoList to the file
       #TODO: this is dangerous! This could potentially overwrite all saved position data if there's any error above. Make this more robust
-      print("something went wrong. Overwriting file")
+      if(verbose): print("something went wrong. Overwriting file")
       with open(c['file locations']['posList'],'w') as f:
         f.write(json.dumps({e:{} for e in algoList}))
       posList = json.loads(open(c['file locations']['posList'],'r').read())
@@ -309,7 +309,7 @@ def setPosList(algoList):
 #get the current price of a stock, optionally include the market cap
 #TODO: move market cap to its own function, and have it return volume instead
 #alternateively, return an additional dict containing other specified info (like vol or cap or exchange or whatever)
-def getPrice(symb, withCap=False):
+def getPrice(symb, withCap=False,verbose=False):
   url = f'https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
   while True:
     try:
@@ -326,18 +326,18 @@ def getPrice(symb, withCap=False):
         #sometimes there isn't a listed market cap, so we look for one, and if it's not there, then we estimate one
         mktCap = float(json.loads(response)['data']['keyStats']['MarketCap']['value'].replace(',',''))
       except Exception:
-        print(f"Invalid market cap found for {symb}. Calculating an estimate")
+        if(verbose): print(f"Invalid market cap found for {symb}. Calculating an estimate")
         vol = float(json.loads(response)['data']['keyStats']['Volume']['value'].replace(',',''))
         mktCap = vol*latestPrice #this isn't the actual cap, but it's better than nothing
       return [latestPrice,mktCap]
     else:
       return latestPrice
   except Exception:
-    print("Invalid Stock - "+symb)
+    if(verbose): print("Invalid Stock - "+symb)
     return [0,0] if(withCap) else 0
   
 #TODO: remove this function once getPrice is redone
-def getVol(symb):
+def getVol(symb, verbose=False):
   url = f'https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
   while True:
     try:
@@ -351,12 +351,12 @@ def getVol(symb):
   try:
     vol = float(json.loads(response)['data']['keyStats']['Volume']['value'].replace(',',''))
   except Exception:
-    print("Invalid Stock - "+symb)
+    if(verbose): print("Invalid Stock - "+symb)
   return vol
 
 
 #get minute to minute prices for the current day
-def getDayMins(symb, maxTries=3):
+def getDayMins(symb, maxTries=3, verbose=False):
   tries=0
   while tries<maxTries:
     try:
@@ -368,7 +368,7 @@ def getDayMins(symb, maxTries=3):
       continue
   
   if(tries==maxTries):
-    print("Failed to get minute data")
+    if(verbose): print("Failed to get minute data")
     return []
   else:
     out = {e['z']['dateTime']:float(e['z']['value']) for e in r['data']['chart']}
