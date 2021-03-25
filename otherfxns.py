@@ -280,6 +280,7 @@ def setPosList(algoList, verbose=True):
   posList={}
   #if the posList file doesn't exist
   if(not os.path.isfile(c['file locations']['posList'])):
+    if(verbose): print("File is missing. Creating and adding blank lists...")
     with open(c['file locations']['posList'],'w') as f:
       f.write(json.dumps({e:{} for e in algoList}))
     posList = open(c['file locations']['posList'],'r').read()

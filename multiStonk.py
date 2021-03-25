@@ -302,13 +302,36 @@ def buy(shares, stock, algo, price):
 
 
 #sync what we have recorded and what's actually going on in the account
-#TODO: go through and mark to sell in this fxn (towards the end after everything is synced, then go through every stock of every algo and check if it should be sold)
+#TODO: 
 def syncPosList(verbose=True):
   global posList
+      
+  
   if(verbose): print("getting actually held positions...")
   p = a.getPos()
   heldPos = {e['symbol']:float(e['qty']) for e in p} #actually held positions
   heldBuyPrices = {e['symbol']:float(e['avg_entry_price']) for e in p} #TODO: combine this into heldPos and either rework recPos or change some conditionals to account for the addition
+
+
+  if(verbose): print("Adding any missing fields to current records")
+  for algo in posList:
+    for symb in posList[algo]:
+      if('sharesHeld' not in posList[algo][symb]):
+        if(verbose): print(f"{algo} {symb} missing sharesHeld")
+        posList[algo][symb]['sharesHeld'] = 0
+      if('lastTradeDate' not in posList[algo][symb]):
+        if(verbose): print(f"{algo} {symb} missing lastTradeDate")
+        posList[algo][symb]['lastTradeDate'] = str(dt.date.today()-dt.timedelta(1))
+      if('lastTradeType' not in posList[algo][symb]):
+        if(verbose): print(f"{algo} {symb} missing lastTradeType")
+        posList[algo][symb]['lastTradeType'] = "NA"
+      if('buyPrice' not in posList[algo][symb]):
+        if(verbose): print(f"{algo} {symb} missing buyPrice")
+        posList[algo][symb]['buyPrice'] = heldBuyPrices[symb] if symb in heldBuyPrices else 0
+      if('shouldSell' not in posList[algo][symb]):
+        if(verbose): print(f"{algo} {symb} missing shouldSell")
+        posList[algo][symb]['shouldSell'] = False
+  
   
   #total stocks in posList
   if(verbose): print("getting recorded positions...")
@@ -341,6 +364,7 @@ def syncPosList(verbose=True):
           
           
           recPos[stock] += float(posList[algo][stock]['sharesHeld']) #add the shares held
+
 
   if(not eq(recPos,heldPos)):
     if(verbose): print("discrepency found between records and actuals")
@@ -403,6 +427,7 @@ def syncPosList(verbose=True):
       updateLists() #TODO: thread here
     if(verbose): print("Waiting for stock lists to finish updating...")
     while(not listsUpdatedToday or len([t for t in threading.enumerate() if t.getName().startswith('update')])>0): #wait for the lists to finish updating
+      # print([t.getName() for t in threading.enumerate() if t.getName().startswith('update')])
       time.sleep(2)
     if(verbose): print("lists done updating")
 
