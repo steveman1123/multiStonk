@@ -131,10 +131,10 @@ def getEMAs(symb,startDate,endDate,n):
 
 
 #get a list of stocks to be sifted through
-def getUnsortedList():
+def getUnsortedList(verbose=False):
   symbList = []
 
-  print("Getting MarketWatch data...")
+  if(verbose): print("Getting MarketWatch data...")
   url = 'https://www.marketwatch.com/tools/stockresearch/screener/results.asp'
   params = {
             "submit":"Screen",
@@ -160,7 +160,7 @@ def getUnsortedList():
       continue
       
   for i in range(0,totalStocks,100): #loop through the pages (100 because ResultsPerPage is OneHundred)
-    print(f"page {int(i/100)+1} of {o.ceil(totalStocks/100)}")
+    if(verbose): print(f"page {int(i/100)+1} of {o.ceil(totalStocks/100)}")
     params['PagingIndex'] = i
     while True:
       try:
@@ -233,8 +233,6 @@ def goodSell(symb, verbose=False):
     return False
     
   
-
-
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
   stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo] #stocks held by this algo according to the records

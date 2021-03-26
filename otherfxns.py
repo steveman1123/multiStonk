@@ -74,7 +74,7 @@ def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today(
         out.write(r)
   
   else:
-    if(verbose): print("file exists. Checking for proper data")
+    if(verbose): print(f"{symb} file exists. Checking for proper data")
     with open(stockDir+symb+".csv",'r') as csv_file:
       csv_reader = csv.reader(csv_file, delimiter=',')
       lines = [[ee.replace('$','').replace('N/A','0').strip() for ee in e] for e in csv_reader][1::] #trim first line to get rid of headers, also replace $'s and N/A volumes to calculable values
@@ -283,7 +283,7 @@ def setPosList(algoList, verbose=True):
     if(verbose): print("File is missing. Creating and adding blank lists...")
     with open(c['file locations']['posList'],'w') as f:
       f.write(json.dumps({e:{} for e in algoList}))
-    posList = open(c['file locations']['posList'],'r').read()
+    posList = json.loads(open(c['file locations']['posList'],'r').read())
   else: #if it does exist
     try: #try reading any json data from it
       with open(c['file locations']['posList'],'r') as f:

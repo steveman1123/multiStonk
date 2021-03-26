@@ -7,8 +7,8 @@ algo = 'fda' #name of the algo
 #stocks held by this algo according to the records
 
 #get list of stocks pending FDA approvals
-def getList():
-  print(f"getting unsorted list for {algo}")
+def getList(verbose=True):
+  if(verbose): print(f"getting unsorted list for {algo}")
   while True: #get pages of pending stocks
     try:
       r = o.requests.get("https://www.drugs.com/new-drug-applications.html", timeout=5).text
@@ -20,7 +20,7 @@ def getList():
       o.time.sleep(3)
       continue
   
-  print(f"{algo} getting stocks from drugs.com")
+  if(verbose): print(f"{algo} getting stocks from drugs.com")
   try:
     arr = r.split("Company:</b>") #go down to stock list
     arr = [e.split("<br>")[0].strip() for e in arr][1::] #get list of companies
@@ -31,7 +31,7 @@ def getList():
     arr = []
   # print(f"drugs.com: {len(arr)}")
   
-  print(f"{algo} getting stocks from biopharmcatalyst.com")
+  if(verbose): print(f"{algo} getting stocks from biopharmcatalyst.com")
   try:
     arr1 = r1.split("var tickers = [")[1].split("];")[0].replace("'","").replace(" ","").split(",") #get stock list
     arr1 = list(set(arr1)) #remove duplicates? Might not actually have to do this

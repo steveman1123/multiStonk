@@ -131,9 +131,9 @@ def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPri
       print(f"Order to {r['side']} {r['qty']} share(s) of {r['symbol']} - {r['status']}")
       return r
     except Exception:
-      return {f"{symb} error":r}
+      return r
   else:
-    return {f"{symb} error":"not tradable"}
+    return {'symbol':symb,'status':'error'}
 
 #check if the market is open
 def marketIsOpen():

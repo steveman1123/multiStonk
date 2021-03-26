@@ -8,7 +8,7 @@ algo = 'ipos' #name of the algo
 stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
 
-def getList():
+def getList(verbose=True):
   #perform checks to see which one ones will gain
   
   #may need to read the news regarding it

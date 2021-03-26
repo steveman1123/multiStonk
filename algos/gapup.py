@@ -9,7 +9,7 @@ algo = 'gapup' #name of the algo
 #stocks held by this algo according to the records
 stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
-def getList():
+def getList(verbose=True):
   #perform checks to see which one ones will gain
   
   

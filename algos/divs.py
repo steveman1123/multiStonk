@@ -10,18 +10,18 @@ algo = 'divs' #name of the algo
 #stocks held by this algo according to the records
 posList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
-def getList():
+def getList(verbose=True):
   #perform checks to see which one ones will gain
   #check history of the stocks. Look for pattern that denotes a gain after the initial div date (could possibly look like a buy low. Stock gains to div, div processes, dips, then gains again. Sell at that gain)
   
   #if today < ex div date, then buy
   
 
-  print(f"getting unsorted list for {algo}")
+  if(verbose): print(f"getting unsorted list for {algo}")
   symbs = getUnsortedList()
-  print(f"finding stocks for {algo}")
+  if(verbose): print(f"finding stocks for {algo}")
   goodBuys = [s for s in symbs if float(o.c[algo]['minPrice'])<=o.getPrice(s)<=float(o.c[algo]['maxPrice']) and o.getVol(s)>=float(o.c[algo]['minVol'])]
-  print(f"{len(goodBuys)} found for {algo}")
+  if(verbose): print(f"{len(goodBuys)} found for {algo}")
   return goodBuys
   
 

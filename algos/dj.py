@@ -8,19 +8,20 @@ algo = 'dj' #name of the algo
 #stocks held by this algo according to the records
 
 #get a list of potential gainers according to this algo
-def getList():
-  print(f"getting unsorted list for {algo}")
+def getList(verbose=True):
+  if(verbose): print(f"getting unsorted list for {algo}")
   symbs = getUnsortedList()
-  print(f"finding stocks for {algo}")
+  if(verbose): print(f"finding stocks for {algo}")
+  #TODO: figure out how to pass goodBuy() to posList to store in the note
   goodBuys = [e for e in symbs if goodBuy(e)[0].isnumeric()] #the only time that the first char is a number is if it is a valid/good buy
-  print(f"{len(goodBuys)} found for {algo}")
+  if(verbose): print(f"{len(goodBuys)} found for {algo}")
   return goodBuys
 
 
 #checks whether something is a good buy or not (if not, return why - no initial jump or second jump already missed).
 #if it is a good buy, return initial jump date
 #this is where the magic really happens
-def goodBuy(symb,days2look = int(o.c[algo]['simDays2look'])): #days2look=how far back to look for a jump
+def goodBuy(symb,days2look = int(o.c[algo]['simDays2look']), verbose=False): #days2look=how far back to look for a jump
   validBuy = "NA" #set to the jump date if it's valid
   if o.isTradable(symb):
     #calc price % diff over past 20 days (current price/price of day n) - current must be >= 80% for any
@@ -76,20 +77,21 @@ def goodBuy(symb,days2look = int(o.c[algo]['simDays2look'])): #days2look=how far
                 #check to see if we missed the next jump (where we want to strike)
                 missedJump = False
                 validBuy = "Missed jump"
-                if(not o.jumpedToday(symb, sellUp)): #history grao.bs from previous day and before, it does not grab today's info. Check that it hasn't jumped today too
+                if(not o.jumpedToday(symb, sellUp)): #history grabs from previous day and before, it does not grab today's info. Check that it hasn't jumped today too
                   for e in range(0,startDate):
-                    # print(str(dateData[e])+" - "+str(float(dateData[e][4])/float(dateData[e+1][1])) +" - "+ str(sellUp))
+                    if(verbose): print(str(dateData[e])+" - "+str(float(dateData[e][4])/float(dateData[e+1][1])) +" - "+ str(sellUp))
                     if(float(dateData[e][4])/float(dateData[e+1][1]) >= sellUp): #compare the high vs previous close
                       missedJump = True
                   if(not missedJump):
-                    print("dj",symb)
+                    if(verbose): print("dj",symb)
                     validBuy = dateData[startDate][0] #return the date the stock initially jumped
-    
+
+  if(verbose): print(symb, validBuy)
   return validBuy
   
 
 #get list of stocks from stocksUnder1 and marketWatch lists
-def getUnsortedList():
+def getUnsortedList(verbose=False):
   symbList = list()
   
   url = 'https://www.marketwatch.com/tools/stockresearch/screener/results.asp'
@@ -140,9 +142,9 @@ def getUnsortedList():
       continue
       
       
-  print("Getting MarketWatch data...")
+  if(verbose): print("Getting MarketWatch data...")
   for i in range(0,totalStocks,100): #loop through the pages (100 because ResultsPerPage is OneHundred)
-    print(f"page {int(i/100)+1} of {o.ceil(totalStocks/100)}")
+    if(verbose): print(f"page {int(i/100)+1} of {o.ceil(totalStocks/100)}")
     params['PagingIndex'] = i
     while True:
       try:
@@ -161,10 +163,10 @@ def getUnsortedList():
       print("Error in MW website.")
   
   #now that we have the marketWatch list, let's get the stocksunder1 list - essentially the getPennies() fxn from other files
-  print("Getting stocksunder1 data...")
+  if(verbose): print("Getting stocksunder1 data...")
   urlList = ['nasdaq','tech','biotech','marijuana','healthcare','energy']
   for e in urlList:  
-    print(e+" stock list")
+    if(verbose): print(e+" stock list")
     url = f'https://stocksunder1.org/{e}-penny-stocks/'
     while True:
       try:
@@ -180,7 +182,7 @@ def getUnsortedList():
       symbList.append(o.re.sub(r'\W+','',e.find_all('td')[0].get_text().replace(' predictions','')))
   
   
-  print("Removing Duplicates...")
+  if(verbose): print("Removing Duplicates...")
   symbList = list(dict.fromkeys(symbList)) #combine and remove duplicates
   
   print("Done getting stock lists")
