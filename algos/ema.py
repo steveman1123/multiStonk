@@ -26,7 +26,7 @@ def getList(verbose=True):
  
 
 #determine whether the queries symb is a good one to buy or not
-def goodBuy(symb, verbose=False):
+def goodBuy(symb, verbose=True):
   
   emaSper = int(o.c[algo]['emaSper']) #period length of the short EMA (typically 8 or 9 or 20)
   emaLper = int(o.c[algo]['emaLper']) #period length of the long EMA (typically 20, 50 or 200)
@@ -43,9 +43,9 @@ def goodBuy(symb, verbose=False):
     if(verbose): print(f"Not enough data for {symb}")
     return False
   
-  #look for the crossover when sema > lema
+  #look for the crossover when sema > lema (ensure that we stay within range and timeLimit)
   daysBack = 0
-  while(daysBack<timeLim or sema[daysBack]<lema[daysBack]):
+  while(daysBack<min(len(sema),len(lema)) and (daysBack<timeLim or sema[daysBack]<lema[daysBack])):
     daysBack += 1
   
   #if it is
