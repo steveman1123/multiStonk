@@ -1,7 +1,10 @@
 import otherfxns as o
 
-isPaper = bool(int(o.c['account params']['isPaper'])) #set up as paper trading (testing), or actual trading
-with open(o.c['file locations']['keyFile'],"r") as keyFile:
+c = o.configparser.ConfigParser()
+c.read('./configs/alpaca.config')
+
+isPaper = bool(int(c['account params']['isPaper'])) #set up as paper trading (testing), or actual trading
+with open(c['file locations']['keyFile'],"r") as keyFile:
   apiKeys = o.json.loads(keyFile.read())
   
 if(isPaper):

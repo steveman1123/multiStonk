@@ -4,8 +4,15 @@
 import otherfxns as o
 
 algo = 'splits' #name of the algo
-#stocks held by this algo according to the records
-stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
+
+def init(configFile):
+  global posList,c
+  #set the multi config file
+  c = o.configparser.ConfigParser()
+  c.read(configFile)
+  
+  #stocks held by this algo according to the records
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
 
 
 def getList(verbose=True):
@@ -29,8 +36,8 @@ def getUnsortedList():
 
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
-  mainSellUp = float(o.c[algo]['sellUp'])
-  if(symb in stockList):
+  mainSellUp = float(c[algo]['sellUp'])
+  if(symb in posList):
     sellUp = mainSellUp #TODO: account for squeeze here
   else:
     sellUp = mainSellUp
@@ -38,12 +45,12 @@ def sellUp(symb=""):
 
 #TODO: this should also account for squeezing
 def sellDn(symb=""):
-  mainSellDn = float(o.c[algo]['sellDn'])
-  if(symb in stockList):
+  mainSellDn = float(c[algo]['sellDn'])
+  if(symb in posList):
     sellDn = mainSellDn #TODO: account for squeeze here
   else:
     sellDn = mainSellDn
   return sellDn
 
 def sellUpDn():
-  return float(o.c[algo]['sellUpDn'])
+  return float(c[algo]['sellUpDn'])

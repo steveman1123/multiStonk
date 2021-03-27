@@ -13,6 +13,14 @@ from workdays import networkdays as nwd
 
 algo = 'ema' #name of the algo
 
+def init(configFile):
+  global posList,c
+  #set the multi config file
+  c = o.configparser.ConfigParser()
+  c.read(configFile)
+  
+  #stocks held by this algo according to the records
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
 
 
 def getList(verbose=True):
@@ -26,12 +34,12 @@ def getList(verbose=True):
  
 
 #determine whether the queries symb is a good one to buy or not
-def goodBuy(symb, verbose=True):
+def goodBuy(symb, verbose=False):
   
-  emaSper = int(o.c[algo]['emaSper']) #period length of the short EMA (typically 8 or 9 or 20)
-  emaLper = int(o.c[algo]['emaLper']) #period length of the long EMA (typically 20, 50 or 200)
-  timeLim = int(o.c[algo]['timeLim']) #days to look back for the EMA crossover
-  testNum = int(o.c[algo]['testNum']) #number of EMA tests to limit at (where the price exits and re-enteres the sema/lema range)
+  emaSper = int(c[algo]['emaSper']) #period length of the short EMA (typically 8 or 9 or 20)
+  emaLper = int(c[algo]['emaLper']) #period length of the long EMA (typically 20, 50 or 200)
+  timeLim = int(c[algo]['timeLim']) #days to look back for the EMA crossover
+  testNum = int(c[algo]['testNum']) #number of EMA tests to limit at (where the price exits and re-enteres the sema/lema range)
   
   
   #get the short and long period EMAs
@@ -141,10 +149,10 @@ def getUnsortedList(verbose=False):
             "Symbol":"true",
             "ResultsPerPage":"OneHundred",
             "TradesShareEnable":"true",
-            "TradesShareMin":o.c[algo]['minPrice'],
-            "TradesShareMax":o.c[algo]['maxPrice'],
+            "TradesShareMin":c[algo]['minPrice'],
+            "TradesShareMax":c[algo]['maxPrice'],
             "TradeVolEnable":"true",
-            "TradeVolMin":o.c[algo]['minVol'],
+            "TradeVolMin":c[algo]['minVol'],
             "Exchange":"NASDAQ"
             }
   params['PagingIndex'] = 0 #this will change to show us where in the list we should be - increment by 100 (see ResultsPerPage key)
@@ -183,16 +191,16 @@ def getUnsortedList(verbose=False):
 #return whether symb is a good sell or not
 def goodSell(symb, verbose=False):
   #TODO: to sell: look for when Lema>Sema, then look for the first time that the price >Sema and <Lema after being <Sema
-  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo] #stocks held by this algo according to the records
+  stockList = o.json.loads(open(posListFile,'r').read())[algo] #stocks held by this algo according to the records
   
   #mark to sell (just in case it's not caught somewhere else)
   if(symb in stockList):
     if(stockList[symb]['shouldSell']):
       return True
   
-  emaSper = int(o.c[algo]['emaSper']) #period length of the short EMA (typically 8 or 9 or 20)
-  emaLper = int(o.c[algo]['emaLper']) #period length of the long EMA (typically 20, 50 or 200)
-  timeLim = int(o.c[algo]['timeLim']) #days to look back for the EMA crossover
+  emaSper = int(c[algo]['emaSper']) #period length of the short EMA (typically 8 or 9 or 20)
+  emaLper = int(c[algo]['emaLper']) #period length of the long EMA (typically 20, 50 or 200)
+  timeLim = int(c[algo]['timeLim']) #days to look back for the EMA crossover
   
   #get the short and long period EMAs
   sema = getEMAs(symb,str(wd(o.dt.date.today(),-(timeLim+2))),str(o.dt.date.today()),emaSper)
@@ -235,10 +243,10 @@ def goodSell(symb, verbose=False):
   
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
-  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo] #stocks held by this algo according to the records
-  mainSellUp = float(o.c[algo]['sellUp'])
-  startSqueeze = float(o.c[algo]['startSqueeze'])
-  squeezeTime = float(o.c[algo]['squeezeTime'])
+  stockList = o.json.loads(open(posListFile,'r').read())[algo] #stocks held by this algo according to the records
+  mainSellUp = float(c[algo]['sellUp'])
+  startSqueeze = float(c[algo]['startSqueeze'])
+  squeezeTime = float(c[algo]['squeezeTime'])
 
   if(symb in stockList):
     #TODO: add exit condition (see it in goodBuys)
@@ -249,8 +257,8 @@ def sellUp(symb=""):
 
 #TODO: this should also account for squeezing
 def sellDn(symb=""):
-  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo] #stocks held by this algo according to the records
-  mainSellDn = float(o.c[algo]['sellDn'])
+  stockList = o.json.loads(open(posListFile,'r').read())[algo] #stocks held by this algo according to the records
+  mainSellDn = float(c[algo]['sellDn'])
   if(symb in stockList):
     sellDn = mainSellDn #TODO: account for squeeze here
   else:
@@ -259,4 +267,4 @@ def sellDn(symb=""):
 
 #get the stop loss for a symbol after its been triggered (default to the main value)
 def sellUpDn():
-  return float(o.c[algo]['sellUpDn'])
+  return float(c[algo]['sellUpDn'])

@@ -6,11 +6,18 @@ import otherfxns as o
 
 algo = 'divs' #name of the algo
 
+def init(configFile):
+  global posList,c
+  #set the multi config file
+  c = o.configparser.ConfigParser()
+  c.read(configFile)
+  
+  #stocks held by this algo according to the records
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
 
-#stocks held by this algo according to the records
-posList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 
 def getList(verbose=True):
+  
   #perform checks to see which one ones will gain
   #check history of the stocks. Look for pattern that denotes a gain after the initial div date (could possibly look like a buy low. Stock gains to div, div processes, dips, then gains again. Sell at that gain)
   
@@ -20,7 +27,7 @@ def getList(verbose=True):
   if(verbose): print(f"getting unsorted list for {algo}")
   symbs = getUnsortedList()
   if(verbose): print(f"finding stocks for {algo}")
-  goodBuys = [s for s in symbs if float(o.c[algo]['minPrice'])<=o.getPrice(s)<=float(o.c[algo]['maxPrice']) and o.getVol(s)>=float(o.c[algo]['minVol'])]
+  goodBuys = [s for s in symbs if float(c[algo]['minPrice'])<=o.getPrice(s)<=float(c[algo]['maxPrice']) and o.getVol(s)>=float(c[algo]['minVol'])]
   if(verbose): print(f"{len(goodBuys)} found for {algo}")
   return goodBuys
   
@@ -39,7 +46,8 @@ def goodSell(symb):
 
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
-  mainSellUp = float(o.c[algo]['sellUp'])
+  
+  mainSellUp = float(c[algo]['sellUp'])
   if(symb in posList):
     #TODO: add exit condition (see it in getList)
     sellUp = mainSellUp #TODO: account for squeeze here
@@ -49,7 +57,8 @@ def sellUp(symb=""):
 
 #TODO: this should also account for squeezing
 def sellDn(symb=""):
-  mainSellDn = float(o.c[algo]['sellDn'])
+  
+  mainSellDn = float(c[algo]['sellDn'])
   if(symb in posList):
     sellDn = mainSellDn #TODO: account for squeeze here
   else:
@@ -57,7 +66,8 @@ def sellDn(symb=""):
   return sellDn
 
 def sellUpDn():
-  return float(o.c[algo]['sellUpDn'])
+  
+  return float(c[algo]['sellUpDn'])
 
 
 #get a list of stocks to be sifted through

@@ -5,7 +5,16 @@
 import otherfxns as o
 
 algo = 'dj' #name of the algo
-#stocks held by this algo according to the records
+
+def init(configFile):
+  global posList,c
+  #set the multi config file
+  c = o.configparser.ConfigParser()
+  c.read(configFile)
+  
+  #stocks held by this algo according to the records
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+
 
 #get a list of potential gainers according to this algo
 def getList(verbose=True):
@@ -21,25 +30,26 @@ def getList(verbose=True):
 #checks whether something is a good buy or not (if not, return why - no initial jump or second jump already missed).
 #if it is a good buy, return initial jump date
 #this is where the magic really happens
-def goodBuy(symb,days2look = int(o.c[algo]['simDays2look']), verbose=False): #days2look=how far back to look for a jump
+def goodBuy(symb,days2look = -1, verbose=False): #days2look=how far back to look for a jump
+  if(days2look<0): days2look = int(c[algo]['simDays2look'])
   validBuy = "NA" #set to the jump date if it's valid
   if o.isTradable(symb):
     #calc price % diff over past 20 days (current price/price of day n) - current must be >= 80% for any
     #calc volume % diff over average past some days (~60 days?) - must be sufficiently higher (~300% higher?)
     
-    days2wait4fall = int(o.c[algo]['simWait4fall']) #wait for stock price to fall for this many days
-    startDate = days2wait4fall + int(o.c[algo]['simStartDateDiff']) #add 1 to account for the jump day itself
-    firstJumpAmt = float(o.c[algo]['simFirstJumpAmt']) #stock first must jump by this amount (1.3=130% over 1 day)
-    sellUp = float(o.c[algo]['simSellUp']) #% to sell up at
-    sellDn = float(o.c[algo]['simSellDn']) #% to sell dn at
+    days2wait4fall = int(c[algo]['simWait4fall']) #wait for stock price to fall for this many days
+    startDate = days2wait4fall + int(c[algo]['simStartDateDiff']) #add 1 to account for the jump day itself
+    firstJumpAmt = float(c[algo]['simFirstJumpAmt']) #stock first must jump by this amount (1.3=130% over 1 day)
+    sellUp = float(c[algo]['simSellUp']) #% to sell up at
+    sellDn = float(c[algo]['simSellDn']) #% to sell dn at
     
     #make sure that the jump happened in the  frame rather than too long ago
-    volAvgDays = int(o.c[algo]['simVolAvgDays']) #arbitrary number to avg volumes over
-    checkPriceDays = int(o.c[algo]['simChkPriceDays']) #check if the price jumped suo.bstantially over the last __ trade days
-    checkPriceAmt = float(o.c[algo]['simChkPriceAmt']) #check if the price jumped by this amount in the above days (% - i.e 1.5 = 150%)
-    volGain = float(o.c[algo]['simVolGain']) #check if the volume increased by this amount during the jump (i.e. 3 = 300% or 3x, 0.5 = 50% or 0.5x)
-    volLoss = float(o.c[algo]['simVolLoss']) #check if the volume decreases by this amount during the price drop
-    priceDrop = float(o.c[algo]['simPriceDrop']) #price should drop this far when the volume drops
+    volAvgDays = int(c[algo]['simVolAvgDays']) #arbitrary number to avg volumes over
+    checkPriceDays = int(c[algo]['simChkPriceDays']) #check if the price jumped suo.bstantially over the last __ trade days
+    checkPriceAmt = float(c[algo]['simChkPriceAmt']) #check if the price jumped by this amount in the above days (% - i.e 1.5 = 150%)
+    volGain = float(c[algo]['simVolGain']) #check if the volume increased by this amount during the jump (i.e. 3 = 300% or 3x, 0.5 = 50% or 0.5x)
+    volLoss = float(c[algo]['simVolLoss']) #check if the volume decreases by this amount during the price drop
+    priceDrop = float(c[algo]['simPriceDrop']) #price should drop this far when the volume drops
     
     start = str(o.dt.date.today()-o.dt.timedelta(days=(volAvgDays+days2look)))
     end = str(o.dt.date.today())
@@ -98,13 +108,13 @@ def getUnsortedList(verbose=False):
   #many of the options listed are optional and can be removed from the get request
   params = {
     "TradesShareEnable" : "True",
-    "TradesShareMin" : str(o.c[algo]['simMinPrice']),
-    "TradesShareMax" : str(o.c[algo]['simMaxPrice']),
+    "TradesShareMin" : str(c[algo]['simMinPrice']),
+    "TradesShareMax" : str(c[algo]['simMaxPrice']),
     "PriceDirEnable" : "False",
     "PriceDir" : "Up",
     "LastYearEnable" : "False",
     "TradeVolEnable" : "true",
-    "TradeVolMin" : str(o.c[algo]['simMinVol']),
+    "TradeVolMin" : str(c[algo]['simMinVol']),
     "TradeVolMax" : "",
     "BlockEnable" : "False",
     "PERatioEnable" : "False",
@@ -190,7 +200,7 @@ def getUnsortedList(verbose=False):
 
 def goodSell(symb):
   #check if price<sellDn
-  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   buyPrice = float(stockList[symb]['buyPrice'])
   curPrice = o.getPrice(symb)
   if(curPrice/buyPrice<sellDn(symb)):
@@ -203,10 +213,10 @@ def goodSell(symb):
 
 #get the sellUp value for a given symbol (default to the main value)
 def sellUp(symb=""):
-  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
-  mainSellUp = float(o.c[algo]['sellUp']) #account for squeeze here
-  startSqueeze = float(o.c[algo]['startSqueeze'])
-  squeezeTime = float(o.c[algo]['squeezeTime'])
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  mainSellUp = float(c[algo]['sellUp']) #account for squeeze here
+  startSqueeze = float(c[algo]['startSqueeze'])
+  squeezeTime = float(c[algo]['squeezeTime'])
 
   if(symb in stockList):
     try: #try setting the last jump, if it doesn't work, set it to yesterday TODO: this is logically wrong and should be fixed (something should change in the actual posList file)
@@ -224,10 +234,10 @@ def sellUp(symb=""):
 
 #get the sellDn value for a given symbol (default to the main value)
 def sellDn(symb=""):
-  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
-  mainSellDn = float(o.c[algo]['sellDn'])
-  startSqueeze = float(o.c[algo]['startSqueeze'])
-  squeezeTime = float(o.c[algo]['squeezeTime'])
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  mainSellDn = float(c[algo]['sellDn'])
+  startSqueeze = float(c[algo]['startSqueeze'])
+  squeezeTime = float(c[algo]['squeezeTime'])
   
   if(symb in stockList):
     try: #try setting the last jump, if it doesn't work, set it to yesterday TODO: this is logically wrong and should be fixed (something should change in the actual posList file)
@@ -245,6 +255,6 @@ def sellDn(symb=""):
 
 #get the stop loss for a symbol (default to the main value)
 def sellUpDn(symb=""):
-  mainSellUpDn = float(o.c[algo]['sellUpDn'])
+  mainSellUpDn = float(c[algo]['sellUpDn'])
   #if there's ever any future enhancement that we want to add here, we can
   return mainSellUpDn

@@ -4,30 +4,32 @@ import random, time, json, threading, sys, os
 from glob import glob
 from operator import eq
 import datetime as dt
+
+
+#get the config file
+configFile="./configs/multi.config"
+if(len(sys.argv)>1): #if there's an argument present
+  for arg in sys.argv[1:]:
+    if(arg.lower().startswith("configfile=")): #if there's an argument regarding the config file
+      configFile = arg.split("=")[1] #set to that location (if there's multiple that start with configfile=, then it'll take the last one)
+      print(f"\nSetting config file to {configFile}")
+  #if we want to pass more arguments, we can specify them here
+
+#set the multi config file
+c = o.configparser.ConfigParser()
+c.read(configFile)
+
+
 #add the algos dir
-sys.path.append(o.c['file locations']['algosDir'])
+sys.path.append(c['file locations']['algosDir'])
 
-#http://bettersystemtrader.com/088-protect-and-grow-capital-during-corrections-with-ivanhoff/
-
-#TODO: add setting to each algo in config file to determine if it should sell before the end of the day or not (eg dj should, but fda shouldn't)
+# posList = {} #init posList
 
 #list of algorithms to be used and their corresponding stock lists to be bought (init with none)
-algoList = {
-            'divs':[],
-            'dj':[],
-            # 'earnings':[],
-            'ema':[],
-            'fda':[],
-            # 'gapup':[],
-            # 'hivol':[],
-            # 'ipos':[],
-            # 'reddit':[],
-            # 'sma':[],
-            # 'splits':[],
-           } #add any algos wanting to be used to this list
+algoList = c['allAlgos']['algoList'].split(',')
+algoList = {e:[] for e in algoList}
 
-posList = o.setPosList(algoList) #initiate/populate the list of positions by algo
-# print(posList)
+
 #import all algos that are in algoList (they require an up-to-date posList, so must be imported after it's updated)
 for algo in algoList:
   exec(f"import {algo}")
@@ -47,25 +49,22 @@ class bcolor:
 
 listsUpdatedToday = False
 
-'''
-cash distribution:
-tradableCash = actualCash if actual < minHold*margin elif minHold*margin>actual>minHold 0 else actual-minhold*margin
-cashPerAlgo = tradableCash/numAlgos
-cashPerStock = min(cashPerAlgo, max(minDolPerStock, cashPerAlgo/numStocksInAlgo))
-'''
+
+#TODO: add setting to each algo in config file to determine if it should sell before the end of the day or not (eg dj should, but fda shouldn't)
+
 def main(verbose=True):
   global algoList, posList, listsUpdatedToday
   portHist = a.getProfileHistory(str(dt.date.today()),'1M')['equity'] #get the closing prices of the portfolio over the last month
   portHist = [e for e in portHist if e is not None] #remove blank entries (using max on a list doesn't work if it contains a nonetype)
   maxPortVal=max(portHist) #get the max portfolio value over the last month
-  cashMargin = float(o.c['account params']['cashMargin'])
+  cashMargin = float(c['account params']['cashMargin'])
   if(cashMargin<1): #cashMargin MUST BE GREATER THAN 1 in order for it to work correctly
     raise("Error: withdrawable funds margin is less than 1. Multiplier must be >=1")
-  cash2hold = float(o.c['account params']['cash2hold'])
+  cash2hold = float(c['account params']['cash2hold'])
   acct = a.getAcct() #initialize the acct var
   
   #make sure we're still above the threshold to trade
-  while float(acct['portfolio_value'])>=maxPortVal*float(o.c['account params']['portStopLoss']):
+  while float(acct['portfolio_value'])>=maxPortVal*float(c['account params']['portStopLoss']):
     
     acct = a.getAcct() #get account info
     pos = a.getPos() #get all held positions (no algo assigned)
@@ -91,9 +90,9 @@ def main(verbose=True):
       for algo in algoList:
         check2sell(algo,pos) #only look at the ones currently held
       
-      if(a.timeTillClose()<60*float(o.c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in threading.enumerate()])==0):
+      if(a.timeTillClose()<60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in threading.enumerate()])==0):
         #TODO: move cash adjustment from here to above
-        tradableCash = totalCash if totalCash<float(o.c['account params']['cash2hold']) else max(totalCash-float(o.c['account params']['cash2hold'])*float(o.c['account params']['cashMargin']),0) #account for withholding a certain amount of cash+margin
+        tradableCash = totalCash if totalCash<float(c['account params']['cash2hold']) else max(totalCash-float(c['account params']['cash2hold'])*float(c['account params']['cashMargin']),0) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
         for e in algoList:
@@ -121,13 +120,7 @@ def main(verbose=True):
             o.os.unlink(f)
           except Exception:
             pass
-        #TODO: double check if this is even needed, since it should be covered in syncPosList()?
-        #remove all stocks in the stock list that aren't currently held
-        pos = [e['symbol'] for e in a.getPos()] #isolate just the symbols
-        for algo in algoList: #look at every algo
-          for e in algoList[algo]: #look at every stock in the algo
-            if(e not in pos): #if it's not held
-              algoList[algo].pop(e) #remove it
+        
       
       # clear all lists in algoList
       print("Clearing buyList")
@@ -136,10 +129,11 @@ def main(verbose=True):
       tto = a.timeTillOpen()
       print(f"Market opens in {round(tto/3600,2)} hours")
       #wait some time before the market opens      
-      if(tto>60*float(o.c['time params']['updateLists'])):
-        print(f"Updating stock lists in {round((tto-60*float(o.c['time params']['updateLists']))/3600,2)} hours")
-        time.sleep(tto-60*float(o.c['time params']['updateLists']))
+      if(tto>60*float(c['time params']['updateLists'])):
+        print(f"Updating stock lists in {round((tto-60*float(c['time params']['updateLists']))/3600,2)} hours")
+        time.sleep(tto-60*float(c['time params']['updateLists']))
       #update stock lists
+      print("Updating buyList")
       updateListsThread = threading.Thread(target=updateLists) #init the thread - note locking is required here
       updateListsThread.setName('updateLists') #set the name to the stock symb
       updateListsThread.start() #start the thread
@@ -158,16 +152,16 @@ def updateLists(verbose=False):
   #TODO: check that the buyfile is present and if it was updated today: if it was, then read directly from it, else generate lists
   errored = False
   if(verbose): print("Checking if buyList file is present")
-  if(o.os.path.isfile(o.c['file locations']['buyList'])):
+  if(o.os.path.isfile(c['file locations']['buyList'])):
     if(verbose): print("File is present. Checking mod date")
     try:
-      modDate = dt.datetime.strptime(time.strftime("%Y-%m-%d",time.localtime(os.stat(o.c['file locations']['buyList']).st_mtime)),"%Y-%m-%d").date() #if ANYONE knows of a better way to get the modified date into a date format, for the love of god please let me know
+      modDate = dt.datetime.strptime(time.strftime("%Y-%m-%d",time.localtime(os.stat(c['file locations']['buyList']).st_mtime)),"%Y-%m-%d").date() #if ANYONE knows of a better way to get the modified date into a date format, for the love of god please let me know
     except Exception:
       modDate = dt.date.today()-dt.timedelta(1)
     if(modDate==dt.date.today()):
       try:
         if(verbose): print("Reading from file")
-        algoList = json.loads(open(o.c['file locations']['buyList'],'r').read())
+        algoList = json.loads(open(c['file locations']['buyList'],'r').read())
       except Exception:
         if(verbose): print("invalid data in file")
         errored = True
@@ -195,11 +189,10 @@ def updateLists(verbose=False):
     
     #save to a file
     if(verbose): print("Writing to buyList file")
-    with open(o.c['file locations']['buyList'],'w') as f:
+    with open(c['file locations']['buyList'],'w') as f:
       f.write(json.dumps(algoList,indent=2))
   
   listsUpdatedToday = True
-
 
 #update the to-buy list of the given algorithm, and exclude a list of rm stocks
 def updateList(algo,lock,rm=[],verbose=False):
@@ -211,16 +204,9 @@ def updateList(algo,lock,rm=[],verbose=False):
   algoList[algo] = algoBuys
   lock.release() #then unlock
 
+
 #check to sell positions from a given algo (where algo is an aglo name, and pos is the output of a.getPos())
 def check2sell(algo, pos):
-  #TODO: check that # of shares to sell (and in triggered up) is >0
-  '''
-  this should be written a bit:
-  for each stock in each aglo
-  check that it's a goodSell()
-  if it is, run the triggered() thread (rename from triggeredup) - this should run on sellUp or sellDn triggers (it'll sell really quick if it's down anyway)
-  if not, don't do anything
-  '''
   for e in pos:
     if(e['symbol'] in posList[algo] and posList[algo][e['symbol']]['sharesHeld']>0):
       #TODO: possibly getPrice with mktCap (and use in display), then if the number of shares held>mktCap/price, then sell the surplus
@@ -243,35 +229,15 @@ def check2sell(algo, pos):
             triggerThread = threading.Thread(target=triggeredUp, args=(e['symbol'],algo)) #init the thread - note locking is required here
             triggerThread.setName(f"{algo}-{e['symbol']}") #set the name to the algo and stock symb
             triggerThread.start() #start the thread
-      
-  
-  '''
-  for e in pos: #TODO: check last trade date/type
-    if(e['symbol'] in posList[algo]):
-      sellUp = eval(algo+".sellUp(e['symbol'])")
-      sellDn = eval(algo+".sellDn(e['symbol'])")
-      curPrice = a.getPrice(e['symbol'])
-      cngBuy = round(curPrice/float(e['avg_entry_price']),2)
-      cngToday = round(1+float(e['change_today']),2)
-      print(f"{algo}\t{round(float(posList[algo][e['symbol']]['sharesHeld']),2)}\t{e['symbol']}\t{bcolor.FAIL if cngBuy<1 else bcolor.OKGREEN}{cngBuy}{bcolor.ENDC}\t\t{bcolor.FAIL if cngToday<1 else bcolor.OKGREEN}{cngToday}{bcolor.ENDC}\t\t{round(sellUp,2)} & {round(sellDn,2)}")
-      if(posList[algo][e['symbol']]['shouldSell'] or curPrice<float(e['avg_entry_price'])*sellDn): #if it's marked for sale or failed out, sell immdiately
-        sell(e['symbol'],algo) #record and everything in the sell function
-      elif(curPrice/float(e['avg_entry_price'])>=sellUp or (1+float(e['change_today']))>=sellUp): #check that a sell param has been met
-        if(f"{algo}-{e['symbol']}" not in [t.getName() for t in threading.enumerate()]): #make sure that the thread isn't already running
-          #TODO: look at locking if need be
-          triggerThread = threading.Thread(target=triggeredUp, args=(e['symbol'],algo)) #init the thread - note locking is required here
-          triggerThread.setName(f"{algo}-{e['symbol']}") #set the name to the algo and stock symb
-          triggerThread.start() #start the thread
-  '''
 
-#TODO: add comments
+
 #look to buy stocks from the stocks2buy list with the available funds for the algo
 def check2buy(algo, cashAvailable, stocks2buy):
   global posList
 
   random.shuffle(stocks2buy) #shuffle the stocks2buy to avoid front loading
   #calculate the cash to be put towards various stocks in the algo (shouldn't be more than the cash available, but shouldn't be less than than the minDolPerStock (unless mindol > cashAvail))
-  cashPerStock = min(cashAvailable,max(float(o.c['account params']['minDolPerStock']),cashAvailable/len(stocks2buy)))
+  cashPerStock = min(cashAvailable,max(float(c['account params']['minDolPerStock']),cashAvailable/len(stocks2buy)))
   
   #TODO: add comments to justify why we're doing what we're doing
   #TODO: Also other printing should happen rather than printing the actual response
@@ -300,11 +266,11 @@ def check2buy(algo, cashAvailable, stocks2buy):
     if lastTradeDate < dt.date.today() or stockInfo['lastTradeType']!="sell":
       
       [buyPrice,mktCap] = a.getPrice(stock,withCap=True) #get the appx price to buy at, and the marketcap (to calculate the most shares we'll be allowed to purchase)
-      shares = int(min(cashPerStock/buyPrice,mktCap*float(o.c['account param']['maxVolPerc']))) #
+      shares = int(min(cashPerStock/buyPrice,mktCap*float(c['account param']['maxVolPerc']))) #
       if(shares>0):
         buy(int(cashPerStock/a.getPrice(stock)),stock,algo,buyPrice)
     
-
+#a stock has reached a trigger point and should begin to be checked more often (it will be sold in this function)
 def triggeredUp(stock, algo):
   maxPrice = 0
   curPrice = 0
@@ -334,7 +300,7 @@ def sell(stock, algo):
         "shouldSell":False,
         "note":""
       }
-    open(o.c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update the posList file
+    open(c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update the posList file
     return True
   else:
     print(f"Order to buy {shares} shares of {stock} not accepted")
@@ -355,12 +321,46 @@ def buy(shares, stock, algo, buyPrice):
         "shouldSell":False,
         "note":""
       }
-    open(o.c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update posList file
+    open(c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update posList file
     
     return True
   else: #it didn't actually buy
     print(f"Order to buy {shares} shares of {stock} not accepted")
     return False
+
+
+#set up the position list and do some error checking to make sure it's correct (take list of algos as arg in the event the pos list needs to be populated)
+def setPosList(algoList, verbose=True):
+  posList={}
+  #if the posList file doesn't exist
+  if(not os.path.isfile(c['file locations']['posList'])):
+    if(verbose): print("File is missing. Creating and adding blank lists...")
+    with open(c['file locations']['posList'],'w') as f:
+      f.write(json.dumps({e:{} for e in algoList}))
+    posList = json.loads(open(c['file locations']['posList'],'r').read())
+  else: #if it does exist
+    try: #try reading any json data from it
+      with open(c['file locations']['posList'],'r') as f:
+        posList = json.loads(f.read())
+      
+      missingAlgos = [algo for algo in algoList if algo not in posList]
+      if(verbose): print("" if len(missingAlgos)==0 else f"Adding {len(missingAlgos)} algo{'s' if len(missingAlgos)>1 else ''} to posList")
+      for algo in missingAlgos:
+        posList[algo] = {}
+        
+      #write the missing algos to the file
+      with open(c['file locations']['posList'],'w') as f:
+        f.write(json.dumps(posList))
+        
+    except Exception: #if it fails, then just write the empty algoList to the file
+      #TODO: this is dangerous! This could potentially overwrite all saved position data if there's any error above. Make this more robust
+      if(verbose): print("Something went wrong. Overwriting file")
+      with open(c['file locations']['posList'],'w') as f:
+        f.write(json.dumps({e:{} for e in algoList}))
+      posList = json.loads(open(c['file locations']['posList'],'r').read())
+
+  return posList
+
 
 
 #sync what we have recorded and what's actually going on in the account
@@ -564,19 +564,29 @@ def syncPosList(verbose=False):
   
   
   #write to the file
-  with open(o.c['file locations']['posList'],'w') as f:
+  with open(c['file locations']['posList'],'w') as f:
     if(verbose): print("Writing to posList file")
     f.write(json.dumps(posList,indent=2))
   
   print("Done syncing posList")
 
+
+
 #run the main function
 if __name__ == '__main__':
+  global posList
   print("\nStarting up...\n")
   a.checkValidKeys()
   
   if(len(a.getPos())==0): #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
-    print("Will start buying "+str(o.c['time params']['buyTime'])+" minutes before next close")
+    print("Will start buying "+str(c['time params']['buyTime'])+" minutes before next close")
+  
+  posList = setPosList(algoList) #initiate/populate the list of positions by algo
+  
+  #init the algos
+  for algo in algoList:
+    exec(f"{algo}.init('{configFile}')")
   
   syncPosList() #in the event that something changed during the last run, this should catch it
-  main()
+    
+  main() #start running the program

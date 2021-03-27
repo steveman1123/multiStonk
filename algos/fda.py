@@ -4,7 +4,17 @@
 import otherfxns as o
 
 algo = 'fda' #name of the algo
-#stocks held by this algo according to the records
+
+
+def init(configFile):
+  global posList,c
+  #set the multi config file
+  c = o.configparser.ConfigParser()
+  c.read(configFile)
+  
+  #stocks held by this algo according to the records
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  
 
 #get list of stocks pending FDA approvals
 def getList(verbose=True):
@@ -35,7 +45,7 @@ def getList(verbose=True):
   try:
     arr1 = r1.split("var tickers = [")[1].split("];")[0].replace("'","").replace(" ","").split(",") #get stock list
     arr1 = list(set(arr1)) #remove duplicates? Might not actually have to do this
-    arr1 = [e for e in arr1 if(e!="" and float(o.c['fda']['minPrice'])<o.getPrice(e)<float(o.c['fda']['maxPrice']))] #remove blanks and ensure that it's listed in ndaq (o.getPrice will return 0 if it throws an error (ie. is not listed and won't show up)) and within our price range
+    arr1 = [e for e in arr1 if(e!="" and float(c['fda']['minPrice'])<o.getPrice(e)<float(c['fda']['maxPrice']))] #remove blanks and ensure that it's listed in ndaq (o.getPrice will return 0 if it throws an error (ie. is not listed and won't show up)) and within our price range
   except Exception:
     print("Bad data from biopharmcatalyst.com")
     arr1 = []
@@ -55,7 +65,7 @@ def getList(verbose=True):
   return arr
 
 def goodSell(symb):
-  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
 
   #check if price<sellDn
   buyPrice = float(stockList[symb]['buyPrice'])
@@ -69,8 +79,8 @@ def goodSell(symb):
 
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
-  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
-  mainSellUp = float(o.c[algo]['sellUp'])
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  mainSellUp = float(c[algo]['sellUp'])
   if(symb in stockList):
     sellUp = mainSellUp #TODO: account for squeeze here
   else:
@@ -79,8 +89,8 @@ def sellUp(symb=""):
 
 #TODO: this should also account for squeezing
 def sellDn(symb=""):
-  stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
-  mainSellDn = float(o.c[algo]['sellDn'])
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  mainSellDn = float(c[algo]['sellDn'])
   if(symb in stockList):
     sellDn = mainSellDn #TODO: account for squeeze here
   else:
@@ -88,7 +98,7 @@ def sellDn(symb=""):
   return sellDn
 
 def sellUpDn():
-  return float(o.c[algo]['sellUpDn'])
+  return float(c[algo]['sellUpDn'])
 
 def maxPrice():
-  return float(o.c[algo]['maxPrice'])
+  return float(c[algo]['maxPrice'])
