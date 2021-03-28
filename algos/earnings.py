@@ -1,6 +1,12 @@
 #this file contains functions specifically for the earnings
 #what happens to a stock after various earnings calls?
 
+# https://tradingreviews.net/why-stock-prices-fall-after-good-earnings-announcements
+# https://www.marketwatch.com/story/heres-how-to-trade-a-stock-after-an-earnings-surprise-2016-08-18
+# https://finance.zacks.com/impact-earnings-announcements-stock-prices-4265.html
+# https://www.investopedia.com/terms/e/earningssurprise.asp
+
+
 import otherfxns as o
 
 algo = 'earnings' #name of the algo

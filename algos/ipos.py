@@ -1,6 +1,9 @@
 #this file contains functions specifically for the exponential moving average algo
 #how do stocks move before and after an ipo (and/or spo?)?
 
+# https://www.investopedia.com/a-simple-technique-to-profit-from-ipos-5078487
+# https://www.tradingpedia.com/ipo-and-spo/
+
 import otherfxns as o
 
 algo = 'ipos' #name of the algo
@@ -9,6 +12,8 @@ stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo
 
 
 def getList(verbose=True):
+  if(verbose): print(f"Getting unsorted list for {algo}")
+  ul = getUnsortedList() #TODO: do we also want to look at spo's, and should we focus on only one type?
   #perform checks to see which one ones will gain
   
   #may need to read the news regarding it

@@ -1,9 +1,12 @@
 #this file contains functions specifically for the reddit algo
 #how do stocks move after being discussed on reddit (in wallstreetbets, etc)?
 
+# https://www.reddit.com/dev/api
+# https://github.com/reddit-archive/reddit/wiki/API
+
 import otherfxns as o
 
-algo = 'ipos' #name of the algo
+algo = 'reddit' #name of the algo
 #stocks held by this algo according to the records
 stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 

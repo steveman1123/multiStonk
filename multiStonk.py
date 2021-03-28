@@ -50,8 +50,11 @@ class bcolor:
 listsUpdatedToday = False
 
 
+#TODO: at market close, show total p/l % for each algo
+#TODO: add sentiment analysis to newsScrape
 #TODO: add setting to each algo in config file to determine if it should sell before the end of the day or not (eg dj should, but fda shouldn't)
-
+# https://www.investopedia.com/ask/answers/042115/whats-best-investing-strategy-have-during-recession.asp
+#TODO: look at top gainers and analyze why they gain
 def main(verbose=True):
   global algoList, posList, listsUpdatedToday
   portHist = a.getProfileHistory(str(dt.date.today()),'1M')['equity'] #get the closing prices of the portfolio over the last month

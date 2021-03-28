@@ -1,45 +1,19 @@
-algo idea:
+misc algo ideas:
+
 look at upcoming earnings
 check that prices are within range (<10)
 check news headlines etc about whether it's good earnings or whatnot the day to week before earnings call
 if positive sentiment buy, look for large % jump during call day
 
-
-alt idea:
-check earnings. if forecast>last year's, and forecast>0 noOfEst>2, then may be good buy
-
-
-ZM    u
-CWEN  u
-AY    u
-TTEC  u
-IPAR  u
-RPAY  u
-ASTE  u
-MELI  d
-APPF  d
-DDD   d
-SWCH  d
-TGNA  d
-EVTC  d
-RGNX  d
-EXK   d
-OSUR  d
-
-
-
-basically all these algorithms are are just data sorting (attempting to find patterns in various stocks given the data available
-
-For instance, given a stock is between 0.8 and 5 dollars, it is listed on NASDAQ, and has jumped more than 1.7 times its average price over a period of time, then the stock should gain about 20% within two months since that initial jump
-
-otherwise here's another: given a stock is listed on NASDAQ and has a new drug becoming available, then it is likely that the stock should gan >50% within one month of the acceptance of that drug
-
-Or another: given that a stock has recently split, the price may rise slightly (due to traders now being able to afford the lower price)
-
-or another: stock prices typically fall slightly directly after a dividend is paid out
-
-
-
-
+check intrsection of various holding companies for stocks in our given price range (https://www.holdingschannel.com/funds/holding-msft/)
+perform history analysis on the daily gainers and see what various events cause them so we know what to look out for
 
 Some investors purchase shares just before the ex-dividend date and then sell them again right after the date of record—a tactic that can result in a tidy profit if it is done correctly. 
+
+how do forex react to economic events?
+https://api.nasdaq.com/api/calendar/economicevents?date=yyyy-mm-dd
+
+is there a large difference in how stocks act for ipos vs spos?
+
+how do stock prices change based on headlines?
+

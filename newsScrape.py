@@ -52,12 +52,17 @@ def scrapeNASDAQ(symb,headNum=5):
   while True:
     try:
       #the following two return essentially the same information, however quote-news returns slightly more than recent-articles
-      r = json.loads(requests.get(f"https://www.nasdaq.com/api/v1/quote-news/{nasNewsNum(symb)}/{headNum}",headers={"user-agent":'-'}, timeout=5).text)
+      newsNum = nasNewsNum(symb,2)
+      if(newsNum>0):
+        r = a.o.json.loads(a.o.requests.get(f"https://www.nasdaq.com/api/v1/quote-news/{newsNum}/{headNum}",headers={"user-agent":'-'}, timeout=5).text)
+      else:
+        print("Symbol does not exist")
+        return []
       # r = json.loads(requests.get(f"https://www.nasdaq.com/api/v1/recent-articles/{symbNewsNum(symb)}/{headNum}",headers={"user-agent":'-'}, timeout=5).text)
       break
     except Exception:
       print(f"Error in getNews for {symb}. Trying again...")
-      time.sleep(3)
+      a.o.time.sleep(3)
       pass
   return r
 
@@ -69,12 +74,12 @@ def nasNewsNum(symb, maxTries=3):
   num=0
   while tries<maxTries:
     try:
-      r = requests.get(f"https://www.nasdaq.com/market-activity/stocks/{symb}",headers={"user-agent":'-'}, timeout=5).text
+      r = a.o.requests.get(f"https://www.nasdaq.com/market-activity/stocks/{symb}",headers={"user-agent":'-'}, timeout=5).text
       num = int(r.split('data-symbol-id="')[1].split('">')[0])
       break
     except Exception:
-      print(f"Error in symbNewsNum for {symb} ({tries+1}/{maxTries}. Trying again...")
-      time.sleep(3)
+      print(f"Error in nasNewsNum for {symb} ({tries+1}/{maxTries}). Trying again...")
+      a.o.time.sleep(3)
       tries += 1
       pass
   return num
@@ -130,6 +135,11 @@ def scrapeMW(symb):
   r = a.o.requests.get(f"https://www.marketwatch.com/investing/stock/{symb}", headers={"user-agent":"-"},timeout=5).content
   #s = a.o.bs(r,'html.parser')
   print(r)
+
+
+#analyze the sentiment of a given string to return if it has a positive or negative tone
+def analSent(text):
+  return False
 
 
 #combine all different news sources
