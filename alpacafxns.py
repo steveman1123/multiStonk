@@ -1,31 +1,33 @@
 import otherfxns as o
 
-c = o.configparser.ConfigParser()
-c.read('./configs/alpaca.config')
 
-isPaper = bool(int(c['account params']['isPaper'])) #set up as paper trading (testing), or actual trading
-with open(c['file locations']['keyFile'],"r") as keyFile:
-  apiKeys = o.json.loads(keyFile.read())
+#required parameters are where the keyfile is stored, and whether it's paper trading or not
+def init(keyFile,isPaper):
+  global HEADERS,ACCTURL,ORDERSURL,POSURL,CLKURL,CALURL,ASSETURL,HISTURL
   
-if(isPaper):
-  APIKEY = apiKeys["ALPACAPAPERKEY"]
-  SECRETKEY = apiKeys["ALPACAPAPERSECRETKEY"]
-  ENDPOINTURL = apiKeys["ALPACAPAPERURL"]
-else:
-  APIKEY = apiKeys["ALPACAKEY"]
-  SECRETKEY = apiKeys["ALPACASECRETKEY"]
-  ENDPOINTURL = apiKeys["ALPACAURL"]
+  with open(keyFile,"r") as keyFile:
+    apiKeys = o.json.loads(keyFile.read())
+    
+  if(isPaper):
+    APIKEY = apiKeys["ALPACAPAPERKEY"]
+    SECRETKEY = apiKeys["ALPACAPAPERSECRETKEY"]
+    ENDPOINTURL = apiKeys["ALPACAPAPERURL"]
+  else:
+    APIKEY = apiKeys["ALPACAKEY"]
+    SECRETKEY = apiKeys["ALPACASECRETKEY"]
+    ENDPOINTURL = apiKeys["ALPACAURL"]
+    
+  HEADERS = {"APCA-API-KEY-ID":APIKEY,"APCA-API-SECRET-KEY":SECRETKEY} #headers for data
   
-HEADERS = {"APCA-API-KEY-ID":APIKEY,"APCA-API-SECRET-KEY":SECRETKEY} #headers for data
+  #alpaca = alpacaapi.REST(APIKEY,SECRETKEY,ENDPOINTURL,api_version="v2")
+  ACCTURL = f"{ENDPOINTURL}/v2/account" #account url
+  ORDERSURL = f"{ENDPOINTURL}/v2/orders" #orders url
+  POSURL = f"{ENDPOINTURL}/v2/positions" #positions url
+  CLKURL = f"{ENDPOINTURL}/v2/clock" #clock url
+  CALURL = f"{ENDPOINTURL}/v2/calendar" #calendar url
+  ASSETURL = f"{ENDPOINTURL}/v2/assets" #asset url
+  HISTURL = f"{ENDPOINTURL}/v2/account/portfolio/history" #profile history url
 
-#alpaca = alpacaapi.REST(APIKEY,SECRETKEY,ENDPOINTURL,api_version="v2")
-ACCTURL = f"{ENDPOINTURL}/v2/account" #account url
-ORDERSURL = f"{ENDPOINTURL}/v2/orders" #orders url
-POSURL = f"{ENDPOINTURL}/v2/positions" #positions url
-CLKURL = f"{ENDPOINTURL}/v2/clock" #clock url
-CALURL = f"{ENDPOINTURL}/v2/calendar" #calendar url
-ASSETURL = f"{ENDPOINTURL}/v2/assets" #asset url
-HISTURL = f"{ENDPOINTURL}/v2/account/portfolio/history" #profile history url
 
 # return string of account info
 def getAcct():
@@ -260,7 +262,7 @@ def isAlpacaTradable(symb):
 
 
 #make sure that the keys being used to access the api are valid
-def checkValidKeys():
+def checkValidKeys(isPaper):
   while True:
     try:
       test = getAcct()

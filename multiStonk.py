@@ -19,6 +19,8 @@ if(len(sys.argv)>1): #if there's an argument present
 c = o.configparser.ConfigParser()
 c.read(configFile)
 
+#init the alpaca functions
+a.init(c['file locations']['keyFile'],int(c['account params']['isPaper']))
 
 #add the algos dir
 sys.path.append(c['file locations']['algosDir'])
@@ -579,7 +581,7 @@ def syncPosList(verbose=False):
 if __name__ == '__main__':
   global posList
   print("\nStarting up...\n")
-  a.checkValidKeys()
+  a.checkValidKeys(int(c['account params']['isPaper']))
   
   if(len(a.getPos())==0): #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
     print("Will start buying "+str(c['time params']['buyTime'])+" minutes before next close")
