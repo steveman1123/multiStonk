@@ -36,7 +36,7 @@ def getList(verbose=True):
 #if div is collected and price > buyPrice+div, then sell
 def goodSell(symb):
   dates = getDivDates(symb)
-  if(len(date)>0): #make sure that th dates were populated
+  if(len(dates)>0): #make sure that the dates were populated
     if(o.getPrice(symb)/posList[algo][symb]['buyprice']<=sellDn(symb)):
       return True
     elif(str(dt.date.today())>dates['payment'] and
@@ -102,12 +102,32 @@ def getDivDates(symb,maxTries=5):
       o.time.sleep(3)
       pass
   if(tries<maxTries):
+    r = {}
+    #TODO: see if there can be some kind of error handling within strptim to catch, or use regex or something to ensure strings are in the right format
+    try:
+      r['announcement'] = str(o.dt.datetime.strptime(r['declarationDate'] if r['declarationDate'],"%m/%d/%Y").date())
+    except Exception:
+      r['announcement'] = ''
+    try:
+      r['ex'] = str(o.dt.datetime.strptime(r['exOrEffDate'],"%m/%d/%Y").date())
+    except Exception:
+      r['ex'] = ''
+    try:
+      r['record'] = str(o.dt.datetime.strptime(r['recordDate'],"%m/%d/%Y").date())
+    except Exception:
+      r['record'] = ''
+    try:
+      r['payment'] = str(o.dt.datetime.strptime(r['paymentDate'],"%m/%d/%Y").date())
+    except Exception:
+      r['payment'] = ''
+    '''
     r = {
-          'announcement':str(o.dt.datetime.strptime(r['declarationDate'],"%m/%d/%Y").date()),
+          'announcement':str(o.dt.datetime.strptime(r['declarationDate'] if r['declarationDate'],"%m/%d/%Y").date()),
           'ex':str(o.dt.datetime.strptime(r['exOrEffDate'],"%m/%d/%Y").date()),
           'record':str(o.dt.datetime.strptime(r['recordDate'],"%m/%d/%Y").date()),
           'payment':str(o.dt.datetime.strptime(r['paymentDate'],"%m/%d/%Y").date())
         }
+    '''
   else:
     print(f"Failed to get div dates for {symb}")
     r = {}
