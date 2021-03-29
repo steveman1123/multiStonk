@@ -236,12 +236,12 @@ def check2sell(algo, pos):
   for e in pos:
     if(e['symbol'] in posList[algo] and posList[algo][e['symbol']]['sharesHeld']>0):
       #TODO: possibly getPrice with mktCap (and use in display), then if the number of shares held>mktCap/price, then sell the surplus
-      print(f"{algo}\t\
-            {round(float(posList[algo][e['symbol']]['sharesHeld']),2)}\t\
-            {e['symbol']}\t\
-            {bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t\
-            {bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t\
-            {posList[algo][e['symbol']]['note']}")
+      print((f"{algo}\t",
+            f"{round(float(posList[algo][e['symbol']]['sharesHeld']),2)}\t",
+            f"{e['symbol']}\t",
+            f"{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t",
+            f"{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t",
+            f"{posList[algo][e['symbol']]['note']}"))
 
       if(posList[algo][e['symbol']]['shouldSell']): #if marked to sell, get rid of it immediately
         print(f"{e['symbol']} marked for immediate sale.")

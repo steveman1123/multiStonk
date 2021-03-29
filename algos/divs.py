@@ -89,7 +89,7 @@ def getUnsortedList():
   return r
 
 #get the latest 4 div dates for a stock (announced, ex div, record, payment)
-def getDivDates(symb,maxTries=5):
+def getDivDates(symb,maxTries=3):
   tries = 0
   while tries<maxTries:
     try:
@@ -105,7 +105,7 @@ def getDivDates(symb,maxTries=5):
     r = {}
     #TODO: see if there can be some kind of error handling within strptim to catch, or use regex or something to ensure strings are in the right format
     try:
-      r['announcement'] = str(o.dt.datetime.strptime(r['declarationDate'] if r['declarationDate'],"%m/%d/%Y").date())
+      r['announcement'] = str(o.dt.datetime.strptime(r['declarationDate'],"%m/%d/%Y").date())
     except Exception:
       r['announcement'] = ''
     try:
