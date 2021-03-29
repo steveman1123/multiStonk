@@ -290,10 +290,10 @@ def check2buy(algo, cashAvailable, stocks2buy):
     
     if lastTradeDate < dt.date.today() or stockInfo['lastTradeType']!="sell":
       
-      [buyPrice,mktCap] = a.getPrice(stock,withCap=True) #get the appx price to buy at, and the marketcap (to calculate the most shares we'll be allowed to purchase)
-      shares = int(min(cashPerStock/buyPrice,mktCap*float(c['account param']['maxVolPerc']))) #
+      [curPrice,mktCap] = a.getPrice(stock,withCap=True) #get the appx price to buy at, and the marketcap (to calculate the most shares we'll be allowed to purchase)
+      shares = int(min(cashPerStock/curPrice,mktCap*float(c['account params']['maxVolPerc']))) #set number of shares to be at most some % of the mktcap, otherwise as many int shares as cash is available
       if(shares>0):
-        buy(int(cashPerStock/a.getPrice(stock)),stock,algo,buyPrice)
+        buy(int(cashPerStock/a.getPrice(stock)),stock,algo,curPrice)
     
 #a stock has reached a trigger point and should begin to be checked more often (it will be sold in this function)
 def triggeredUp(stock, algo):
@@ -612,7 +612,7 @@ if __name__ == '__main__':
     exec(f"{algo}.init('{configFile}')")
 
   #tell the user what algos are being tested
-  print("\nTesting the algos: ",end="")
+  print("\nUsing the algos: ",end="")
   print(*list(algoList),sep=", ",end="\n\n")
   
   syncPosList() #in the event that something changed during the last run, this should catch it
