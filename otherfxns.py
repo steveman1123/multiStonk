@@ -55,7 +55,7 @@ def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today(
         if(len(r)<10):
           startDate = str(dt.datetime.strptime(startDate,"%Y-%m-%d").date()-dt.timedelta(1)) #try scooting back a day if at first we don't succeed (sometimes it returns nothing for some reason?)
         if('html' in r or len(r)<10): #sometimes response returns invalid data. This ensures that it's correct (not html error or blank data)
-          raise Exception('Returned invalid data') #sometimes the page will return html data that cannot be successfully parsed
+          raise ValueError('Returned invalid data') #sometimes the page will return html data that cannot be successfully parsed
         break
       except Exception:
         print(f"No connection, or other error encountered in getHistory for {symb}. Trying again...")
@@ -108,7 +108,7 @@ def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today(
           if(len(r)<10):
             startDate = str(dt.datetime.strptime(startDate,"%Y-%m-%d").date()-dt.timedelta(1)) #try scooting back a day if at first we don't succeed (sometimes it returns nothing for some reason?)
           if('html' in r or len(r)<10): #sometimes response returns invalid data. This ensures that it's correct (not html error or blank data)
-            raise Exception('Returned invalid data') #sometimes the page will return html data that cannot be successfully parsed
+            raise ValueError('Returned invalid data') #sometimes the page will return html data that cannot be successfully parsed
           break
         except Exception:
           print(f"No connection, or other error encountered in getHistory for {symb}. Trying again...")

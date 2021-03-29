@@ -1,3 +1,8 @@
+#Steven Williams (2021)
+#Stock trading program to use multiple algorithms/strategies as defined in the config file and present in the algos directory to perform low frequency shortterm trades
+
+print("\nStarting up...")
+
 import otherfxns as o
 import alpacafxns as a
 import random, time, json, threading, sys, os
@@ -6,18 +11,33 @@ from operator import eq
 import datetime as dt
 
 
-#get the config file
+
+#parse args and get the config file
 configFile="./configs/multi.config"
 if(len(sys.argv)>1): #if there's an argument present
   for arg in sys.argv[1:]:
-    if(arg.lower().startswith("configfile=")): #if there's an argument regarding the config file
-      configFile = arg.split("=")[1] #set to that location (if there's multiple that start with configfile=, then it'll take the last one)
-      print(f"\nSetting config file to {configFile}")
-  #if we want to pass more arguments, we can specify them here
+    if(arg.lower()=='-h'): #if there's an argument regarding the config file
+      print(("\nStockbot\n"
+            "Uses multiple algorithms to trade stocks based on the functions specified in the config file and present in the algos directory.\n"
+            "\nSyntax:\n"
+            "[ -h | path/to/file.config ]\n"
+            "-h\t: displays this help menu\n"
+            "path\t: point to the config file containing all settings required to run the program (defaults to "+configFile+")\n"
+            ))
+      exit()
+    elif(os.path.isfile(arg) and arg.lower().endswith(".config")): #check that the arg is a valid file and ends with .config
+      configFile = arg
+    #if we want to pass more arguments, we can specify them here (also make sure to include them in the help menu)
+    else:
+      raise ValueError("Invalid argument. Make sure config file is present or use '-h' for help.")
+
 
 #set the multi config file
 c = o.configparser.ConfigParser()
 c.read(configFile)
+
+print(f"Config file {configFile}")
+print(f"Key file {c['file locations']['keyFile']}\n")
 
 #init the alpaca functions
 a.init(c['file locations']['keyFile'],int(c['account params']['isPaper']))
@@ -64,7 +84,7 @@ def main(verbose=True):
   maxPortVal=max(portHist) #get the max portfolio value over the last month
   cashMargin = float(c['account params']['cashMargin'])
   if(cashMargin<1): #cashMargin MUST BE GREATER THAN 1 in order for it to work correctly
-    raise("Error: withdrawable funds margin is less than 1. Multiplier must be >=1")
+    raise ValueError("Error: withdrawable funds margin is less than 1. Multiplier must be >=1")
   cash2hold = float(c['account params']['cash2hold'])
   acct = a.getAcct() #initialize the acct var
   
@@ -349,7 +369,7 @@ def setPosList(algoList, verbose=True):
         posList = json.loads(f.read())
       
       missingAlgos = [algo for algo in algoList if algo not in posList]
-      if(verbose): print("" if len(missingAlgos)==0 else f"Adding {len(missingAlgos)} algo{'s' if len(missingAlgos)>1 else ''} to posList")
+      if(verbose and len(missingAlgos)>0): print(f"Adding {len(missingAlgos)} algo{'s' if len(missingAlgos)>1 else ''} to posList")
       for algo in missingAlgos:
         posList[algo] = {}
         
@@ -580,9 +600,8 @@ def syncPosList(verbose=False):
 #run the main function
 if __name__ == '__main__':
   global posList
-  print("\nStarting up...\n")
-  a.checkValidKeys(int(c['account params']['isPaper']))
   
+  a.checkValidKeys(int(c['account params']['isPaper'])) #check that the keys being used are valid
   if(len(a.getPos())==0): #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
     print("Will start buying "+str(c['time params']['buyTime'])+" minutes before next close")
   
@@ -591,7 +610,12 @@ if __name__ == '__main__':
   #init the algos
   for algo in algoList:
     exec(f"{algo}.init('{configFile}')")
+
+  #tell the user what algos are being tested
+  print("\nTesting the algos: ",end="")
+  print(*list(algoList),sep=", ",end="\n\n")
   
   syncPosList() #in the event that something changed during the last run, this should catch it
-    
+  print("\n") #leave a space between startup and main sequence
+  
   main() #start running the program
