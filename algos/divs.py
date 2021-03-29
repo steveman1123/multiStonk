@@ -37,10 +37,10 @@ def getList(verbose=True):
 def goodSell(symb):
   dates = getDivDates(symb)
   if(len(dates)>0): #make sure that the dates were populated
-    if(o.getPrice(symb)/posList[symb]['buyprice']<=sellDn(symb)):
+    if(o.getPrice(symb)/posList[symb]['buyPrice']<=sellDn(symb)):
       return True
-    elif(str(dt.date.today())>dates['payment'] and
-         o.getPrice(symb)/posList[symb]['buyprice']>=sellUp(symb)):
+    elif(str(o.dt.date.today())>dates['payment'] and
+         o.getPrice(symb)/posList[symb]['buyPrice']>=sellUp(symb)):
       return True
     else:
       return False
