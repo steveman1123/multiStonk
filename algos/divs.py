@@ -36,14 +36,16 @@ def getList(verbose=True):
 #if div is collected and price > buyPrice+div, then sell
 def goodSell(symb):
   dates = getDivDates(symb)
-  if(o.getPrice(symb)/posList[algo][symb]['buyprice']<=sellDn(symb)):
-    return True
-  elif(str(dt.date.today())>dates['payment'] and
-       o.getPrice(symb)/posList[algo][symb]['buyprice']>=sellUp(symb)):
-    return True
+  if(len(date)>0): #make sure that th dates were populated
+    if(o.getPrice(symb)/posList[algo][symb]['buyprice']<=sellDn(symb)):
+      return True
+    elif(str(dt.date.today())>dates['payment'] and
+         o.getPrice(symb)/posList[algo][symb]['buyprice']>=sellUp(symb)):
+      return True
+    else:
+      return False
   else:
     return False
-
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
   
@@ -87,21 +89,26 @@ def getUnsortedList():
   return r
 
 #get the latest 4 div dates for a stock (announced, ex div, record, payment)
-def getDivDates(symb):
-  while True:
+def getDivDates(symb,maxTries=5):
+  tries = 0
+  while tries<maxTries:
     try:
       #
       r = o.json.loads(o.requests.get(f"https://api.nasdaq.com/api/quote/{symb}/dividends?assetclass=stocks&limit=1",headers={"user-agent":"-"}, timeout=5).text)['data']['dividends']['rows'][0]
       break
     except Exception:
       print(f"Error in getting div dates for {symb}. Trying again...")
+      tries+=1
       o.time.sleep(3)
       pass
-    
-  r = {
-        'announcement':str(o.dt.datetime.strptime(r['declarationDate'],"%m/%d/%Y").date()),
-        'ex':str(o.dt.datetime.strptime(r['exOrEffDate'],"%m/%d/%Y").date()),
-        'record':str(o.dt.datetime.strptime(r['recordDate'],"%m/%d/%Y").date()),
-        'payment':str(o.dt.datetime.strptime(r['paymentDate'],"%m/%d/%Y").date())
-      }
+  if(tries<maxTries):
+    r = {
+          'announcement':str(o.dt.datetime.strptime(r['declarationDate'],"%m/%d/%Y").date()),
+          'ex':str(o.dt.datetime.strptime(r['exOrEffDate'],"%m/%d/%Y").date()),
+          'record':str(o.dt.datetime.strptime(r['recordDate'],"%m/%d/%Y").date()),
+          'payment':str(o.dt.datetime.strptime(r['paymentDate'],"%m/%d/%Y").date())
+        }
+  else:
+    print(f"Failed to get div dates for {symb}")
+    r = {}
   return r

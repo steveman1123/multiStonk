@@ -72,6 +72,7 @@ class bcolor:
 listsUpdatedToday = False
 
 
+#TODP: make buying its own thread? If so, need to check on locking of posList
 #TODO: at market close, show total p/l % for each algo
 #TODO: add sentiment analysis to newsScrape
 #TODO: add setting to each algo in config file to determine if it should sell before the end of the day or not (eg dj should, but fda shouldn't)
