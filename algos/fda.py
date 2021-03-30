@@ -45,6 +45,7 @@ def getList(verbose=True):
   
   if(verbose): print(f"{algo} getting stocks from biopharmcatalyst.com")
   try:
+    #TODO: pare down list based on some DD of the financials of the companies. Research what to look for
     arr1 = r1.split("var tickers = [")[1].split("];")[0].replace("'","").replace(" ","").split(",") #get stock list
     arr1 = list(set(arr1)) #remove duplicates? Might not actually have to do this
     prices = o.getPrices(arr1)
@@ -83,6 +84,21 @@ def goodSell(symb):
   else:
     return False
 
+
+def goodSells(symbList):
+  lock = o.threading.Lock()
+  lock.acquire()
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
+
+  #get the prices each stock was bought at
+  buyPrices = {s:float(stockList[s]['buyPrice']) for s in symbList if(s in stockList)}
+  #get the stock's current prices
+  curPrices = o.getPrices(symbList)
+  #check that it has exceeded the stopLoss or takeProfit points
+  good2sell = {s:(curPrices[s]/buyPrices[s]<sellDn(s) or curPrice/buyPrice>=sellUp(s)) for s in buyPrice}
+  
+  return good2sell
 
 #TODO: add goodBuys and goodSells fxns to check if a list of stocks are good buys/sells
 

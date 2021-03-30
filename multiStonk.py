@@ -112,7 +112,7 @@ def main(verbose=True):
     elif(totalCash>cash2hold and totalCash<cash2hold*cashMargin):
       totalCash = 0 #stop trading if we've started to eat into the margin, that way we don't overshoot
       
-    if(a.marketIsOpen()):
+    if(o.marketIsOpen()):
       print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${totalCash}, {len(posList)} algos")
       #update the lists if not updated yet and that it's not currently updating
       if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
@@ -126,7 +126,7 @@ def main(verbose=True):
       for algo in algoList:
         check2sell(algo,pos) #only look at the ones currently held
       
-      if(a.timeTillClose()<60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
+      if(o.timeTillClose()<=60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
         #TODO: move cash adjustment from here to above
         tradableCash = totalCash if totalCash<float(c['account params']['cash2hold']) else max(totalCash-float(c['account params']['cash2hold'])*float(c['account params']['cashMargin']),0) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
@@ -177,9 +177,8 @@ def main(verbose=True):
       
       time.sleep(a.timeTillOpen())
       
-  
-  #TODO: in live version, this should be false
-  a.sellAll(isManual=True) #if the portfolio value falls below our stop loss, automatically sell everything
+  print(f"Portfolio value of ${acct['portfolio_value']} is less than {c['account params']['portStopLoss']} times the max portfolio value of ${maxPortVal}. Selling all. Program will need to be reinitiated manually.")
+  a.sellAll(isManual=not int(c['account params']['autoSellOff'])) #if the portfolio value falls below our stop loss, automatically sell everything
 
 #update all lists to be bought (this should be run as it's own thread)
 def updateLists(verbose=False):
@@ -253,7 +252,7 @@ def check2sell(algo, pos):
         sell(e['symbol'],algo) #record and everything in the sell function
         
       else:
-        #TODO: perhaps thread the checking if it's a good sell?
+        #TODO: incorporate goodSells (also need to add goodSells function to each algo (this should speed things up and reduce api calls))
         goodSell = eval(f"{algo}.goodSell('{e['symbol']}')") #TODO: need to add shouldSell checking on held positions
         if(goodSell):
           if(f"{algo}-{e['symbol']}" not in [t.getName() for t in o.threading.enumerate()]): #make sure that the thread isn't already running
@@ -297,18 +296,19 @@ def check2buy(algo, cashAvailable, stocks2buy):
     
     if lastTradeDate < dt.date.today() or stockInfo['lastTradeType']!="sell":
       
-      [curPrice,mktCap] = a.getPrice(stock,withCap=True) #get the appx price to buy at, and the marketcap (to calculate the most shares we'll be allowed to purchase)
+      [curPrice,mktCap] = o.getPrice(stock,withCap=True) #get the appx price to buy at, and the marketcap (to calculate the most shares we'll be allowed to purchase)
       shares = int(min(cashPerStock/curPrice,mktCap*float(c['account params']['maxVolPerc']))) #set number of shares to be at most some % of the mktcap, otherwise as many int shares as cash is available
       if(shares>0):
-        buy(int(cashPerStock/a.getPrice(stock)),stock,algo,curPrice)
+        buy(shares,stock,algo,curPrice)
     
 #a stock has reached a trigger point and should begin to be checked more often (it will be sold in this function)
 def triggeredUp(stock, algo):
-  maxPrice = 0
-  curPrice = 0
+  maxPrice = 0.01
+  curPrice = 0.01
   sellUpDn = float(eval(algo+".sellUpDn()"))
-  while(curPrice>=sellUpDn*maxPrice and a.timeTillClose()>30):
-    curPrice = a.getPrice(stock)
+  #ensure that current price>0 (getPrice returns 0 if it can't recognize a symbol (eg if a merger happens or a stock is delisted)
+  while(curPrice>0 and curPrice>=sellUpDn*maxPrice and o.timeTillClose()>60):
+    curPrice = o.getPrice(stock)
     maxPrice = max(maxPrice,curPrice)
     print(f"{algo}\t{stock}\t{round(curPrice/maxPrice,2)} : {round(sellUpDn,2)}")
     time.sleep(3) #slow it down a little bit
@@ -338,7 +338,7 @@ def sell(stock, algo):
     lock.release()
     return True
   else:
-    print(f"Order to buy {shares} shares of {stock} not accepted")
+    print(f"Order to sell {posList[algo][stock]['sharesHeld']} shares of {stock} not accepted")
     return False
 
 #basically just a market buy of this many shares of this stock for this algo
@@ -453,31 +453,10 @@ def syncPosList(verbose=False):
       for stock in posList[algo]: #for every stock in that algo
         if stock not in recPos: #if that stock isn't already in the recorded positions
           recPos[stock] = float(posList[algo][stock]['sharesHeld']) #add it
-        else: #if it already is
-          
-          #ensure that all fields are present
-          if(verbose): print(f"Ensuring correct data for {stock}")
-          if('sharesHeld' not in posList[algo][stock]):
-            if(verbose): print("Missing sharesHeld")
-            posList[algo][stock]['sharesHeld'] = 0
-          if('lastTradeDate' not in posList[algo][stock]):
-            if(verbose): print("Missing lastTradeDate")
-            posList[algo][stock]['lastTradeDate'] = str(dt.date.today()-dt.timedelta(1))
-          if('lastTradeType' not in posList[algo][stock]):
-            if(verbose): print("Missing lastTradeType")
-            posList[algo][stock]['lastTradeType'] = 'NA'
-          if('shouldSell' not in posList[algo][stock]):
-            if(verbose): print("Missing shouldSell")
-            posList[algo][stock]['shouldSell'] = False
-          if('buyPrice' not in posList[algo][stock]):
-            if(verbose): print("Missing buyPrice")
-            posList[algo][stock]['buyPrice'] = 0
-          
-          
-          
+        else:
           recPos[stock] += float(posList[algo][stock]['sharesHeld']) #add the shares held
-
-
+  
+  
   if(not eq(recPos,heldPos)):
     if(verbose): print("discrepency found between records and actuals")
     #if there are any stocks recorded that aren't in the heldPos, remove them
@@ -487,9 +466,9 @@ def syncPosList(verbose=False):
     #if there are any stocks in heldPos that aren't recorded, then compare to algoList
       #if it's in algolist, assign to all algos that have it, else assign to algo with the smallest gain to offload it asap
     #if there are an excess of shares in the heldPos than the recPos, then add the excess to the algo with the highest gain to increase gains as much as possible
-
+    
     #compare recPos to heldPos
-
+    
     #if there are any stocks recorded that aren't in the heldPos, remove them
     for symb in [s for s in recPos if s not in heldPos]: #for all stocks in recorded and not in heldPos
       for algo in posList: #check every algo
@@ -534,6 +513,7 @@ def syncPosList(verbose=False):
 
     #ensure algoList is up to date
   if(not eq(recPos, heldPos)): #compare again after the initial comparison
+    #if the lists aren't currently updating and haven't already updated today, then update
     if(not listsUpdatedToday and len([t for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
       updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
       updateListsThread.setName('updateLists') #set the name to the stock symb
@@ -587,7 +567,7 @@ def syncPosList(verbose=False):
     #find symbols that have more actual shares than recorded shares
     #add the shares to the algo with the highest gain
     for symb in [s for s in heldPos if heldPos[s]>recPos[s]]: #for all stocks where the actual is greater than the recorded
-      maxAlgo = list(posList)[0] #init to the first algo
+      maxAlgo = "" #init maxAlgo
       for algo in posList: #get the algo with the max gain potential
         if(symb in posList[algo]): #ensure that the symbol is in the algo (TODO: this could potentially get put into the for loop in the prev line?)
           maxAlgo = algo if eval(f"{algo}.sellUp(symb)")>eval(f"{maxAlgo}.sellUp('{symb}')") else maxAlgo

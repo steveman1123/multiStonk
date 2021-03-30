@@ -7,7 +7,7 @@ import otherfxns as o
 algo = 'divs' #name of the algo
 
 def init(configFile):
-  global posList,c
+  global c
   #set the multi config file
   c = o.configparser.ConfigParser()
   c.read(configFile)
@@ -37,7 +37,15 @@ def getList(verbose=True):
 #return whether symb is a good sell or not
 #if div is collected and price > buyPrice+div, then sell
 def goodSell(symb):
+  lock = o.threading.Lock()
+  lock.acquire()
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
+  
   dates = getDivDates(symb)
+  if(symb not in posList):
+    print(f"{symb} not found in {algo}")
+    return True
   if(len(dates)>0): #make sure that the dates were populated
     if(o.getPrice(symb)/posList[symb]['buyPrice']<=sellDn(symb)):
       return True
@@ -51,6 +59,10 @@ def goodSell(symb):
 
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
+  lock = o.threading.Lock()
+  lock.acquire()
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
   
   mainSellUp = float(c[algo]['sellUp'])
   if(symb in posList):
@@ -62,6 +74,10 @@ def sellUp(symb=""):
 
 #TODO: this should also account for squeezing
 def sellDn(symb=""):
+  lock = o.threading.Lock()
+  lock.acquire()
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
   
   mainSellDn = float(c[algo]['sellDn'])
   if(symb in posList):

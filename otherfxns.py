@@ -303,7 +303,7 @@ def getPrice(symb, withCap=False,verbose=False):
       response = requests.get(url,headers={"User-Agent": "-"}, timeout=5).text #nasdaq url requires a non-empty user-agent string
       break
     except Exception:
-      print("No connection, or other error encountered in getPrice. Trying again...")
+      print(f"No connection, or other error encountered in getPrice of {symb}. Trying again...")
       time.sleep(3)
       continue
   try:
@@ -403,11 +403,31 @@ def getPrices(symbList,withVol=False,maxTries=3):
     prices = {e['symbol']:{'price':float(e['lastSalePrice'].replace("$",""))} for e in d if e['lastSalePrice'] is not None}
   return prices
   
-  
-  
-  
-  
-  
-  
-  
-  
+#get the approximate time till close in seconds (only gets down to the nearest minute)
+def timeTillClose():
+  while True:
+    try:
+      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers={'user-agent':'-'},timeout=5).text)
+      ttc = r['data']['marketCountDown'][17:].split(" ") #isolate, trim off first words, split into H and M
+      ttc = 3600*int(ttc[0][:-1])+60*int(ttc[1][:-1]) #TODO: may also want to get current seconds using time or datetime to make it more exact
+      break
+    except Exception:
+      print("Error encountered in nasdaq timeTillClose. Trying again...")
+      time.sleep(3)
+      pass
+  return ttc
+
+#determine if the market is currently open or not
+def marketIsOpen():
+  while True:
+    try:
+      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers={'user-agent':'-'},timeout=5).text)
+      isOpen = r['data']['marketIndicator']
+      isOpen = "Open" in isOpen
+      break
+    except Exception:
+      print("Error encountered in nasdaq marketIsOpen. Trying again...")
+      time.sleep(3)
+      pass
+  return isOpen
+
