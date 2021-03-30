@@ -13,8 +13,10 @@ def init(configFile):
   c.read(configFile)
   
   #stocks held by this algo according to the records
+  lock = o.threading.Lock()
+  lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
-  
+  lock.release()
 
 #get list of stocks pending FDA approvals
 def getList(verbose=True):
@@ -23,7 +25,6 @@ def getList(verbose=True):
     try:
       r = o.requests.get("https://www.drugs.com/new-drug-applications.html", timeout=5).text
       r1 = o.requests.get("https://www.biopharmcatalyst.com/calendars/fda-calendar",timeout=5).text
-      #TODO: use in conjunction with this list too: https://www.biopharmcatalyst.com/calendars/fda-calendar
       break
     except Exception:
       print("No connection, or other error encountered in getDrugList. trying again...")
@@ -34,8 +35,9 @@ def getList(verbose=True):
   try:
     arr = r.split("Company:</b>") #go down to stock list
     arr = [e.split("<br>")[0].strip() for e in arr][1::] #get list of companies
-    arr = [o.getSymb(e) for e in arr] #get the symbols and exchanges of the companies
-    arr = [e[0] for e in arr if e[1]=="NAS"] #get the nasdaq only ones
+    arr = [o.getSymb(e,maxTries=1) for e in arr] #get the symbols and exchanges of the companies
+    prices = o.getPrices([e[0] for e in arr if e[1]=="NAS"])
+    arr = [e[0] for e in arr if(e[1]=="NAS" and float(c['fda']['minPrice'])<prices[e]['price']<float(c['fda']['maxPrice']))] #get the nasdaq only ones
   except Exception:
     print("Bad data from drugs.com")
     arr = []
@@ -45,7 +47,8 @@ def getList(verbose=True):
   try:
     arr1 = r1.split("var tickers = [")[1].split("];")[0].replace("'","").replace(" ","").split(",") #get stock list
     arr1 = list(set(arr1)) #remove duplicates? Might not actually have to do this
-    arr1 = [e for e in arr1 if(e!="" and float(c['fda']['minPrice'])<o.getPrice(e)<float(c['fda']['maxPrice']))] #remove blanks and ensure that it's listed in ndaq (o.getPrice will return 0 if it throws an error (ie. is not listed and won't show up)) and within our price range
+    prices = o.getPrices(arr1)
+    arr1 = [e for e in arr1 if(e in prices and float(c['fda']['minPrice'])<prices[e]['price']<float(c['fda']['maxPrice']))] #remove blanks and ensure that it's listed in ndaq (o.getPrice will return 0 if it throws an error (ie. is not listed and won't show up)) and within our price range
   except Exception:
     print("Bad data from biopharmcatalyst.com")
     arr1 = []
@@ -65,7 +68,10 @@ def getList(verbose=True):
   return arr
 
 def goodSell(symb):
+  lock = o.threading.Lock()
+  lock.acquire()
   stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
 
   #check if price<sellDn
   buyPrice = float(stockList[symb]['buyPrice'])
@@ -77,9 +83,16 @@ def goodSell(symb):
   else:
     return False
 
+
+#TODO: add goodBuys and goodSells fxns to check if a list of stocks are good buys/sells
+
+
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
+  lock = o.threading.Lock()
+  lock.acquire()
   stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
   mainSellUp = float(c[algo]['sellUp'])
   if(symb in stockList):
     sellUp = mainSellUp #TODO: account for squeeze here
@@ -89,7 +102,10 @@ def sellUp(symb=""):
 
 #TODO: this should also account for squeezing
 def sellDn(symb=""):
+  lock = o.threading.Lock()
+  lock.acquire()
   stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
   mainSellDn = float(c[algo]['sellDn'])
   if(symb in stockList):
     sellDn = mainSellDn #TODO: account for squeeze here

@@ -13,8 +13,10 @@ def init(configFile):
   c.read(configFile)
   
   #stocks held by this algo according to the records
+  lock = o.threading.Lock()
+  lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
-
+  lock.release()
 
 def getList(verbose=True):
   
@@ -22,12 +24,12 @@ def getList(verbose=True):
   #check history of the stocks. Look for pattern that denotes a gain after the initial div date (could possibly look like a buy low. Stock gains to div, div processes, dips, then gains again. Sell at that gain)
   
   #if today < ex div date, then buy
-  
 
   if(verbose): print(f"getting unsorted list for {algo}")
   symbs = getUnsortedList()
   if(verbose): print(f"finding stocks for {algo}")
-  goodBuys = [s for s in symbs if float(c[algo]['minPrice'])<=o.getPrice(s)<=float(c[algo]['maxPrice']) and o.getVol(s)>=float(c[algo]['minVol'])]
+  prices = o.getPrices(symbs,withVol=True) #get the current price and volume
+  goodBuys = [s for s in symbs if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])]
   if(verbose): print(f"{len(goodBuys)} found for {algo}")
   return goodBuys
   
@@ -46,6 +48,7 @@ def goodSell(symb):
       return False
   else:
     return False
+
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
   

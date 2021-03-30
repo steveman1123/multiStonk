@@ -9,8 +9,10 @@ import otherfxns as o
 
 algo = 'shortema' #name of the algo
 #stocks held by this algo according to the records
+# lock = o.threading.Lock()
+# lock.acquire()
 # stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
-
+# lock.release()
 
 def getList():
   print(f"getting unsorted list for {algo}")
@@ -59,6 +61,10 @@ def goodBuy(symb):
   
   
   return (curPrice>emaL>emaS) #should be a good buy if 
+
+
+#TODO: add goodBuys and goodSells fxns that take an array of stocks to see if they're good to buy/sell
+
 
 #calculating the ema is a recursive function
 def getEMA(symb,totalDays,closeList,daysAgo,smoothing):

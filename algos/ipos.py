@@ -8,8 +8,10 @@ import otherfxns as o
 
 algo = 'ipos' #name of the algo
 #stocks held by this algo according to the records
+lock = o.threading.Lock()
+lock.acquire()
 stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
-
+lock.release()
 
 def getList(verbose=True):
   if(verbose): print(f"Getting unsorted list for {algo}")

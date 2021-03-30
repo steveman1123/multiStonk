@@ -1,6 +1,6 @@
 #This module should be any function that doesn't require alpaca or keys to use
 
-import json,requests,os,time,re,csv,sys,configparser
+import json,requests,os,time,re,csv,sys,configparser,threading
 import datetime as dt
 from bs4 import BeautifulSoup as bs
 from math import ceil
@@ -157,7 +157,7 @@ def getHistory2(symb, startDate, endDate, maxTries=3):
       pass
     tries += 1
   if(j['data'] is None or tries>=maxTries or j['data']['totalRecords']==0): #TODO: this could have a failure if the stock isn't found/returns nothing
-    print("Failed to get history")
+    print(f"Failed to get {symb} history")
     return []
   else: #something's fucky with this api, jsyk
     if(j['data']['totalRecords']>maxDays): #get subsequent sets
@@ -206,24 +206,46 @@ def jumpedToday(symb,jump):
 
 
 #get the ticker symbol and exchange of a company or return "-" if not found
-def getSymb(company):
-  url = "https://www.marketwatch.com/tools/quotes/lookup.asp" #this one is a little slow, it'd be nice to find a faster site
-  while True: #get the html page with the symbol
+def getSymb(company,maxTries=3):
+  url = "https://www.nasdaq.com/search_api_autocomplete/search"
+  tries=0
+  while tries<maxTries:
     try:
-      r = requests.get(url, params={"Lookup":company}, timeout=5).text
+      r = json.loads(requests.get(url,params={'q':company},headers={'user-agent':'-'},timeout=5).text)
+      if(len(r[0]['value'].split(" "))>1): #this api also returns headlines which shouldn't count
+        raise ValueError("Returned a hadline, not a symbol")
+      [symb,exch] = [r[0]['value'],"NAS"]
       break
     except Exception:
-      print("No connection, or other error encountered in getSymb. Trying again...")
+      print(f"Error in getSymb of nasdaq api for '{company}'. Trying again...")
+      tries+=1
       time.sleep(3)
       continue
+
+  #if the nasdaq api fails, then try falling back to the marketwatch one  
+  if(tries>=maxTries):
+    print(f"Failed nasdaq api for '{company}'. Trying marketwatch")
+    url = "https://www.marketwatch.com/tools/quotes/lookup.asp" #this one is a bit slower than the nasdaq one, but may have more results. Use as a backup in case ythe nasdaq one fails
+    tries=0
+    while tries<maxTries: #get the html page with the symbol
+      try:
+        r = requests.get(url, params={"Lookup":company}, timeout=5).text
+        break
+      except Exception:
+        print("No connection, or other error encountered in getSymb. Trying again...")
+        tries+=1
+        time.sleep(3)
+        continue
+    
+    try: #parse throgh html to find the table, symbol data, symbol, and exchange for it
+      table = bs(r,'html.parser').find_all('table')[0]
+      symbData = table.find_all('tr')[1].find_all('td')
+      symb = str(symbData[0]).split('">')[2].split("<")[0]
+      exch = str(symbData[2]).split('">')[1].split("<")[0]
+    except Exception: #return blanks if invalid
+      [symb, exch] = ["-","-"]
   
-  try: #parse throgh html to find the table, symbol data, symbol, and exchange for it
-    table = bs(r,'html.parser').find_all('table')[0]
-    symbData = table.find_all('tr')[1].find_all('td')
-    symb = str(symbData[0]).split('">')[2].split("<")[0]
-    exch = str(symbData[2]).split('">')[1].split("<")[0]
-  except Exception: #return blanks if invalid
-    [symb, exch] = ["-","-"]
+  
   return [symb, exch]
 
 
@@ -353,3 +375,39 @@ def nextTradeDate():
   r = dt.datetime.strptime(r,"%b %d, %Y").date()
   
   return str(r)
+
+#return dict of current prices of stocks (this api request can do other assets, but we're limiting it to just stocks)
+def getPrices(symbList,withVol=False,maxTries=3):
+  symbList = [s+"|stocks" for s in symbList]
+  maxSymbs = 20
+  #cannot do more than 100 at a time, so loop through requests
+  d = []
+
+  for i in range(0,len(symbList),maxSymbs):
+    tries=0
+    while tries<maxTries:
+      try:
+        r = json.loads(requests.get("https://api.nasdaq.com/api/quote/watchlist",params={'symbol':symbList[i:min(i+maxSymbs,len(symbList))]},headers={'user-agent':'-'},timeout=5).text)
+        break
+      except Exception:
+        print("Error getting prices. Trying again...")
+        tries+=1
+        time.sleep(3)
+        continue
+    d.extend(r['data']) #append the lists
+
+  #isolate the symbols and prices and remove any that are none's
+  if(withVol):
+    prices = {e['symbol']:{'price':float(e['lastSalePrice'].replace("$","")),'vol':int(e['volume'].replace(",",""))} for e in d if e['volume'] is not None and e['lastSalePrice'] is not None}
+  else:
+    prices = {e['symbol']:{'price':float(e['lastSalePrice'].replace("$",""))} for e in d if e['lastSalePrice'] is not None}
+  return prices
+  
+  
+  
+  
+  
+  
+  
+  
+  

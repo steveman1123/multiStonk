@@ -5,7 +5,7 @@ print("\nStarting up...")
 
 import otherfxns as o
 import alpacafxns as a
-import random, time, json, threading, sys, os
+import random, time, json, sys, os
 from glob import glob
 from operator import eq
 import datetime as dt
@@ -72,7 +72,17 @@ class bcolor:
 listsUpdatedToday = False
 
 
-#TODP: make buying its own thread? If so, need to check on locking of posList
+
+'''
+TODO:
+display needs to happen faster (might be goodSell appears to be too slow. That'll have to change per algo I think)
+
+need to utilize the note field for storing important info (like pmt date for div, and init jump date for dj, then reference that field instead of pulling from api every minute)
+
+in algos, also change from getPrice to getPrices to go faster (make fewer api calls)
+'''
+
+#TODo: make buying its own thread? If so, need to check on locking of posList
 #TODO: at market close, show total p/l % for each algo
 #TODO: add sentiment analysis to newsScrape
 #TODO: add setting to each algo in config file to determine if it should sell before the end of the day or not (eg dj should, but fda shouldn't)
@@ -105,8 +115,8 @@ def main(verbose=True):
     if(a.marketIsOpen()):
       print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${totalCash}, {len(posList)} algos")
       #update the lists if not updated yet and that it's not currently updating
-      if(not listsUpdatedToday and len([t.getName() for t in threading.enumerate() if t.getName().startswith('update')])==0):
-        updateListsThread = threading.Thread(target=updateLists) #init the thread - note locking is required here
+      if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
+        updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
         updateListsThread.setName('updateLists') #set the name to the stock symb
         updateListsThread.start() #start the thread
 
@@ -116,13 +126,13 @@ def main(verbose=True):
       for algo in algoList:
         check2sell(algo,pos) #only look at the ones currently held
       
-      if(a.timeTillClose()<60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in threading.enumerate()])==0):
+      if(a.timeTillClose()<60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
         #TODO: move cash adjustment from here to above
         tradableCash = totalCash if totalCash<float(c['account params']['cash2hold']) else max(totalCash-float(c['account params']['cash2hold'])*float(c['account params']['cashMargin']),0) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
         for e in algoList:
-          buyThread = threading.Thread(target=check2buy, args=(e,cashPerAlgo, algoList[e])) #init the thread - note locking is required here
+          buyThread = o.threading.Thread(target=check2buy, args=(e,cashPerAlgo, algoList[e])) #init the thread - note locking is required here
           buyThread.setName(e) #set the name to the stock symb
           buyThread.start() #start the thread
     
@@ -160,7 +170,7 @@ def main(verbose=True):
         time.sleep(tto-60*float(c['time params']['updateLists']))
       #update stock lists
       print("Updating buyList")
-      updateListsThread = threading.Thread(target=updateLists) #init the thread - note locking is required here
+      updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
       updateListsThread.setName('updateLists') #set the name to the stock symb
       updateListsThread.start() #start the thread
 
@@ -200,17 +210,17 @@ def updateLists(verbose=False):
   
   if(errored):
   
-    lock = threading.Lock()
+    lock = o.threading.Lock()
     revSplits = o.reverseSplitters()
     for e in algoList: #start a thread to update the list for each algorithm
       print(f"updating {e} list")
-      updateThread = threading.Thread(target=updateList, args=(e,lock,revSplits)) #init the thread - note locking is required here
+      updateThread = o.threading.Thread(target=updateList, args=(e,lock,revSplits)) #init the thread - note locking is required here
       updateThread.setName("update-"+e) #set the name to the stock symb
       updateThread.start() #start the thread
         
     #TODO: see the following because the updateList threads currently all access algoList, and the while loop is probably not the best solution
-    # https://www.geeksforgeeks.org/multithreading-in-python-set-2-synchronization/
-    while(len([t.getName() for t in threading.enumerate() if t.getName().startswith("update-")])>0):
+    # https://www.geeksforgeeks.org/multio.threading-in-python-set-2-synchronization/
+    while(len([t.getName() for t in o.threading.enumerate() if t.getName().startswith("update-")])>0):
       time.sleep(2)
     
     #save to a file
@@ -243,11 +253,12 @@ def check2sell(algo, pos):
         sell(e['symbol'],algo) #record and everything in the sell function
         
       else:
+        #TODO: perhaps thread the checking if it's a good sell?
         goodSell = eval(f"{algo}.goodSell('{e['symbol']}')") #TODO: need to add shouldSell checking on held positions
         if(goodSell):
-          if(f"{algo}-{e['symbol']}" not in [t.getName() for t in threading.enumerate()]): #make sure that the thread isn't already running
+          if(f"{algo}-{e['symbol']}" not in [t.getName() for t in o.threading.enumerate()]): #make sure that the thread isn't already running
             #TODO: look at locking if need be
-            triggerThread = threading.Thread(target=triggeredUp, args=(e['symbol'],algo)) #init the thread - note locking is required here
+            triggerThread = o.threading.Thread(target=triggeredUp, args=(e['symbol'],algo)) #init the thread - note locking is required here
             triggerThread.setName(f"{algo}-{e['symbol']}") #set the name to the algo and stock symb
             triggerThread.start() #start the thread
 
@@ -321,7 +332,10 @@ def sell(stock, algo):
         "shouldSell":False,
         "note":""
       }
+    lock = o.threading.Lock()
+    lock.acquire()
     open(c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update the posList file
+    lock.release()
     return True
   else:
     print(f"Order to buy {shares} shares of {stock} not accepted")
@@ -342,8 +356,10 @@ def buy(shares, stock, algo, buyPrice):
         "shouldSell":False,
         "note":""
       }
+    lock = o.threading.Lock()
+    lock.acquire()
     open(c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update posList file
-    
+    lock.release()
     return True
   else: #it didn't actually buy
     print(f"Order to buy {shares} shares of {stock} not accepted")
@@ -356,30 +372,41 @@ def setPosList(algoList, verbose=True):
   #if the posList file doesn't exist
   if(not os.path.isfile(c['file locations']['posList'])):
     if(verbose): print("File is missing. Creating and adding blank lists...")
+    lock = o.threading.Lock()
+    lock.acquire()
     with open(c['file locations']['posList'],'w') as f:
       f.write(json.dumps({e:{} for e in algoList}))
     posList = json.loads(open(c['file locations']['posList'],'r').read())
+    lock.release()
   else: #if it does exist
     try: #try reading any json data from it
+      lock = o.threading.Lock()
+      lock.acquire()
       with open(c['file locations']['posList'],'r') as f:
         posList = json.loads(f.read())
-      
+      lock.release()  
       missingAlgos = [algo for algo in algoList if algo not in posList]
       if(verbose and len(missingAlgos)>0): print(f"Adding {len(missingAlgos)} algo{'s' if len(missingAlgos)>1 else ''} to posList")
       for algo in missingAlgos:
         posList[algo] = {}
         
       #write the missing algos to the file
+      lock = o.threading.Lock()
+      lock.acquire()
       with open(c['file locations']['posList'],'w') as f:
         f.write(json.dumps(posList))
-        
+      lock.release()
+      
     except Exception: #if it fails, then just write the empty algoList to the file
       #TODO: this is dangerous! This could potentially overwrite all saved position data if there's any error above. Make this more robust
       if(verbose): print("Something went wrong. Overwriting file")
+      lock = o.threading.Lock()
+      lock.acquire()
       with open(c['file locations']['posList'],'w') as f:
         f.write(json.dumps({e:{} for e in algoList}))
       posList = json.loads(open(c['file locations']['posList'],'r').read())
-
+      lock.release()
+      
   return posList
 
 
@@ -507,14 +534,14 @@ def syncPosList(verbose=False):
 
     #ensure algoList is up to date
   if(not eq(recPos, heldPos)): #compare again after the initial comparison
-    if(not listsUpdatedToday and len([t for t in threading.enumerate() if t.getName().startswith('update')])==0):
-      updateListsThread = threading.Thread(target=updateLists) #init the thread - note locking is required here
+    if(not listsUpdatedToday and len([t for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
+      updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
       updateListsThread.setName('updateLists') #set the name to the stock symb
       updateListsThread.start() #start the thread
 
     if(verbose): print("Waiting for stock lists to finish updating...")
-    while(not listsUpdatedToday or len([t for t in threading.enumerate() if t.getName().startswith('update')])>0): #wait for the lists to finish updating
-      # print([t.getName() for t in threading.enumerate() if t.getName().startswith('update')])
+    while(not listsUpdatedToday or len([t for t in o.threading.enumerate() if t.getName().startswith('update')])>0): #wait for the lists to finish updating
+      # print([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')])
       time.sleep(2)
     if(verbose): print("lists done updating")
 
@@ -585,10 +612,12 @@ def syncPosList(verbose=False):
   
   
   #write to the file
+  lock = o.threading.Lock()
+  lock.acquire()
   with open(c['file locations']['posList'],'w') as f:
     if(verbose): print("Writing to posList file")
     f.write(json.dumps(posList,indent=2))
-  
+  lock.release()
   print("Done syncing posList")
 
 

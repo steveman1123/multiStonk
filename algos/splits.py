@@ -15,8 +15,10 @@ def init(configFile):
   c.read(configFile)
   
   #stocks held by this algo according to the records
+  lock = o.threading.Lock()
+  lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
-
+  lock.release()
 
 def getList(verbose=True):
   #perform checks to see which one ones will gain

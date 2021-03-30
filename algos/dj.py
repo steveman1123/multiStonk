@@ -13,8 +13,10 @@ def init(configFile):
   c.read(configFile)
   
   #stocks held by this algo according to the records
+  lock = o.threading.Lock()
+  lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
-
+  lock.release()
 
 #get a list of potential gainers according to this algo
 def getList(verbose=True):
@@ -23,6 +25,7 @@ def getList(verbose=True):
   if(verbose): print(f"finding stocks for {algo}")
   #TODO: figure out how to pass goodBuy() to posList to store in the note
   goodBuys = [e for e in symbs if goodBuy(e)[0].isnumeric()] #the only time that the first char is a number is if it is a valid/good buy
+  #TODO: move goodBuy into a separate line and write into posList note field here of the goodBuys jump dates
   if(verbose): print(f"{len(goodBuys)} found for {algo}")
   return goodBuys
 
@@ -99,6 +102,9 @@ def goodBuy(symb,days2look = -1, verbose=False): #days2look=how far back to look
   if(verbose): print(symb, validBuy)
   return validBuy
   
+
+#TODO: add goodBuys and goodSells that can take in an array of stocks (this should significantly reduce the number of api calls and sped things up a lot)
+
 
 #get list of stocks from stocksUnder1 and marketWatch lists
 def getUnsortedList(verbose=False):
@@ -200,7 +206,10 @@ def getUnsortedList(verbose=False):
 
 def goodSell(symb):
   #check if price<sellDn
+  lock = o.threading.Lock()
+  lock.acquire()
   stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
   buyPrice = float(stockList[symb]['buyPrice'])
   curPrice = o.getPrice(symb)
   if(curPrice/buyPrice<sellDn(symb)):
@@ -213,7 +222,10 @@ def goodSell(symb):
 
 #get the sellUp value for a given symbol (default to the main value)
 def sellUp(symb=""):
+  lock = o.threading.Lock()
+  lock.acquire()
   stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
   mainSellUp = float(c[algo]['sellUp']) #account for squeeze here
   startSqueeze = float(c[algo]['startSqueeze'])
   squeezeTime = float(c[algo]['squeezeTime'])
@@ -234,7 +246,10 @@ def sellUp(symb=""):
 
 #get the sellDn value for a given symbol (default to the main value)
 def sellDn(symb=""):
+  lock = o.threading.Lock()
+  lock.acquire()
   stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
   mainSellDn = float(c[algo]['sellDn'])
   startSqueeze = float(c[algo]['startSqueeze'])
   squeezeTime = float(c[algo]['squeezeTime'])
