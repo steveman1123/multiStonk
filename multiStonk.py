@@ -245,7 +245,7 @@ def check2sell(algo, pos):
   for e in pos:
     if(e['symbol'] in posList[algo] and posList[algo][e['symbol']]['sharesHeld']>0):
       #TODO: possibly getPrice with mktCap (and use in display), then if the number of shares held>mktCap/price, then sell the surplus
-      print(f"{algo}\t{round(float(posList[algo][e['symbol']]['sharesHeld']),2)}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t{posList[algo][e['symbol']]['note']}")
+      print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t{posList[algo][e['symbol']]['note']}")
 
       if(posList[algo][e['symbol']]['shouldSell']): #if marked to sell, get rid of it immediately
         print(f"{e['symbol']} marked for immediate sale.")
@@ -344,9 +344,11 @@ def sell(stock, algo):
 #basically just a market buy of this many shares of this stock for this algo
 def buy(shares, stock, algo, buyPrice):
   r = a.createOrder("buy",shares,stock) #this needs to happen first so that it can be as accurate as possible
-  global posList #TODO: may need to incorporate locking
+  global posList
 
   if(r['status'] == "accepted"): #check to make sure that it actually bought
+    lock = o.threading.Lock()
+    lock.acquire()
     posList[algo][stock] = { #update the entry in posList
         "sharesHeld":float(posList[algo][stock]['sharesHeld'])+float(r['qty']) if stock in posList[algo] else float(r['qty']),
         "lastTradeDate":str(dt.date.today()),
@@ -356,8 +358,6 @@ def buy(shares, stock, algo, buyPrice):
         "shouldSell":False,
         "note":""
       }
-    lock = o.threading.Lock()
-    lock.acquire()
     open(c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update posList file
     lock.release()
     return True
@@ -624,3 +624,22 @@ if __name__ == '__main__':
   print("\n") #leave a space between startup and main sequence
   
   main() #start running the program
+
+
+'''
+how to do due diligence:
+https://www.investopedia.com/articles/stocks/08/due-diligence.asp
+https://ourthinklab.com/finance/how-to-do-due-diligence-dd-buying-stock/
+
+
+check mktcap
+check revenue, profit, margin trends for past 2 years.
+find competitors
+compare p/e ratios between the target company and its competitors
+management (founders, or new management? How long have they been in office?)
+review balance sheet (good cash balances and looking at amount of debt based on company's business model, industry, and age (r&d))
+how long have the shares been trading?
+10-Q and 10-k reports (ptions, expenctions for future prices)
+revenue/profit expectations for the next 2-3 years, trends affecting industry, company specific details (partnerships, joint ventures, IP, prudcts, etc)
+risks (legal, industry, regulatory, environmentally friendly, etc)
+'''

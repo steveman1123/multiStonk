@@ -403,18 +403,19 @@ def getPrices(symbList,withVol=False,maxTries=3):
     prices = {e['symbol']:{'price':float(e['lastSalePrice'].replace("$",""))} for e in d if e['lastSalePrice'] is not None}
   return prices
   
-#get the approximate time till close in seconds (only gets down to the nearest minute)
-def timeTillClose():
+#get the time till market close in seconds (argument of EST offset (CST is 1 hour behind, UTC is 5 hours ahead))
+def timeTillClose(estOffset=-1):
   while True:
     try:
       r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers={'user-agent':'-'},timeout=5).text)
-      ttc = r['data']['marketCountDown'][17:].split(" ") #isolate, trim off first words, split into H and M
-      ttc = 3600*int(ttc[0][:-1])+60*int(ttc[1][:-1]) #TODO: may also want to get current seconds using time or datetime to make it more exact
+      ttc = r['data']['marketClosingTime'][:-3] #get the close time and strip off the timezone (" ET")
+      ttc = dt.datetime.strptime(ttc,"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)
       break
     except Exception:
       print("Error encountered in nasdaq timeTillClose. Trying again...")
       time.sleep(3)
       pass
+  ttc = int((ttc-dt.datetime.now()).total_seconds())
   return ttc
 
 #determine if the market is currently open or not
