@@ -207,6 +207,7 @@ def jumpedToday(symb,jump):
 
 #get the ticker symbol and exchange of a company or return "-" if not found
 def getSymb(company,maxTries=3):
+  '''
   url = "https://www.nasdaq.com/search_api_autocomplete/search"
   tries=0
   while tries<maxTries:
@@ -221,10 +222,12 @@ def getSymb(company,maxTries=3):
       tries+=1
       time.sleep(3)
       continue
-
-  #if the nasdaq api fails, then try falling back to the marketwatch one  
+  '''
+  tries = maxTries+1 #bypassing the nasdaq one temporarily as it seems to not be as complete as the marketwatch one (it doesn't have as big of a database or is not as flexible at understanding what is being passed to it)
+  
+  #if the nasdaq api fails, then try falling back to the marketwatch one
   if(tries>=maxTries):
-    print(f"Failed nasdaq api for '{company}'. Trying marketwatch")
+    # print(f"Failed nasdaq query for '{company}'. Trying marketwatch")
     url = "https://www.marketwatch.com/tools/quotes/lookup.asp" #this one is a bit slower than the nasdaq one, but may have more results. Use as a backup in case ythe nasdaq one fails
     tries=0
     while tries<maxTries: #get the html page with the symbol
@@ -376,21 +379,21 @@ def nextTradeDate():
   
   return str(r)
 
-#return dict of current prices of stocks (this api request can do other assets, but we're limiting it to just stocks)
+#return dict of current prices of assets (symblist is list format of symb|assetclass) output of {symb|assetclass:price}
 def getPrices(symbList,withVol=False,maxTries=3):
-  symbList = [s+"|stocks" for s in symbList]
-  maxSymbs = 20
-  #cannot do more than 100 at a time, so loop through requests
-  d = []
-
+  maxSymbs = 20 #cannot do more than 20 at a time, so loop through requests
+  d = [] #init data var
+  r = {}
+  #loop through the symbols by breaking them into managable chunks for th api
   for i in range(0,len(symbList),maxSymbs):
     tries=0
     while tries<maxTries:
-      try:
+      try: #try getting the data
         r = json.loads(requests.get("https://api.nasdaq.com/api/quote/watchlist",params={'symbol':symbList[i:min(i+maxSymbs,len(symbList))]},headers={'user-agent':'-'},timeout=5).text)
         break
-      except Exception:
+      except Exception: #if it doesn't work, try again
         print("Error getting prices. Trying again...")
+        r['data'] = [] #if something fails, then set it to nothin in the event it completely fails out (this way it won't throw an error when trying to extend)
         tries+=1
         time.sleep(3)
         continue
@@ -398,11 +401,12 @@ def getPrices(symbList,withVol=False,maxTries=3):
 
   #isolate the symbols and prices and remove any that are none's
   if(withVol):
-    prices = {e['symbol']:{'price':float(e['lastSalePrice'].replace("$","")),'vol':int(e['volume'].replace(",",""))} for e in d if e['volume'] is not None and e['lastSalePrice'] is not None}
+    prices = {f"{e['symbol']}|{e['assetClass']}":{'price':float(e['lastSalePrice'].replace("$","")),'vol':int(e['volume'].replace(",",""))} for e in d if e['volume'] is not None and e['lastSalePrice'] is not None}
   else:
-    prices = {e['symbol']:{'price':float(e['lastSalePrice'].replace("$",""))} for e in d if e['lastSalePrice'] is not None}
+    prices = {f"{e['symbol']}|{e['assetClass']}":{'price':float(e['lastSalePrice'].replace("$",""))} for e in d if e['lastSalePrice'] is not None}
   return prices
   
+
 #get the time till market close in seconds (argument of EST offset (CST is 1 hour behind, UTC is 5 hours ahead))
 def timeTillClose(estOffset=-1):
   while True:
@@ -417,6 +421,23 @@ def timeTillClose(estOffset=-1):
       pass
   ttc = int((ttc-dt.datetime.now()).total_seconds())
   return ttc
+
+
+def closeTime(estOffset):
+  while True:
+    try:
+      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers={'user-agent':'-'},timeout=5).text)
+      close = r['data']['marketClosingTime'][:-3] #get the close time and strip off the timezone (" ET")
+      close = dt.datetime.strptime(close,"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)
+      break
+    except Exception:
+      print("Error encountered in nasdaq closeTime. Trying again...")
+      time.sleep(3)
+      pass
+  return close
+
+
+
 
 #determine if the market is currently open or not
 def marketIsOpen():

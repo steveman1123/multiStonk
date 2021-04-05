@@ -28,8 +28,10 @@ def getList(verbose=True):
   if(verbose): print(f"getting unsorted list for {algo}")
   symbs = getUnsortedList()
   if(verbose): print(f"finding stocks for {algo}")
+  symbs = [s+"|stocks" for s in symbs] #add the assetclass
   prices = o.getPrices(symbs,withVol=True) #get the current price and volume
-  goodBuys = [s for s in symbs if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])]
+  
+  goodBuys = [s.split("|")[0] for s in prices if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])]
   if(verbose): print(f"{len(goodBuys)} found for {algo}")
   return goodBuys
   
@@ -56,39 +58,6 @@ def goodSell(symb):
       return False
   else:
     return False
-
-#TODO: this should also account for squeezing
-def sellUp(symb=""):
-  lock = o.threading.Lock()
-  lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
-  lock.release()
-  
-  mainSellUp = float(c[algo]['sellUp'])
-  if(symb in posList):
-    #TODO: add exit condition (see it in getList)
-    sellUp = mainSellUp #TODO: account for squeeze here
-  else:
-    sellUp = mainSellUp
-  return sellUp
-
-#TODO: this should also account for squeezing
-def sellDn(symb=""):
-  lock = o.threading.Lock()
-  lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
-  lock.release()
-  
-  mainSellDn = float(c[algo]['sellDn'])
-  if(symb in posList):
-    sellDn = mainSellDn #TODO: account for squeeze here
-  else:
-    sellDn = mainSellDn
-  return sellDn
-
-def sellUpDn():
-  
-  return float(c[algo]['sellUpDn'])
 
 
 #get a list of stocks to be sifted through
@@ -151,3 +120,38 @@ def getDivDates(symb,maxTries=3):
     print(f"Failed to get div dates for {symb}")
     r = {}
   return r
+
+
+
+#TODO: this should also account for squeezing
+def sellUp(symb=""):
+  lock = o.threading.Lock()
+  lock.acquire()
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
+  
+  mainSellUp = float(c[algo]['sellUp'])
+  if(symb in posList):
+    #TODO: add exit condition (see it in getList)
+    sellUp = mainSellUp #TODO: account for squeeze here
+  else:
+    sellUp = mainSellUp
+  return sellUp
+
+#TODO: this should also account for squeezing
+def sellDn(symb=""):
+  lock = o.threading.Lock()
+  lock.acquire()
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
+  
+  mainSellDn = float(c[algo]['sellDn'])
+  if(symb in posList):
+    sellDn = mainSellDn #TODO: account for squeeze here
+  else:
+    sellDn = mainSellDn
+  return sellDn
+
+def sellUpDn():
+  
+  return float(c[algo]['sellUpDn'])
