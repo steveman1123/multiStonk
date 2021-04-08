@@ -212,13 +212,13 @@ def goodSell(symb):
   lock.release()
   buyPrice = float(stockList[symb]['buyPrice'])
   curPrice = o.getPrice(symb)
-  if(curPrice/buyPrice<sellDn(symb)):
-    return True
-  elif(curPrice/buyPrice>=sellUp(symb)):
-    return True
+  if(buyPrice>0):
+    if(curPrice/buyPrice<sellDn(symb) or curPrice/buyPrice>=sellUp(symb)):
+      return True
+    else:
+      return False
   else:
-    return False
-  
+    
 
 #get the sellUp value for a given symbol (default to the main value)
 def sellUp(symb=""):

@@ -297,7 +297,11 @@ def reverseSplitters():
   return [e[0] for e in out if e[1]<1]
   
 #get the current price of a stock, optionally include the market cap
-#TODO: move market cap to its own function, and have it return volume instead
+#TODO: redo this function to return any specified data that's contained (either price, open, previousClose,isNasdaqListed, marketIsOpen, etc)
+#^^ May want to rename the function to getInfo() with params being specified
+# example:
+# getInfo('msft',['price','vol','open'])
+# {'msft':{'price':123,'vol':1234,'open':321}}
 #alternateively, return an additional dict containing other specified info (like vol or cap or exchange or whatever)
 def getPrice(symb, withCap=False,verbose=False):
   url = f'https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
@@ -344,6 +348,52 @@ def getVol(symb, verbose=False):
     if(verbose): print("Invalid Stock - "+symb)
   return vol
 
+#get data that's in the info api call (current price returned by default)
+# available data (at the moment): price, vol, mktcap, open, prevclose, istradable
+def getInfo(symb,data=['price']):
+  url = f'https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
+  while True:
+    try:
+      r = requests.get(url,headers={"User-Agent": "-"}, timeout=5).text #nasdaq url requires a non-empty user-agent string
+      j = json.loads(r)
+      break
+    except Exception:
+      print(f"No connection, or other error encountered in getPrice of {symb}. Trying again...")
+      time.sleep(3)
+      continue
+  out = {}
+  if('price' in data):
+    try:
+      out['price'] = float(j["data"]["primaryData"]["lastSalePrice"][1:])
+    except Exception:
+      out['price'] = 0
+  if('vol' in data):
+    try:
+      out['vol'] = int(j['data']['keyStats']['Volume']['value'].replace(',',''))
+    except Exception:
+      out['vol'] = 0
+  if('mktcap' in data):
+    try:
+      out['mktcap'] = int(j['data']['keyStats']['MarketCap']['value'].replace(',',''))
+    except Exception:
+      out['mktcap'] = 0
+  if('open' in data):
+    try:
+      out['open'] = float(j['data']['keyStats']['OpenPrice']['value'][1:])
+    except Exception:
+      out['open'] = 0
+  if('prevclose' in data):
+    try:
+      out['prevclose'] = float(j['data']['keyStats']['PreviousClose']['value'][1:])
+    except Exception:
+      out['prevclose'] = 0
+  if('istradable' in data):
+    try:
+      out['istradable'] = j['data']['isNasdaqListed']
+    except Exception:
+      out['istradable'] = False
+  
+  return out
 
 #get minute to minute prices for the current day
 def getDayMins(symb, maxTries=3, verbose=False):

@@ -12,6 +12,9 @@ import random, time, json, sys, os
 from glob import glob
 from operator import eq
 import datetime as dt
+from colorama import init as colorinit
+
+colorinit() #allow coloring in Windows terminals
 
 
 
@@ -142,10 +145,10 @@ def main(verbose=True):
         print(f"{algo} - {bcolor.FAIL if roi<1 else bcolor.OKGREEN}{roi}{bcolor.ENDC}") #display the ROI
       
       #update the max port val
-      print("Updating max portfolio value... ", end="")
       portHist = a.getProfileHistory(str(dt.date.today()),'1M')['equity']
       maxPortVal=max([e for e in portHist if e is not None])
-      print(f"${maxPortVal}")
+      print(f"\nMax portfolio value from last month: ${maxPortVal}")
+      print(f"Current portfolio value: ${portHist[-1]}\n")
 
       syncPosList() #sync up posList to live data
 
@@ -418,6 +421,43 @@ def syncPosList(verbose=False):
   lock = o.threading.Lock() #locking is needed to write to the file and edit the posList var (will have to see how threads and globals work with each other)
   print("Syncing posList...")
   
+  #check if an algo in the posList is removed from the algoList
+  for inactiveAlgo in [algo for algo in posList if algo not in algoList]:
+    #stocks that are in a removed algo should be moved to an active algo that has it, if none do, then move it to the active algo with the highest loss
+    for symb in posList[inactiveAlgo]: #stocks in the removed algo
+      #get all active algos that contain it
+      activeAlgosWithStock = [e for e in posList if(e in algoList and symb in e)]
+      maxAlgo = ['x',0] #algo and the max gain of the stock
+      #get the algo with the max gain for this stock
+      if(len(activeAlgosWithStock)>0): #if there's at least 1 active algo that contains it
+        for activeAlgo in activeAlgosWithStock: #look thru each algo that could hold the stock
+          sellUp = eval(f"{activeAlgo}.sellUp('{symb}')") #find the sell up of that algo
+          maxAlgo = [activeAlgo,sellUp] if sellUp>maxAlgo[1] else maxAlgo #get the greater of the two algos
+      else: #if there are not active algos that contain it
+        for activeAlgo in algoList: #then loop through all active algos
+          sellUp = eval(f"{activeAlgo}.sellUp('{symb}')") #find the sell up of that algo
+          maxAlgo = [activeAlgo,sellUp] if sellUp>maxAlgo[1] else maxAlgo #get the greater of the two algos
+
+      if(verbose): print(f"{inactiveAlgo} algo is inactive. Moving {symb} from {inactiveAlgo} to {maxAlgo[0]}")
+      
+      lock.acquire()
+      try: #this should evaluate if the symb is already present in the active algo
+        posList[maxAlgo[0]][symb]['sharesHeld'] += posList[inactiveAlgo][symb]['sharesHeld'] #only transfer over the shares active algo data is more important
+      except Exception: #this should evaluate if the symb is not already present in the active algo
+        posList[maxAlgo[0]][symb] = { #transfer over all data from the inactive one
+                                  'sharesHeld':posList[inactiveAlgo][symb]['sharesHeld'],
+                                  'lastTradeDate':posList[inactiveAlgo][symb]['lastTradeDate'],
+                                  'lastTradeType':posList[inactiveAlgo][symb]['lastTradeType'],
+                                  'buyPrice':posList[inactiveAlgo][symb]['buyPrice'],
+                                  'shouldSell':posList[inactiveAlgo][symb]['shouldSell'],
+                                  'note':posList[inactiveAlgo][symb]['note']
+                                }
+        
+      posList[inactiveAlgo][symb]['sharesHeld'] = 0 #remove the shares fromt he inactive algo
+      lock.release()
+        
+  
+  
   if(verbose): print("getting actually held positions")
   p = a.getPos()
   heldPos = {e['symbol']:float(e['qty']) for e in p} #actually held positions
@@ -591,14 +631,18 @@ def syncPosList(verbose=False):
       posList[maxAlgo][symb]['sharesHeld'] += heldPos[symb]-recPos[symb] #add in the disparity
       lock.release()
       
-  #TODO: figure out why it's adding blanks in the first place?? Where are they even coming from??
+  #remove any symbs that have 0 shares, remove any algos that have 0 symbs
   if(verbose): print("Removing blanks")
-  for algo in posList:
+  for algo in list(posList):
     for symb in list(posList[algo]): #must be cast as list in order to not change dict size (this makes a copy)
       if(posList[algo][symb]['sharesHeld']==0):
         lock.acquire()
         posList[algo].pop(symb,None)
         lock.release()
+    if(len(posList[algo])==0): #remove any algos that have 0 symbs
+      lock.acquire()
+      posList.pop(algo,None)
+      lock.release()
   
   if(verbose): print("Marking to be sold")
   revSplits = o.reverseSplitters()
