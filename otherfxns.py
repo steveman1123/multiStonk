@@ -10,7 +10,7 @@ c = configparser.ConfigParser()
 c.read('./configs/other.config')
 
 stockDir = c['file locations']['stockDataDir'] #where stock history data is stored (csv files)
-HEADERS = c['net cfg']['headers'] #headers to send on each data request
+HEADERS = json.loads(c['net cfg']['headers']) #headers to send on each data request
 
 
 #returns as 2d array order of Date, Close/Last, Volume, Open, High, Low sorted by dates newest to oldest (does not include today's info)
