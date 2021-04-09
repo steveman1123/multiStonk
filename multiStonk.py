@@ -141,7 +141,10 @@ def main(verbose=True):
         
         algoCurVal = sum([posList[algo][s]['sharesHeld']*curPrices[s+"|stocks".upper()]['price'] for s in posList[algo] if s+"|stocks".upper() in curPrices]) #get the total value of the stocks in a given algo
         algoBuyVal = sum([posList[algo][s]['sharesHeld']*posList[algo][s]['buyPrice'] for s in posList[algo]]) #get the total amount initially invested in a given algo
-        roi = round(algoCurVal/algoBuyVal,2)
+        if(algoBuyVal>0): #make sure that we don't div0 if the list is empty
+          roi = round(algoCurVal/algoBuyVal,2)
+        else:
+          roi = 1 #if the buyVal is 0, then that means either no info or no stocks held, so it's nearly impossible to make a judgement
         print(f"{algo} - {bcolor.FAIL if roi<1 else bcolor.OKGREEN}{roi}{bcolor.ENDC}") #display the ROI
       
       #update the max port val
@@ -306,18 +309,18 @@ def check2buy(algo, cashAvailable, stocks2buy):
         if(isBought): print(f"Bought {shares} shares of {stock} for {algo} algo at around ${curPrice}/share")
     
 #a stock has reached a trigger point and should begin to be checked more often (it will be sold in this function)
-def triggeredUp(stock, algo):
+def triggeredUp(symb, algo):
   maxPrice = 0.01 #init vars to be slightly above 0
   curPrice = 0.01
   sellUpDn = float(eval(algo+".sellUpDn()"))
   #ensure that current price>0 (getPrice returns 0 if it can't recognize a symbol (eg if a merger happens or a stock is delisted)
   while(curPrice>0 and curPrice>=sellUpDn*maxPrice and (closeTime-dt.datetime.now()).total_seconds()>60):
-    curPrice = o.getPrice(stock)
+    curPrice = o.getInfo(symb)['price']
     maxPrice = max(maxPrice,curPrice)
-    print(f"{algo}\t{stock}\t{round(curPrice/maxPrice,2)} : {round(sellUpDn,2)}")
+    print(f"{algo}\t{symb}\t{round(curPrice/maxPrice,2)} : {round(sellUpDn,2)}")
     time.sleep(3) #slow it down a little bit
-  isSold = sell(stock, algo)
-  if(isSold): print(f"Sold all shares of {stock} for {algo} algo")
+  isSold = sell(symb, algo)
+  if(isSold): print(f"Sold all shares of {symb} for {algo} algo")
 
 #basically just a market order for the stock and then record it into an order info file
 def sell(stock, algo):
@@ -639,7 +642,7 @@ def syncPosList(verbose=False):
         lock.acquire()
         posList[algo].pop(symb,None)
         lock.release()
-    if(len(posList[algo])==0): #remove any algos that have 0 symbs
+    if(algo not in algoList and len(posList[algo])==0): #remove any algos that aren't in the algoList and have 0 symbs in them
       lock.acquire()
       posList.pop(algo,None)
       lock.release()

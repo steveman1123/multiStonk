@@ -9,7 +9,7 @@ def init(configFile):
   #set the multi config file
   c = o.configparser.ConfigParser()
   c.read(configFile)
-  
+
   #stocks held by this algo according to the records
   lock = o.threading.Lock()
   lock.acquire()
@@ -18,6 +18,22 @@ def init(configFile):
 
 def getList(verbose=True):
   j = getUnsortedList() #this should contain the entire json data, not just the list of symbols
+
+  #ensure they're nasdaq, or if they're not ndaq, then lookup company name/ticker and see if it's available on ndaq (either reverse lookup the symb from name, or lookup symb and see if the name is present or matches)
+  #look for upcoming catalyst_date and recent updated_at (also look for deferred date in catalyst_date_text)
+  #look for pdufa only. Look for significant price increases from past events
+  #check recent headlines
+  
+  #make sure that the earnings are present (that is: it has history on the market)
+  tradable = [e for e in j if e['cashflow']['earnings'] is not None]
+  #make sure we're in the pdufa stage
+  pdufa = [e for e in tradable if 'pdufa' in e['stage']['value']]
+  #only look at upcoming ones, not any catalysts from the past (only present in the list because of delays)
+  upcoming = [e for e in pdufa if o.dt.datetime.strptime(e['catalyst_date'],"%Y-%m-%d").date()>dt.date.today()]
+  #check history for recent price/volume jumps
+  for e in upcoming:
+    hist = o.getHistory(e['cashflow']['ticker'])
+    
   
   
   return []
@@ -25,7 +41,7 @@ def getList(verbose=True):
 
 def goodBuy(symb):
   return False
-  
+
 
 #return whether symb is a good sell or not
 def goodSell(symb):
@@ -49,7 +65,7 @@ def getUnsortedList(verbose=False):
   except Exception:
     print(f"Bad data from biopharmcatalyst.com from {algo}")
     arr = []
-  
+
   return arr
 
 
@@ -60,7 +76,7 @@ def sellUp(symb=""):
   lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
-  
+
   mainSellUp = float(c[algo]['sellUp'])
   if(symb in posList):
     sellUp = mainSellUp #TODO: account for squeeze here
@@ -74,7 +90,7 @@ def sellDn(symb=""):
   lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
-  
+
   mainSellDn = float(c[algo]['sellDn'])
   if(symb in posList):
     sellDn = mainSellDn #TODO: account for squeeze here
@@ -83,5 +99,5 @@ def sellDn(symb=""):
   return sellDn
 
 def sellUpDn():
-  
+
   return float(c[algo]['sellUpDn'])

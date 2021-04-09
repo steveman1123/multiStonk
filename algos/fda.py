@@ -63,14 +63,15 @@ def goodSell(symb):
 
   #check if price<sellDn
   buyPrice = float(stockList[symb]['buyPrice'])
-  curPrice = o.getPrice(symb)
-  if(curPrice/buyPrice<sellDn(symb)):
-    return True
-  elif(curPrice/buyPrice>=sellUp(symb)):
-    return True
+  curPrice = o.getInfo(symb)['price']
+  if(buyPrice>0):
+    if(curPrice/buyPrice<sellDn(symb) or curPrice/buyPrice>=sellUp(symb)):
+      return True #price has moved outside of the sale price
+    else:
+      return False
   else:
+    print(f"{symb} buy price is 0.")
     return False
-
 
 def goodSells(symbList):
   lock = o.threading.Lock()

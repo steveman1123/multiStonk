@@ -211,14 +211,20 @@ def goodSell(symb):
   stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
   buyPrice = float(stockList[symb]['buyPrice'])
-  curPrice = o.getPrice(symb)
-  if(buyPrice>0):
-    if(curPrice/buyPrice<sellDn(symb) or curPrice/buyPrice>=sellUp(symb)):
+  inf = o.getInfo(symb,['price','open'])
+  
+  if(inf['price']/inf['open']<sellDn(symb) or inf['price']/inf['open']>=sellUp(symb)): #if change since open has gone beyond sell params
+    return True
+  
+  if(buyPrice>0): #ensure buyPrice has been initiated/is valid
+    if(inf['price']/buyPrice<sellDn(symb) or inf['price']/buyPrice>=sellUp(symb)): #if change since buy has gone beyond sell params
       return True
-    else:
+    elif(inf['price']/inf['open']<sellDn(symb) or inf['price']/inf['open']>=sellUp(symb)): #if change since open has gone beyond sell params
+      return True
+    else: #not enough change yet to consititute a sell
       return False
   else:
-    
+    return False
 
 #get the sellUp value for a given symbol (default to the main value)
 def sellUp(symb=""):

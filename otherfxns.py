@@ -296,57 +296,6 @@ def reverseSplitters():
   
   return [e[0] for e in out if e[1]<1]
   
-#get the current price of a stock, optionally include the market cap
-#TODO: redo this function to return any specified data that's contained (either price, open, previousClose,isNasdaqListed, marketIsOpen, etc)
-#^^ May want to rename the function to getInfo() with params being specified
-# example:
-# getInfo('msft',['price','vol','open'])
-# {'msft':{'price':123,'vol':1234,'open':321}}
-#alternateively, return an additional dict containing other specified info (like vol or cap or exchange or whatever)
-def getPrice(symb, withCap=False,verbose=False):
-  url = f'https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
-  while True:
-    try:
-      response = requests.get(url,headers={"User-Agent": "-"}, timeout=5).text #nasdaq url requires a non-empty user-agent string
-      break
-    except Exception:
-      print(f"No connection, or other error encountered in getPrice of {symb}. Trying again...")
-      time.sleep(3)
-      continue
-  try:
-    latestPrice = float(json.loads(response)["data"]["primaryData"]["lastSalePrice"][1:])
-    if(withCap):
-      try:
-        #sometimes there isn't a listed market cap, so we look for one, and if it's not there, then we estimate one
-        mktCap = float(json.loads(response)['data']['keyStats']['MarketCap']['value'].replace(',',''))
-      except Exception:
-        if(verbose): print(f"Invalid market cap found for {symb}. Calculating an estimate")
-        vol = float(json.loads(response)['data']['keyStats']['Volume']['value'].replace(',',''))
-        mktCap = vol*latestPrice #this isn't the actual cap, but it's better than nothing
-      return [latestPrice,mktCap]
-    else:
-      return latestPrice
-  except Exception:
-    if(verbose): print("Invalid Stock - "+symb)
-    return [0,0] if(withCap) else 0
-  
-#TODO: remove this function once getPrice is redone
-def getVol(symb, verbose=False):
-  url = f'https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
-  while True:
-    try:
-      response = requests.get(url,headers={"User-Agent": "-"}, timeout=5).text #nasdaq url requires a non-empty user-agent string
-      break
-    except Exception:
-      print("No connection, or other error encountered in getVol. Trying again...")
-      time.sleep(3)
-      continue
-  vol=0
-  try:
-    vol = float(json.loads(response)['data']['keyStats']['Volume']['value'].replace(',',''))
-  except Exception:
-    if(verbose): print("Invalid Stock - "+symb)
-  return vol
 
 #get data that's in the info api call (current price returned by default)
 # available data (at the moment): price, vol, mktcap, open, prevclose, istradable
