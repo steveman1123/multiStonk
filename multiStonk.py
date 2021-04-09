@@ -318,7 +318,7 @@ def triggeredUp(symb, algo):
     curPrice = o.getInfo(symb)['price']
     maxPrice = max(maxPrice,curPrice)
     print(f"{algo}\t{symb}\t{round(curPrice/maxPrice,2)} : {round(sellUpDn,2)}")
-    time.sleep(3) #slow it down a little bit
+    time.sleep(len(threading.enumerate())+2) #slow it down proportional to the number of threads running to not barage with requests
   isSold = sell(symb, algo)
   if(isSold): print(f"Sold all shares of {symb} for {algo} algo")
 
