@@ -213,8 +213,12 @@ def goodSell(symb):
   buyPrice = float(stockList[symb]['buyPrice'])
   inf = o.getInfo(symb,['price','open'])
   
-  if(inf['price']/inf['open']<sellDn(symb) or inf['price']/inf['open']>=sellUp(symb)): #if change since open has gone beyond sell params
-    return True
+  if(inf['open']>0):
+    if(inf['price']/inf['open']<sellDn(symb) or inf['price']/inf['open']>=sellUp(symb)): #if change since open has gone beyond sell params
+      return True
+  else:
+    print(f"{symb} open price is 0")
+    return False
   
   if(buyPrice>0): #ensure buyPrice has been initiated/is valid
     if(inf['price']/buyPrice<sellDn(symb) or inf['price']/buyPrice>=sellUp(symb)): #if change since buy has gone beyond sell params
