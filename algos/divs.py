@@ -30,7 +30,6 @@ def getList(verbose=True):
   if(verbose): print(f"finding stocks for {algo}")
   symbs = [s+"|stocks" for s in symbs] #add the assetclass
   prices = o.getPrices(symbs,withVol=True) #get the current price and volume
-  
   goodBuys = [s.split("|")[0] for s in prices if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])]
   if(verbose): print(f"{len(goodBuys)} found for {algo}")
   return goodBuys
@@ -49,10 +48,11 @@ def goodSell(symb):
     print(f"{symb} not found in {algo}")
     return True
   if(len(dates)>0): #make sure that the dates were populated
-    if(o.getInfo(symb)['price']/posList[symb]['buyPrice']<=sellDn(symb)):
+    curPrice = o.getInfo(symb)['price']
+    if(curPrice/posList[symb]['buyPrice']<sellDn(symb)): #if change since buy has dropped below condition
       return True
     elif(str(o.dt.date.today())>dates['payment'] and
-         o.getInfo(symb)['price']/posList[symb]['buyPrice']>=sellUp(symb)):
+         curPrice/posList[symb]['buyPrice']>=sellUp(symb)): #if past the payment date and price has reached the sellUp point
       return True
     else:
       return False
@@ -64,7 +64,7 @@ def goodSell(symb):
 def getUnsortedList():
   while True:
     try:
-      #
+      #get the stocks whose exdivdate is the next trade date (buy before it drops to the dropped price)
       r = o.json.loads(o.requests.get(f"https://api.nasdaq.com/api/calendar/dividends?date={o.nextTradeDate()}",headers={"user-agent":"-"}, timeout=5).text)['data']['calendar']['rows']
       break
     except Exception:

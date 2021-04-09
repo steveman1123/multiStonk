@@ -108,9 +108,10 @@ def sellAll(isManual=1):
 
 #look to buy/sell a position
 #TODO: return something else other than the string (or include other info to return beyond it)
+#TODO: need limit orders to be able to be placed
 # https://alpaca.markets/docs/api-documentation/api-v2/orders/
 def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPrice=0):
-  if(o.isTradable(symb)):
+  if(o.getInfo(symb,['istradable'])['istradable']):
     order = {
       "symbol":symb,
       "qty":qty,
@@ -222,28 +223,22 @@ def openCloseTimes(checkDate): #checkdate of format yyyy-mm-dd
 
 # return the current price of the indicated stock
 #optinal params can be used to have it use alpaca or non-alpaca apis, or if the function should also return the market cap (related because it's also included in the same api request on the nasdaq api)
-def getPrice(symb,withCap=False,isAlpaca=False):
-  symb = symb.upper() #make sure it's uppercase, otherwise it may error out
-  if(isAlpaca):
-    if(withCap):
-      print("Cannot return market cap and price using alpaca api")
-    url = f'https://data.alpaca.markets/v1/last/stocks/{symb}'
-    while True:
-      try:
-        response = o.requests.get(url,headers=HEADERS, timeout=5).text #send request and store response
-        break
-      except Exception:
-        print("No connection, or other error encountered in getPrice. Trying again...")
-        o.time.sleep(3)
-        continue
+def getPrice(symb):
+  while True:
     try:
-      latestPrice = float(o.json.loads(response)['last']['price'])
-      return latestPrice
+      r = o.requests.get(f'https://data.alpaca.markets/v1/last/stocks/{symb.upper()}',headers=HEADERS, timeout=5).text #send request and store response
+      break
     except Exception:
-      print(f"Invalid Stock - {symb}")
-      return [0,0] if(withCap) else 0
-  else: #using the nasdaq api
-    return o.getPrice(symb, withCap)
+      print("No connection, or other error encountered in getPrice. Trying again...")
+      o.time.sleep(3)
+      continue
+
+  try:
+    latestPrice = float(o.json.loads(r)['last']['price'])
+    return latestPrice
+  except Exception:
+    print(f"Invalid Stock - {symb}")
+    return 0
 
 #make sure that we can trade it on alpaca too
 def isAlpacaTradable(symb):

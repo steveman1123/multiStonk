@@ -24,17 +24,24 @@ def getList(verbose=True):
   #look for pdufa only. Look for significant price increases from past events
   #check recent headlines
   
+  smaDays = int(c[algo]['smaDays']) #number of days to perform a simple moving average over
+  minPct = float(c[algo]['minPct']) #minimum percent that the jumps should be at
+  
   #make sure that the earnings are present (that is: it has history on the market)
   tradable = [e for e in j if e['cashflow']['earnings'] is not None]
   #make sure we're in the pdufa stage
   pdufa = [e for e in tradable if 'pdufa' in e['stage']['value']]
   #only look at upcoming ones, not any catalysts from the past (only present in the list because of delays)
   upcoming = [e for e in pdufa if o.dt.datetime.strptime(e['catalyst_date'],"%Y-%m-%d").date()>dt.date.today()]
+
+
+
   #check history for recent price/volume jumps
   for e in upcoming:
-    hist = o.getHistory(e['cashflow']['ticker'])
+    hist = o.getHistory(e['cashflow']['ticker']) #get the last year's worth of price history
+    #look for major spikes away from the moving average (at least some %)
+    #the spikes should be increasing  in % away from average. moving average should also be going up
     
-  
   
   return []
 

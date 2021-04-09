@@ -9,27 +9,9 @@ from workdays import workday as wd
 c = configparser.ConfigParser()
 c.read('./configs/other.config')
 
-stockDir = c['file locations']['stockDataDir']
+stockDir = c['file locations']['stockDataDir'] #where stock history data is stored (csv files)
+HEADERS = c['net cfg']['headers'] #headers to send on each data request
 
-
-#query nasdaq api to see if something is tradable on the market
-def isTradable(symb):
-  isTradable = False
-  while True:
-    try:
-      r = json.loads(requests.request("GET",f"https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks", headers={"user-agent":"-"}, timeout=5).content)
-      break
-    except Exception:
-      print(f"No connection, or other error encountered in isTradable for {symb}, trying again...")
-      time.sleep(3)
-      continue
-  if(r['data'] is not None):
-    try:
-      isTradable = bool(r['data']['isNasdaqListed'])
-    except Exception:
-      print(f"{symb} - Error in isTradable")
-
-  return isTradable
 
 #returns as 2d array order of Date, Close/Last, Volume, Open, High, Low sorted by dates newest to oldest (does not include today's info)
 #get the history of a stock from the nasdaq api (date format is yyyy-mm-dd)
@@ -51,7 +33,7 @@ def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today(
       tries += 1
       try:
         url = f'https://www.nasdaq.com/api/v1/historical/{symb}/stocks/{startDate}/{endDate}' #old api url (depreciated?)
-        r = requests.get(url, headers={"user-agent":"-"}, timeout=5).text #send request and store response - cannot have empty user-agent
+        r = requests.get(url, headers=HEADERS, timeout=5).text #send request and store response
         if(len(r)<10):
           startDate = str(dt.datetime.strptime(startDate,"%Y-%m-%d").date()-dt.timedelta(1)) #try scooting back a day if at first we don't succeed (sometimes it returns nothing for some reason?)
         if('html' in r or len(r)<10): #sometimes response returns invalid data. This ensures that it's correct (not html error or blank data)
@@ -104,7 +86,7 @@ def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today(
         tries += 1
         try:
           url = f'https://www.nasdaq.com/api/v1/historical/{symb}/stocks/{startDate}/{endDate}' #old api url (depreciated?)
-          r = requests.get(url, headers={"user-agent":"-"}, timeout=5).text #send request and store response - cannot have empty user-agent
+          r = requests.get(url, headers=HEADERS, timeout=5).text #send request and store response - cannot have empty user-agent
           if(len(r)<10):
             startDate = str(dt.datetime.strptime(startDate,"%Y-%m-%d").date()-dt.timedelta(1)) #try scooting back a day if at first we don't succeed (sometimes it returns nothing for some reason?)
           if('html' in r or len(r)<10): #sometimes response returns invalid data. This ensures that it's correct (not html error or blank data)
@@ -149,7 +131,7 @@ def getHistory2(symb, startDate, endDate, maxTries=3):
   j = {}
   while tries<=maxTries: #get the first set of dates
     try:
-      j = json.loads(requests.get(f'https://api.nasdaq.com/api/quote/{symb}/historical?assetclass=stocks&fromdate={startDate}&todate={endDate}&limit={maxDays}',headers={'user-agent':'-'}).text)
+      j = json.loads(requests.get(f'https://api.nasdaq.com/api/quote/{symb}/historical?assetclass=stocks&fromdate={startDate}&todate={endDate}&limit={maxDays}',headers=HEADERS).text)
       break
     except Exception:
       print(f"Error in getHistory2 for {symb}. Trying again ({tries}/{maxTries})...")
@@ -165,7 +147,7 @@ def getHistory2(symb, startDate, endDate, maxTries=3):
         tries=1
         while tries<=maxTries:
           try:
-            r = json.loads(requests.get(f'https://api.nasdaq.com/api/quote/{symb}/historical?assetclass=stocks&fromdate={startDate}&todate={endDate}&offset={i*(maxDays)}',headers={'user-agent':'-'}).text)
+            r = json.loads(requests.get(f'https://api.nasdaq.com/api/quote/{symb}/historical?assetclass=stocks&fromdate={startDate}&todate={endDate}&offset={i*(maxDays)}',headers=HEADERS).text)
             j['data']['tradesTable']['rows'] += r['data']['tradesTable']['rows'] #append the sets together
             break
           except Exception:
@@ -191,7 +173,7 @@ def jumpedToday(symb,jump):
   maxTries = 3 #sometimes this one really hangs but it's not terribly important, so we set a max limit and just assume it didn't jump today if it fails
   while tries<maxTries:
     try:
-      j = json.loads(requests.get(url,headers={'user-agent':'-'}).text)
+      j = json.loads(requests.get(url,headers=HEADERS).text)
       close = float(j['data']['summaryData']['PreviousClose']['value'].replace('$','').replace(',','')) #previous day close
       high = float(j['data']['summaryData']['TodayHighLow']['value'].replace('$','').replace(',','').split('/')[0]) #today's high, today's low is index [1]
       out = high/close>=jump
@@ -212,7 +194,7 @@ def getSymb(company,maxTries=3):
   tries=0
   while tries<maxTries:
     try:
-      r = json.loads(requests.get(url,params={'q':company},headers={'user-agent':'-'},timeout=5).text)
+      r = json.loads(requests.get(url,params={'q':company},headers=HEADERS,timeout=5).text)
       if(len(r[0]['value'].split(" "))>1): #this api also returns headlines which shouldn't count
         raise ValueError("Returned a hadline, not a symbol")
       [symb,exch] = [r[0]['value'],"NAS"]
@@ -277,7 +259,7 @@ def masterLives():
 def reverseSplitters():
   while True: #get page of upcoming stock splits
     try:
-      r = json.loads(requests.get("https://api.nasdaq.com/api/calendar/splits", headers={"user-agent":"-"}, timeout=5).text)['data']['rows']
+      r = json.loads(requests.get("https://api.nasdaq.com/api/calendar/splits", headers=HEADERS, timeout=5).text)['data']['rows']
       break
     except Exception:
       print("No connection, or other error encountered in reverseSplitters. trying again...")
@@ -299,6 +281,7 @@ def reverseSplitters():
 
 #get data that's in the info api call (current price returned by default)
 # available data (at the moment): price, vol, mktcap, open, prevclose, istradable
+#return dict of format {'option':value}
 def getInfo(symb,data=['price']):
   url = f'https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
   while True:
@@ -349,7 +332,7 @@ def getDayMins(symb, maxTries=3, verbose=False):
   tries=0
   while tries<maxTries:
     try:
-      r = json.loads(requests.get(f"https://api.nasdaq.com/api/quote/{symb}/chart?assetclass=stocks",headers={'user-agent':'-'}).text)
+      r = json.loads(requests.get(f"https://api.nasdaq.com/api/quote/{symb}/chart?assetclass=stocks",headers=HEADERS).text)
       break
     except Exception:
       print(f"No connection or other error encountered in getDayMins. Trying again ({tries}/{maxTries})...")
@@ -363,7 +346,7 @@ def getDayMins(symb, maxTries=3, verbose=False):
     out = {e['z']['dateTime']:float(e['z']['value']) for e in r['data']['chart']}
     return out
   
-
+#get the next trade date in datetime date format
 def nextTradeDate():
   while True:
     try:
@@ -388,7 +371,7 @@ def getPrices(symbList,withVol=False,maxTries=3):
     tries=0
     while tries<maxTries:
       try: #try getting the data
-        r = json.loads(requests.get("https://api.nasdaq.com/api/quote/watchlist",params={'symbol':symbList[i:min(i+maxSymbs,len(symbList))]},headers={'user-agent':'-'},timeout=5).text)
+        r = json.loads(requests.get("https://api.nasdaq.com/api/quote/watchlist",params={'symbol':symbList[i:min(i+maxSymbs,len(symbList))]},headers=HEADERS,timeout=5).text)
         break
       except Exception: #if it doesn't work, try again
         print("Error getting prices. Trying again...")
@@ -406,11 +389,11 @@ def getPrices(symbList,withVol=False,maxTries=3):
   return prices
   
 
-#get the time till market close in seconds (argument of EST offset (CST is 1 hour behind, UTC is 5 hours ahead))
+#get the time till the next market close in seconds (argument of EST offset (CST is 1 hour behind, UTC is 5 hours ahead))
 def timeTillClose(estOffset=-1):
   while True:
     try:
-      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers={'user-agent':'-'},timeout=5).text)
+      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers=HEADERS,timeout=5).text)
       ttc = r['data']['marketClosingTime'][:-3] #get the close time and strip off the timezone (" ET")
       ttc = dt.datetime.strptime(ttc,"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)
       break
@@ -421,11 +404,11 @@ def timeTillClose(estOffset=-1):
   ttc = int((ttc-dt.datetime.now()).total_seconds())
   return ttc
 
-
+#return the next market close time with an EST offset (required)
 def closeTime(estOffset):
   while True:
     try:
-      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers={'user-agent':'-'},timeout=5).text)
+      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers=HEADERS,timeout=5).text)
       close = r['data']['marketClosingTime'][:-3] #get the close time and strip off the timezone (" ET")
       close = dt.datetime.strptime(close,"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)
       break
@@ -436,15 +419,12 @@ def closeTime(estOffset):
   return close
 
 
-
-
 #determine if the market is currently open or not
 def marketIsOpen():
   while True:
     try:
-      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers={'user-agent':'-'},timeout=5).text)
-      isOpen = r['data']['marketIndicator']
-      isOpen = "Open" in isOpen
+      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers=HEADERS,timeout=5).text)
+      isOpen = "Open" in r['data']['marketIndicator']
       break
     except Exception:
       print("Error encountered in nasdaq marketIsOpen. Trying again...")

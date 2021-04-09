@@ -78,11 +78,11 @@ listsUpdatedToday = False #tell everyone whether the list has been updated yet t
 closeTime = o.closeTime(estOffset=-1) #get the time in datetime format of when the market closes (reference this when looking at time till close)
 
 
-#TODO: in algos, also change from getPrice to getPrices to go faster for goodBuy/goodSell to goodBuy/goodSells (make fewer api calls)
 #TODO: need to utilize the note field for storing important info (like pmt date for div, and init jump date for dj, then reference that field instead of pulling from api every minute)
 #TODO: display needs to happen faster (might be goodSell appears to be too slow. That'll have to change per algo I think)
 #TODO: make check2buy its own thread?
-#TODO: add sentiment analysis to newsScrape
+
+
 def main(verbose=True):
   global algoList, posList, listsUpdatedToday, closeTime
   portHist = a.getProfileHistory(str(dt.date.today()),'1M')['equity'] #get the closing prices of the portfolio over the last month
@@ -249,6 +249,7 @@ def updateList(algo,lock,rm=[],verbose=False):
 
 #check to sell positions from a given algo (where algo is an aglo name, and pos is the output of a.getPos())
 def check2sell(algo, pos):
+  global triggeredStocks
   for e in pos:
     if(e['symbol'] in posList[algo] and posList[algo][e['symbol']]['sharesHeld']>0):
       #TODO: possibly getPrice with mktCap (and use in display), then if the number of shares held>mktCap/price, then sell the surplus
@@ -262,12 +263,19 @@ def check2sell(algo, pos):
         #TODO: incorporate goodSells (also need to add goodSells function to each algo (this should speed things up and reduce api calls))
         goodSell = eval(f"{algo}.goodSell('{e['symbol']}')") #TODO: need to add shouldSell checking on held positions
         if(goodSell):
+          if(algo+"|"+e['symbol'] not in triggeredStocks):
+            triggeredStocks.add(algo+"|"+e['symbol'])
+          if("triggered" not in [t.getName() for t in o.threading.enumerate()]):
+            triggerThread = o.threading.Thread(target=checkTriggered) #init the thread - note locking is required here
+            triggerThread.setName("triggered") #set the name to the algo and stock symb
+            triggerThread.start() #start the thread
+          
+          '''
           if(f"{algo}-{e['symbol']}" not in [t.getName() for t in o.threading.enumerate()]): #make sure that the thread isn't already running
-            #TODO: look at locking if need be
             triggerThread = o.threading.Thread(target=triggeredUp, args=(e['symbol'],algo)) #init the thread - note locking is required here
             triggerThread.setName(f"{algo}-{e['symbol']}") #set the name to the algo and stock symb
             triggerThread.start() #start the thread
-
+          '''
 
 #look to buy stocks from the stocks2buy list with the available funds for the algo
 def check2buy(algo, cashAvailable, stocks2buy):
@@ -301,8 +309,8 @@ def check2buy(algo, cashAvailable, stocks2buy):
     
     #to avoid day trading, make sure that it either didn't trade yet today, or if it has, that it hasn't sold yet
     if lastTradeDate < dt.date.today() or stockInfo['lastTradeType']!="sell":
-      
-      [curPrice,mktCap] = o.getPrice(stock,withCap=True) #get the appx price to buy at, and the marketcap (to calculate the most shares we'll be allowed to purchase - some % of outstanding shares (which = mktcap/curprice)
+      inf = o.getInfo(stock,['price','mktcap'])
+      [curPrice, mktCap] = [inf['price'],inf['mktcap']]
       shares = int(min(cashPerStock/curPrice,(mktCap/curPrice)*float(c['account params']['maxVolPerc']))) #set number of shares to be at most some % of the mktcap, otherwise as many int shares as cash is available
       if(shares>0): #cannot place an order for 0 shares
         isBought = buy(shares,stock,algo,curPrice)
@@ -318,13 +326,43 @@ def triggeredUp(symb, algo):
     curPrice = o.getInfo(symb)['price']
     maxPrice = max(maxPrice,curPrice)
     print(f"{algo}\t{symb}\t{round(curPrice/maxPrice,2)} : {round(sellUpDn,2)}")
-    time.sleep(len(threading.enumerate())+2) #slow it down proportional to the number of threads running to not barage with requests
+    time.sleep(len(o.threading.enumerate())+2) #slow it down proportional to the number of threads running to not barage with requests
   isSold = sell(symb, algo)
   if(isSold): print(f"Sold all shares of {symb} for {algo} algo")
 
+#run as long as the len of triggeredStocks>0 (where triggeredStocks is a set of format {"algo|symb"})
+def checkTriggered():
+  global triggeredStocks
+  lock = o.threading.Lock()
+  maxPrices = {}
+  while len(triggeredStocks)>0: #only run if there's stocks to sell
+    prices = o.getPrices([e.split("|")[1]+"|stocks" for e in triggeredStocks]) #get prices for all stocks to sell
+    maxPrices = {e:max(maxPrices[e],prices[e]['price']) if(e in maxPrices) else prices[e]['price'] for e in prices} #get the max prices of the stocks since watching
+    #check for stocks in triggeredStocks that aren't in prices (some error occured that we hold it but it can't be traded)
+    lock.acquire()
+    for e in [e for e in triggeredStocks if (e.split("|")[1]+"|stocks").upper() not in prices]:
+      triggeredStocks.remove(e)
+    lock.release()
+      
+    print("")
+    for e in triggeredStocks:
+      sellUpDn = eval(f"{e.split('|')[0]}.sellUpDn()")
+      curPrice = prices[(e.split("|")[1]+'|stocks').upper()]['price']
+      if(curPrice>0): #make sure that the price is valid
+        if(curPrice>=sellUpDn*maxPrices[(e.split('|')[1]+"|stocks").upper()] and (closeTime-dt.datetime.now()).total_seconds()>60):
+          print(f"{e.split('|')[0]}\t{e.split('|')[1]}\t{round(curPrice/maxPrices[(e.split('|')[1]+'|stocks').upper()],2)} : {sellUpDn}")
+      else:
+        print(f"{e} current price is $0. Selling")
+        sell(e.split("|")[1],e.split("|")[0])
+    print("")
+    time.sleep(max(5,len(triggeredStocks)/5)) #wait at least 5 seconds between checks, and if there are more, wait longer
+    
+    
+    
+
 #basically just a market order for the stock and then record it into an order info file
 def sell(stock, algo):
-  global posList
+  global posList,triggeredStocks
   if(posList[algo][stock]['sharesHeld']>0):
     r = a.createOrder("sell",float(posList[algo][stock]['sharesHeld']),stock)
   else:
@@ -342,6 +380,8 @@ def sell(stock, algo):
         "note":""
       }
     open(c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update the posList file
+    if(stock in triggeredStocks):
+      triggeredStocks.pop(stock)
     lock.release()
     return True
   else:
@@ -669,7 +709,9 @@ def syncPosList(verbose=False):
 
 #run the main function
 if __name__ == '__main__':
-  global posList
+  global posList,triggeredStocks
+  
+  triggeredStocks = set()
   
   a.checkValidKeys(int(c['account params']['isPaper'])) #check that the keys being used are valid
   if(len(a.getPos())==0): #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
