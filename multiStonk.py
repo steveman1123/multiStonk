@@ -49,7 +49,7 @@ print(f"Key file {c['file locations']['keyFile']}\n")
 a.init(c['file locations']['keyFile'],int(c['account params']['isPaper']))
 
 #add the algos dir
-sys.path.append(c['file locations']['algosDir'])
+sys.path.append(c['file locations']['stockAlgosDir'])
 
 #list of algorithms to be used and their corresponding stock lists to be bought (init with none)
 algoList = c['allAlgos']['algoList'].replace(" ","").split(',') #var comes in as a string, remove spaces, and turn into comma separated list
@@ -185,7 +185,7 @@ def main(verbose=True):
       time.sleep(a.timeTillOpen())
       
   print(f"Portfolio value of ${acct['portfolio_value']} is less than {c['account params']['portStopLoss']} times the max portfolio value of ${maxPortVal}. Selling all. Program will need to be reinitiated manually.")
-  a.sellAll(isManual=not int(c['account params']['autoSellOff'])) #if the portfolio value falls below our stop loss, automatically sell everything
+  a.sellAll(isManual=not int(c['account params']['portAutoSellOff'])) #if the portfolio value falls below our stop loss, automatically sell everything
 
 #update all lists to be bought (this should be run as it's own thread)
 def updateLists(verbose=False):

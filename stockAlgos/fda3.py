@@ -10,48 +10,45 @@ def init(configFile):
   c = o.configparser.ConfigParser()
   c.read(configFile)
 
-  #stocks held by this algo according to the records
-  lock = o.threading.Lock()
-  lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
-  lock.release()
 
 def getList(verbose=True):
   j = getUnsortedList() #this should contain the entire json data, not just the list of symbols
 
-  #ensure they're nasdaq, or if they're not ndaq, then lookup company name/ticker and see if it's available on ndaq (either reverse lookup the symb from name, or lookup symb and see if the name is present or matches)
-  #look for upcoming catalyst_date and recent updated_at (also look for deferred date in catalyst_date_text)
-  #look for pdufa only. Look for significant price increases from past events
-  #check recent headlines
+  #min and max prices
+  [minPrice, maxPrice] = [float(c[algo]['minPrice']),float(c[algo]['maxPrice'])]
   
-  smaDays = int(c[algo]['smaDays']) #number of days to perform a simple moving average over
+  smaDays = int(c[algo]['smaDays']) #number of trading days to perform a simple moving average over
   minPct = float(c[algo]['minPct']) #minimum percent that the jumps should be at
+  spikeTime = int(c[algo]['spikeTime']) #min number of trading days between spikes
   
+  print(len(j))
   #make sure that the earnings are present (that is: it has history on the market)
   tradable = [e for e in j if e['cashflow']['earnings'] is not None]
+  print(len(tradable))
+  #only look at stocks in our price range
+  goodPrice = [e for e in tradable if minPrice<=e['companies']['price']<=maxPrice]
+  print(len(goodPrice))
   #make sure we're in the pdufa stage
-  pdufa = [e for e in tradable if 'pdufa' in e['stage']['value']]
+  pdufa = [e for e in goodPrice if 'pdufa' in e['stage']['value']]
+  print(len(pdufa))
   #only look at upcoming ones, not any catalysts from the past (only present in the list because of delays)
-  upcoming = [e for e in pdufa if o.dt.datetime.strptime(e['catalyst_date'],"%Y-%m-%d").date()>dt.date.today()]
-
-
-
+  upcoming = [e for e in pdufa if o.dt.datetime.strptime(e['catalyst_date'],"%Y-%m-%d").date()>o.dt.date.today()]
+  print(len(upcoming))
   #check history for recent price/volume jumps
-  for e in upcoming:
-    hist = o.getHistory(e['cashflow']['ticker']) #get the last year's worth of price history
+  #TODO: how badly do we want to implement this? upcoming contains about 20 which is fairly managable
+  # for e in upcoming:
+    # hist = o.getHistory(e['cashflow']['ticker']) #get the last year's worth of price history
     #look for major spikes away from the moving average (at least some %)
-    #the spikes should be increasing  in % away from average. moving average should also be going up
+    #the spikes should be increasing in % away from average. moving average should also be going up
+    
     
   
-  return []
-
-
-def goodBuy(symb):
-  return False
+  return [e['companies']['ticker'] for e in upcoming]
 
 
 #return whether symb is a good sell or not
 def goodSell(symb):
+  #return true if outside of sellUp or sellDn
   return False
 
 #get a list of stocks to be sifted through
@@ -78,6 +75,7 @@ def getUnsortedList(verbose=False):
 
 
 #TODO: this should also account for squeezing
+#TODO: This should change depending on if it's before or after the catalyst date - sellDn and sellUp should increase (eg from 0.7-1.2 to 0.85-1.5)
 def sellUp(symb=""):
   lock = o.threading.Lock()
   lock.acquire()

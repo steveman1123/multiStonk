@@ -290,7 +290,7 @@ def getInfo(symb,data=['price']):
       j = json.loads(r)
       break
     except Exception:
-      print(f"No connection, or other error encountered in getPrice of {symb}. Trying again...")
+      print(f"No connection, or other error encountered in getInfo of {symb}. Trying again...")
       time.sleep(3)
       continue
   out = {}

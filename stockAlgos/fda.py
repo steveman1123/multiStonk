@@ -84,7 +84,7 @@ def goodSells(symbList):
   #get the stock's current prices
   curPrices = o.getPrices(symbList)
   #check that it has exceeded the stopLoss or takeProfit points
-  good2sell = {s:(curPrices[s]/buyPrices[s]<sellDn(s) or curPrice/buyPrice>=sellUp(s)) for s in buyPrice}
+  good2sell = {s:(curPrices[(s+"|stocks").upper()]/buyPrices[s]<sellDn(s) or curPrices[(s+"|stocks").upper()]/buyPrices[s]>=sellUp(s)) for s in buyPrices}
   
   return good2sell
 

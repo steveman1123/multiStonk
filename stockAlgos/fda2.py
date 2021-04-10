@@ -26,9 +26,15 @@ def getList(verbose=True):
 
 
 def goodBuys(symbList):
-  arr = [e+"|stocks" for e in list(set(arr))] #remove duplicates and append the |stocks label
-  prices = o.getPrices(arr)
-  arr = [e for e in arr if(e in prices and float(c['fda']['minPrice'])<prices[e]['price']<float(c['fda']['maxPrice']))] #remove blanks and ensure that it's listed in ndaq (o.getPrice will return 0 if it throws an error (ie. is not listed and won't show up)) and within our price range
+  arr = [e+"|stocks" for e in list(set(symbList))] #remove duplicates and append the |stocks label
+  prices = o.getPrices(arr) #get the current prices
+  
+  #narow down to stocks only within our price range
+  arr = [e for e in arr if(e.upper() in prices and float(c[algo]['minPrice'])<prices[e.upper()]['price']<float(c[algo]['maxPrice']))]
+  
+  #
+  
+  
   return {'symb':False}
   
 

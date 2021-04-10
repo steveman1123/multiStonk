@@ -14,3 +14,27 @@ To Run:
  - API keys must be populated in the API key file
  - run ```python3 multistonk.py``` and let it go 24/7 (recommend using a raspberry pi)
 
+## Algo statuses as of 2021-04-10
+
+### stocks
+
+divs  : testing  
+dj    : done  
+earn  : not done  
+ema   : ready to test  
+fda   : done  
+fda2  : not done  
+fda3  : ready to test  
+fib   : not done  
+gapup : not done  
+hivol : not done  
+ipos  : not done  
+movers: not done  
+reddit: not done  
+sema  : not done  
+split : not done  
+
+### forex
+fib   : not done  
+hs    : not done  
+https://www.forex.com/en-us/education/education-themes/trading-strategies/  
