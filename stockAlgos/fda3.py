@@ -49,7 +49,17 @@ def getList(verbose=True):
 #return whether symb is a good sell or not
 def goodSell(symb):
   #return true if outside of sellUp or sellDn
-  return False
+  
+  '''
+  TODO
+  getlist should always return dict rather than list of format {symb:note}
+
+  on a buy and in syncposlist, note should be updated to what's in getlist
+  '''
+  out = 
+  
+  return out
+
 
 #get a list of stocks to be sifted through
 def getUnsortedList(verbose=False):
@@ -71,7 +81,6 @@ def getUnsortedList(verbose=False):
     arr = []
 
   return arr
-
 
 
 #TODO: this should also account for squeezing

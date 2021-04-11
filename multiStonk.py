@@ -184,7 +184,7 @@ def main(verbose=True):
       closeTime = o.closeTime(estOffset=-1) #get the next closing time
       time.sleep(a.timeTillOpen())
       
-  print(f"Portfolio value of ${acct['portfolio_value']} is less than {c['account params']['portStopLoss']} times the max portfolio value of ${maxPortVal}. Selling all. Program will need to be reinitiated manually.")
+  print(f"Portfolio value of ${acct['portfolio_value']} is less than {c['account params']['portStopLoss']} times the max portfolio value of ${maxPortVal}.\nSelling all.\nProgram will need to be reinitiated manually.")
   a.sellAll(isManual=not int(c['account params']['portAutoSellOff'])) #if the portfolio value falls below our stop loss, automatically sell everything
 
 #update all lists to be bought (this should be run as it's own thread)
