@@ -17,6 +17,7 @@ To Run:
 ## Algo statuses as of 2021-04-10
 
 ### stocks
+| algo | status|  
 | ---: | ---: |
 | divs | testing |  
 | dj   | done |  
@@ -35,6 +36,7 @@ To Run:
 | split| not done |  
 
 ### forex
+| algo | status|  
 | ---: | ---: |  
 | fib  | not done |  
 | hs   | not done |  
