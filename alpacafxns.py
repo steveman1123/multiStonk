@@ -111,35 +111,36 @@ def sellAll(isManual=1):
 #TODO: need limit orders to be able to be placed
 # https://alpaca.markets/docs/api-documentation/api-v2/orders/
 def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPrice=0):
-  if(o.getInfo(symb,['istradable'])['istradable']):
-    order = {
-      "symbol":symb,
-      "qty":qty,
-      "type":orderType,
-      "side":side,
-      "time_in_force":time_in_force
-    }
-    if(orderType=="limit"): #TODO: this returns an error if used. Fix
-      order['take_profit'] = {'limit_price':str(limPrice)}
-    while True:
-      try:
-        r = o.requests.post(ORDERSURL, json=order, headers=HEADERS, timeout=5)
-        break
-      except Exception:
-        print("No connection, or other error encountered in createOrder. Trying again...")
-        o.time.sleep(3)
-        continue
-  
-    r = o.json.loads(r.content.decode("utf-8"))
-    # print(r)
+  # if(o.getInfo(symb,['istradable'])['istradable']):
+  order = {
+    "symbol":symb,
+    "qty":qty,
+    "type":orderType,
+    "side":side,
+    "time_in_force":time_in_force
+  }
+  if(orderType=="limit"): #TODO: this returns an error if used. Fix
+    order['take_profit'] = {'limit_price':str(limPrice)}
+  while True:
     try:
-      #TODO: add trade info here?
-      print(f"Order to {r['side']} {r['qty']} share(s) of {r['symbol']} - {r['status']}")
-      return r
+      r = o.requests.post(ORDERSURL, json=order, headers=HEADERS, timeout=5)
+      break
     except Exception:
-      return r
-  else:
-    return {'symbol':symb,'status':'error'}
+      print("No connection, or other error encountered in createOrder. Trying again...")
+      o.time.sleep(3)
+      continue
+
+  r = o.json.loads(r.content.decode("utf-8"))
+  # print(r)
+  try:
+    #TODO: add trade info here?
+    print(f"Order to {r['side']} {r['qty']} share(s) of {r['symbol']} - {r['status']}")
+    return r
+  except Exception:
+    print(f"Error {side}ing {symb}")
+    return r
+  # else:
+    # return {'symbol':symb,'status':'error'}
 
 #check if the market is open
 def marketIsOpen():

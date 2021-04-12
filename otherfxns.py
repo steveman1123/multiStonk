@@ -322,7 +322,7 @@ def getInfo(symb,data=['price']):
       out['prevclose'] = 0
   if('istradable' in data):
     try:
-      out['istradable'] = j['data']['isNasdaqListed']
+      out['istradable'] = (j['data']['exchange'].startswith('NYSE') or j['data']['exchange'].startswith('NASDAQ'))
     except Exception:
       out['istradable'] = False
   

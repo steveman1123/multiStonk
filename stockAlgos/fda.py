@@ -23,7 +23,7 @@ def getList(verbose=True):
   if(verbose): print(f"getting unsorted list for {algo}")
   ul = getUnsortedList()
   if(verbose): print(f"Checking company wellness for {algo}")
-  arr = [e for e in ul if goodBuy(e)]
+  arr = {e:"" for e in ul if goodBuy(e)}
   if(verbose): print(f"{len(arr)} found for fda.")
   
   return arr

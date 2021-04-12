@@ -12,7 +12,7 @@ def init(configFile):
   c.read(configFile)
 
 
-def getList(verbose=True):
+def getList(verbose=False):
   j = getUnsortedList() #this should contain the entire json data, not just the list of symbols
 
   #min and max prices
@@ -37,15 +37,15 @@ def getList(verbose=True):
   if(verbose): print(len(upcoming))
   
   #look for the ones that are gaining within the past year and past 6 months
-  gainers = [e['companies']['ticker'] for e in upcoming]
-  out = []
-  for s in gainers:
-    hist = o.getHistory(s) #get history
+  out = {}
+  for s in upcoming:
+    symb = s['companies']['ticker']
+    hist = o.getHistory(symb) #get history
     dates = [o.dt.datetime.strptime(e[0],"%m/%d/%Y") for e in hist] #convert dates to dt format
     prices = [float(e[1]) for e in hist] #isolate the closing prices
     normPrices = [p/prices[-1] for p in prices] #normalize prices based on the first value
     if(o.mean(normPrices[0:smaDays])>twelveMgain*o.mean(normPrices[-(1+smaDays):-1]) and o.mean(normPrices[0:smaDays])>sixMgain*o.mean(normPrices[int((len(hist)-smaDays)/2):int((len(hist)+smaDays)/2)])): #make sure that it's increased in the last year and the last 6 months
-      out.append(s)
+      out[symb] = s['catalyst_date']
   
   if(verbose): print(len(out))
   return out

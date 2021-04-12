@@ -24,10 +24,11 @@ def getList(verbose=True):
   symbs = getUnsortedList()
   if(verbose): print(f"finding stocks for {algo}")
   #TODO: figure out how to pass goodBuy() to posList to store in the note
-  goodBuys = [e for e in symbs if goodBuy(e)[0].isnumeric()] #the only time that the first char is a number is if it is a valid/good buy
+  gb = {e:goodBuy(e) for e in symbs}
+  gb = {e:gb[e] for e in gb if gb[e][0].isnumeric()} #the only time that the first char is a number is if it is a valid/good buy
   #TODO: move goodBuy into a separate line and write into posList note field here of the goodBuys jump dates
-  if(verbose): print(f"{len(goodBuys)} found for {algo}")
-  return goodBuys
+  if(verbose): print(f"{len(gb)} found for {algo}")
+  return gb
 
 
 #checks whether something is a good buy or not (if not, return why - no initial jump or second jump already missed).
@@ -35,8 +36,8 @@ def getList(verbose=True):
 #this is where the magic really happens
 def goodBuy(symb,days2look = -1, verbose=False): #days2look=how far back to look for a jump
   if(days2look<0): days2look = int(c[algo]['simDays2look'])
-  validBuy = "NA" #set to the jump date if it's valid
-  if o.getInfo(symb,['istradable'])['istradable']:
+  validBuy = "not tradable" #set to the jump date if it's valid
+  if(o.getInfo(symb,['istradable'])['istradable']):
     #calc price % diff over past 20 days (current price/price of day n) - current must be >= 80% for any
     #calc volume % diff over average past some days (~60 days?) - must be sufficiently higher (~300% higher?)
     
@@ -180,7 +181,7 @@ def getUnsortedList(verbose=False):
   
   #now that we have the marketWatch list, let's get the stocksunder1 list - essentially the getPennies() fxn from other files
   if(verbose): print("Getting stocksunder1 data...")
-  urlList = ['nasdaq','tech','biotech','marijuana','healthcare','energy']
+  urlList = ['nasdaq']#,'tech','biotech','marijuana','healthcare','energy'] #the ones not labeled for nasdaq are listed on OTC which we want to avoid
   for e in urlList:  
     if(verbose): print(e+" stock list")
     url = f'https://stocksunder1.org/{e}-penny-stocks/'

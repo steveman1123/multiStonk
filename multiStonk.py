@@ -53,7 +53,7 @@ sys.path.append(c['file locations']['stockAlgosDir'])
 
 #list of algorithms to be used and their corresponding stock lists to be bought (init with none)
 algoList = c['allAlgos']['algoList'].replace(" ","").split(',') #var comes in as a string, remove spaces, and turn into comma separated list
-algoList = {e:[] for e in algoList}
+algoList = {e:{} for e in algoList}
 
 #import all algos that are in algoList (they require an up-to-date posList, so must be imported after it's updated)
 for algo in algoList:
@@ -241,7 +241,7 @@ def updateList(algo,lock,rm=[],verbose=False):
   global algoList
   if(verbose): print(f"Updating {algo} list")
   algoBuys = eval(algo+".getList()") #this is probably not safe, but best way I can think of
-  algoBuys = [e for e in algoBuys if e not in rm] #remove any stocks that are in the rm list
+  algoBuys = {e:algoBuys[e] for e in algoBuys if e not in rm} #remove any stocks that are in the rm list
   lock.acquire() #lock in order to write to the list
   algoList[algo] = algoBuys
   lock.release() #then unlock
@@ -403,7 +403,7 @@ def buy(shares, stock, algo, buyPrice):
         #running avg = (prevAvg*n+newVals)/(n+m)
         "buyPrice":(posList[algo][stock]['buyPrice']*posList[algo][stock]['sharesHeld']+buyPrice)/(posList[algo][stock]['sharesHeld']+float(r['qty'])) if stock in posList[algo] else buyPrice,
         "shouldSell":False,
-        "note":""
+        "note":algoList[algo][stock] if stock in algoList[algo] else ""
       }
     open(c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update posList file
     lock.release()
@@ -435,7 +435,7 @@ def setPosList(algoList, verbose=True):
       if(verbose and len(missingAlgos)>0): print(f"Adding {len(missingAlgos)} algo{'s' if len(missingAlgos)>1 else ''} to posList")
       for algo in missingAlgos:
         posList[algo] = {}
-      lock.release()  
+      lock.release()
         
       #write the missing algos to the file
       lock = o.threading.Lock()
@@ -529,7 +529,7 @@ def syncPosList(verbose=False):
         posList[algo][symb]['shouldSell'] = False
       if('note' not in posList[algo][symb]):
         if(verbose): print(f"{algo} {symb} missing note")
-        posList[algo][symb]['note'] = ""
+        posList[algo][symb]['note'] = algoList[algo][symb] if(algo in algoList and symb in algoList[algo]) else ""
       lock.release()
   
   #total stocks in posList
@@ -639,7 +639,7 @@ def syncPosList(verbose=False):
                                      'sharesHeld':heldPos[symb],
                                      'shouldSell':False,
                                      'buyPrice':heldBuyPrices[symb],
-                                     'note':''
+                                     'note':algoList[maxAlgo[0]][symb]
                                     }
         lock.release()
         recPos[symb]=heldPos[symb] #also add the stock to the recPos temp var
@@ -658,7 +658,7 @@ def syncPosList(verbose=False):
                                      'sharesHeld':heldPos[symb],
                                      'buyPrice':heldBuyPrices[symb],
                                      'shouldSell':False,
-                                     'note':''
+                                     'note':algoList[minAlgo[0]][symb]
                                     }
         lock.release()
         recPos[symb]=heldPos[symb] #also add the stock to the recPos temp var
