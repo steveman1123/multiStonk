@@ -466,6 +466,7 @@ def syncPosList(verbose=False):
   
   #check if an algo in the posList is removed from the algoList
   for inactiveAlgo in [algo for algo in posList if algo not in algoList]:
+    if(verbose): print(f"Looking at inactive algo {algo}")
     #stocks that are in a removed algo should be moved to an active algo that has it, if none do, then move it to the active algo with the highest loss
     for symb in posList[inactiveAlgo]: #stocks in the removed algo
       #get all active algos that contain it
@@ -605,7 +606,8 @@ def syncPosList(verbose=False):
     #compare heldPos to recPos
 
     #ensure algoList is up to date
-  if(not eq(recPos, heldPos)): #compare again after the initial comparison
+  if(not eq(recPos, heldPos) or not os.path.isfile(c['file locations']['buyList'])): #compare again after the initial comparison
+    if(verbose): print(f"Discrepency still present or buyList file is missing. Updating buy list")
     #if the lists aren't currently updating and haven't already updated today, then update
     if(not listsUpdatedToday and len([t for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
       updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here

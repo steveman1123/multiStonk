@@ -36,7 +36,7 @@ def getList(verbose=True):
 def goodBuy(symb,days2look = -1, verbose=False): #days2look=how far back to look for a jump
   if(days2look<0): days2look = int(c[algo]['simDays2look'])
   validBuy = "NA" #set to the jump date if it's valid
-  if o.getInfo(symb['istradable'])['istradable']:
+  if o.getInfo(symb,['istradable'])['istradable']:
     #calc price % diff over past 20 days (current price/price of day n) - current must be >= 80% for any
     #calc volume % diff over average past some days (~60 days?) - must be sufficiently higher (~300% higher?)
     

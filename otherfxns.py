@@ -4,6 +4,7 @@ import json,requests,os,time,re,csv,sys,configparser,threading
 import datetime as dt
 from bs4 import BeautifulSoup as bs
 from math import ceil
+from statistics import mean
 from workdays import workday as wd
 
 c = configparser.ConfigParser()

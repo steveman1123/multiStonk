@@ -1,1 +1,0 @@
-#fibonacci trading pattern for forex
