@@ -18,6 +18,7 @@ def init(configFile):
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
 
+#return dict of {symb:note} where the note is payment date in yyyy-mm-dd format
 def getList(verbose=True):
   
   #perform checks to see which one ones will gain
@@ -26,17 +27,17 @@ def getList(verbose=True):
   #if today < ex div date, then buy
 
   if(verbose): print(f"getting unsorted list for {algo}")
-  symbs = getUnsortedList()
+  data = getUnsortedList(o.nextTradeDate()) #get the whole data list
   if(verbose): print(f"finding stocks for {algo}")
-  symbs = [s+"|stocks" for s in symbs] #add the assetclass
-  prices = o.getPrices(symbs,withVol=True) #get the current price and volume
-  goodBuys = [s.split("|")[0] for s in prices if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])]
+  prices = o.getPrices([s['symbol']+"|stocks" for s in data],withVol=True) #get the current price and volume
+  goodBuys = {s.split("|")[0]:str(o.dt.datetime.strptime(data[s.split("|")[0]]['payment_Date'],"%m/%d/%Y").date()) for s in prices if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])}
   if(verbose): print(f"{len(goodBuys)} found for {algo}")
   return goodBuys
   
 
 #return whether symb is a good sell or not
 #if div is collected and price > buyPrice+div, then sell
+#this function is now depreciated, replaced by goodSells
 def goodSell(symb):
   lock = o.threading.Lock()
   lock.acquire()
@@ -59,24 +60,37 @@ def goodSell(symb):
   else:
     return False
 
+#where symblist is a list of stocks and the function returns the same stocklist as a dict of {symb:goodsell(t/f)}
+def goodSells(symbList):
+  lock = o.threading.Lock()
+  lock.acquire()
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
+  
+  symbList = [e for e in symbList if e in posList] #make sure they're the ones in the posList only
+  prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
+  prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
+  
+  gs = {e:(e not in prices or (str(o.dt.date.today())>posList[e]['note'] and (prices[e]['price']/prices[e]['open']>=sellUp(e) or prices[e]['price']/prices[e]['open']<sellDn(e) or (buyPrices[e]>0 and prices[e]['price']/buyPrices[e]>=sellUp(e) or prices[e]['price']/buyPrices[e]<sellDn(e))))) for e in symbList} #return true if the date is after the payment date and the price has reached a sellUp/dn point or it's not in the prices list
+  
+  return gs
 
-#get a list of stocks to be sifted through
-def getUnsortedList():
+#get the whole json data (includes symb, dates, etc) based on the ex date
+def getUnsortedList(exdate):
   while True:
     try:
       #get the stocks whose exdivdate is the next trade date (buy before it drops to the dropped price)
-      r = o.json.loads(o.requests.get(f"https://api.nasdaq.com/api/calendar/dividends?date={o.nextTradeDate()}",headers={"user-agent":"-"}, timeout=5).text)['data']['calendar']['rows']
+      r = o.json.loads(o.requests.get(f"https://api.nasdaq.com/api/calendar/dividends?date={exdate}",headers={"user-agent":"-"}, timeout=5).text)['data']['calendar']['rows']
       break
     except Exception:
       print("Error in getting unsorted list for divs algo. Trying again...")
       o.time.sleep(3)
       pass
   
-  r = [e['symbol'] for e in r]
-  
-  return r
+  out = {e['symbol']:e for e in r['data']['rows']} #change from a list to a dict of format {symb:data}
+  return out
 
-#get the latest 4 div dates for a stock (announced, ex div, record, payment)
+#get the latest div dates for a stock (announced, ex div, record, payment)
 def getDivDates(symb,maxTries=3):
   tries = 0
   while tries<maxTries:
@@ -123,34 +137,32 @@ def getDivDates(symb,maxTries=3):
 
 
 
-#TODO: this should also account for squeezing
+#TODO: add comments
 def sellUp(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
   
-  mainSellUp = float(c[algo]['sellUp'])
-  if(symb in posList):
-    #TODO: add exit condition (see it in getList)
-    sellUp = mainSellUp #TODO: account for squeeze here
+  [preSellUp, postSellUp] = [float(c[algo]['preSellUp']), float(c[algo]['postSellUp'])]
+  
+  if(symb in posList and str(o.dt.date.today())>posList[symb]['note']):
+    return postSellUp
   else:
-    sellUp = mainSellUp
-  return sellUp
+    return preSellUp
 
-#TODO: this should also account for squeezing
 def sellDn(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
   
-  mainSellDn = float(c[algo]['sellDn'])
-  if(symb in posList):
-    sellDn = mainSellDn #TODO: account for squeeze here
+  [preSellDn, postSellDn] = [float(c[algo]['preSellDn']), float(c[algo]['postSellDn'])]
+  
+  if(symb in posList and str(o.dt.date.today())>posList[symb]['note']):
+    return postSellDn
   else:
-    sellDn = mainSellDn
-  return sellDn
+    return preSellDn
 
 def sellUpDn():
   

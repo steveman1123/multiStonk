@@ -1,21 +1,23 @@
-#this file contains functions specifically for the fibonacci retracemnet algo
-# https://www.investopedia.com/articles/active-trading/091114/strategies-trading-fibonacci-retracements.asp
-# https://www.investopedia.com/articles/markets/010515/use-fibonacci-point-out-profitable-trades.asp
-# https://tradingsim.com/blog/fibonacci-trading/
+#this file contains functions specifically for the gap up algo
+#what is a gap up, and how can we see it coming?
+#https://www.investopedia.com/articles/trading/05/playinggaps.asp
+#https://bullsonwallstreet.com/how-to-know-if-a-stock-gap-up-will-fade-or-explode/
 
 import otherfxns as o
 
-algo = 'fibo' #name of the algo
+algo = 'gapup' #name of the algo
 #stocks held by this algo according to the records
-
+lock = o.threading.Lock()
+lock.acquire()
+stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
+lock.release()
 
 def getList(verbose=True):
   #perform checks to see which one ones will gain
   
   
-  return goodBuys
+  return goodBuys #return dict of symb:note
   
-
 
 #TODO: this should also account for squeezing
 def sellUp(symb=""):

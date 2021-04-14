@@ -78,11 +78,7 @@ listsUpdatedToday = False #tell everyone whether the list has been updated yet t
 closeTime = o.closeTime(estOffset=-1) #get the time in datetime format of when the market closes (reference this when looking at time till close)
 
 
-#TODO: need to utilize the note field for storing important info (like pmt date for div, and init jump date for dj, then reference that field instead of pulling from api every minute)
-#TODO: display needs to happen faster (might be goodSell appears to be too slow. That'll have to change per algo I think)
-#TODO: make check2buy its own thread?
-
-
+#main function to run continuously
 def main(verbose=True):
   global algoList, posList, listsUpdatedToday, closeTime
   portHist = a.getProfileHistory(str(dt.date.today()),'1M')['equity'] #get the closing prices of the portfolio over the last month
@@ -118,11 +114,13 @@ def main(verbose=True):
       print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\tnotes")
       print("----\t------\t-----\t-----------\t-----------\t-----")
       #look to sell things
-      for algo in algoList:
-        check2sell(algo,pos) #only look at the ones currently held
+      check2sells(pos)
+      
+      # this function is depreciated
+      # for algo in algoList:
+      #   check2sell(algo,pos) #only look at the ones currently held
       
       if((closeTime-dt.datetime.now()).total_seconds()<=60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
-        #TODO: move cash adjustment from here to above
         tradableCash = totalCash if totalCash<float(c['account params']['cash2hold']) else max(totalCash-float(c['account params']['cash2hold'])*float(c['account params']['cashMargin']),0) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
@@ -191,7 +189,7 @@ def main(verbose=True):
 def updateLists(verbose=False):
   global algoList, listsUpdatedToday
   
-  #TODO: check that the buyfile is present and if it was updated today: if it was, then read directly from it, else generate lists
+  #check that the buyfile is present and if it was updated today: if it was, then read directly from it, else generate lists
   errored = False
   if(verbose): print("Checking if buyList file is present")
   if(o.os.path.isfile(c['file locations']['buyList'])):
@@ -224,7 +222,7 @@ def updateLists(verbose=False):
       updateThread.setName("update-"+e) #set the name to the stock symb
       updateThread.start() #start the thread
         
-    #TODO: see the following because the updateList threads currently all access algoList, and the while loop is probably not the best solution
+    #TODO: see the following because the updateList threads currently all access algoList, and the while loop is probably not the best solution for waiting
     # https://www.geeksforgeeks.org/multio.threading-in-python-set-2-synchronization/
     while(len([t.getName() for t in o.threading.enumerate() if t.getName().startswith("update-")])>0):
       time.sleep(2)
@@ -248,11 +246,11 @@ def updateList(algo,lock,rm=[],verbose=False):
 
 
 #check to sell positions from a given algo (where algo is an aglo name, and pos is the output of a.getPos())
+# this function is depreciated, replaced by check2sells
 def check2sell(algo, pos):
   global triggeredStocks
   for e in pos:
     if(e['symbol'] in posList[algo] and posList[algo][e['symbol']]['sharesHeld']>0):
-      #TODO: possibly getPrice with mktCap (and use in display), then if the number of shares held>mktCap/price, then sell the surplus
       print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t{posList[algo][e['symbol']]['note']}")
 
       if(posList[algo][e['symbol']]['shouldSell']): #if marked to sell, get rid of it immediately
@@ -260,8 +258,7 @@ def check2sell(algo, pos):
         sell(e['symbol'],algo) #record and everything in the sell function
         
       else:
-        #TODO: incorporate goodSells (also need to add goodSells function to each algo (this should speed things up and reduce api calls))
-        goodSell = eval(f"{algo}.goodSell('{e['symbol']}')") #TODO: need to add shouldSell checking on held positions
+        goodSell = eval(f"{algo}.goodSell('{e['symbol']}')")
         if(goodSell):
           if(algo+"|"+e['symbol'] not in triggeredStocks):
             triggeredStocks.add(algo+"|"+e['symbol'])
@@ -285,9 +282,6 @@ def check2buy(algo, cashAvailable, stocks2buy):
   #calculate the cash to be put towards various stocks in the algo (shouldn't be more than the cash available, but shouldn't be less than than the minDolPerStock (unless mindol > cashAvail))
   cashPerStock = min(cashAvailable,max(float(c['account params']['minDolPerStock']),cashAvailable/len(stocks2buy)))
   
-  #TODO: Also other printing should happen rather than printing the actual response
-  #TODO: also, this should probably loop forever/until a certain condition is met, and also needs to check that a stock isn't already trying to sell, and that this thread isn't already running
-
   #loop through the stocks to be bought
   for stock in stocks2buy:
     
@@ -317,6 +311,7 @@ def check2buy(algo, cashAvailable, stocks2buy):
         if(isBought): print(f"Bought {shares} shares of {stock} for {algo} algo at around ${curPrice}/share")
     
 #a stock has reached a trigger point and should begin to be checked more often (it will be sold in this function)
+#this function is now depreciated - replaced by checkTriggered
 def triggeredUp(symb, algo):
   maxPrice = 0.01 #init vars to be slightly above 0
   curPrice = 0.01
@@ -357,8 +352,28 @@ def checkTriggered():
     print("")
     time.sleep(max(5,len(triggeredStocks)/5)) #wait at least 5 seconds between checks, and if there are more, wait longer
     
-    
-    
+#multiplex check2sell
+def check2sells(pos):
+  global triggeredStocks
+  #determine if the stocks in the algo are good sells (should return as a dict of {symb:goodSell(t/f)})
+  for algo in posList:
+    algoSymbs = [e for e in pos if e['symbol'] in posList[algo]] #only the stocks in both posList[algo] and held positions
+    symbList = [e['symbol'] for e in algoSymbs] #isolate just the symbols
+    gs = eval(f"{algo}.goodSells(symbList)") #get whether the stocks are good sells or not
+    for e in algoSymbs: #go through the stocks of the algo
+      print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t{posList[algo][e['symbol']]['note']}")
+      
+      if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'): #only sell if not bought today
+        if(gs[e['symbol']]): #if the stock is a good sell
+          if(algo+"|"+e['symbol'] not in triggeredStocks): #make sure that it's not already present
+            triggeredStocks.add(algo+"|"+e['symbol']) #if not, then add it to the triggered list
+          if("triggered" not in [t.getName() for t in o.threading.enumerate()]): #make sure that the triggered list isn't already running
+            triggerThread = o.threading.Thread(target=checkTriggered) #init the thread - note locking is required here
+            triggerThread.setName("triggered") #set the name to the algo and stock symb
+            triggerThread.start() #start the thread
+  
+  
+  
 
 #basically just a market order for the stock and then record it into an order info file
 def sell(stock, algo):
@@ -505,7 +520,7 @@ def syncPosList(verbose=False):
   if(verbose): print("getting actually held positions")
   p = a.getPos()
   heldPos = {e['symbol']:float(e['qty']) for e in p} #actually held positions
-  heldBuyPrices = {e['symbol']:float(e['avg_entry_price']) for e in p} #TODO: combine this into heldPos and either rework recPos or change some conditionals to account for the addition <-- this might be done already, double check
+  heldBuyPrices = {e['symbol']:float(e['avg_entry_price']) for e in p} #get the actual buy prices for each stock
 
 
   if(verbose): print("Adding any missing fields to current records")
@@ -629,7 +644,7 @@ def syncPosList(verbose=False):
       if(len(algosWithStock)>0): #if an algo has it
         maxAlgo = ['x',0] #algo and the max gain of the stock
         #get the algo with the max gain for this stock
-        for algo in algosWithStock: #look thru each algo that could hold the stock
+        for algo in algosWithStock: #look thru each algo that could hold the stock, and give it to the one with the most gain potential
           sellUp = eval(f"{algo}.sellUp('{symb}')") #find the sell up of that algo
           maxAlgo = [algo,sellUp] if sellUp>maxAlgo[1] else maxAlgo #get the greater of the two algos
         if(verbose): print(f"Adding {heldPos[symb]} shares of {symb} to {maxAlgo[0]}.")
@@ -644,12 +659,11 @@ def syncPosList(verbose=False):
         lock.release()
         recPos[symb]=heldPos[symb] #also add the stock to the recPos temp var
         
-      else: #if no algo has it
-        minAlgo = ['x',100000] #algo and the min gain of the stock
+      else: #if no algo has it, give it to the algo with the least amount of loss
+        minAlgo = ['x',0] #algo and the acceptable loss of the stock
         for algo in algoList: #for every algo that'll potentially gain
           sellDn = eval(f"{algo}.sellDn('{symb}')") #get the sell dn of each algo
-          #TODO: figure out the logic here if it shoud be < or >, and what we value more (least loss, or highest variance)
-          minAlgo = [algo,sellDn] if sellDn<minAlgo[1] else minAlgo #get the greater of the the two algos
+          minAlgo = [algo,sellDn] if sellDn>minAlgo[1] else minAlgo #get the greater of the the two algos
         #add to the algo with the least loss (to minimize risk)
         if(verbose): print(f"No algo found to have {symb}. Adding {heldPos[symb]} shares to {minAlgo[0]}.")
         lock.acquire()
@@ -658,7 +672,7 @@ def syncPosList(verbose=False):
                                      'sharesHeld':heldPos[symb],
                                      'buyPrice':heldBuyPrices[symb],
                                      'shouldSell':False,
-                                     'note':algoList[minAlgo[0]][symb]
+                                     'note':algoList[minAlgo[0]][symb] if symb in algoList[minAlgo[0]] else ""
                                     }
         lock.release()
         recPos[symb]=heldPos[symb] #also add the stock to the recPos temp var

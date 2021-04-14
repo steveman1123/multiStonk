@@ -11,9 +11,15 @@ def init(configFile):
   c = o.configparser.ConfigParser()
   c.read(configFile)
 
-
+#return a dict of symb:note} where the note is the catalyst date
 def getList(verbose=False):
-  j = getUnsortedList() #this should contain the entire json data, not just the list of symbols
+  out = goodBuys(getUnsortedList())
+  #TODO: add prints, and potentially more parsing here
+  return out
+
+#return whether stocks are good buys or not - dict format {symb:goodBuyText} where goodBuyText is the status (will be the catalyst date if it is a good buy)
+def goodBuys(symbList): #where symbList is the output of getUnsortedList()
+  print(f"{algo} incomplete")
 
   #min and max prices
   [minPrice, maxPrice] = [float(c[algo]['minPrice']),float(c[algo]['maxPrice'])]
@@ -48,10 +54,27 @@ def getList(verbose=False):
       out[symb] = s['catalyst_date']
   
   if(verbose): print(len(out))
-  return out
 
+
+#return whether stocks are good sells or not
+def goodSells(symbList):
+  lock = o.threading.Lock()
+  lock.acquire()
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  lock.release()
+  
+  buyPrices = {e['buyPrice'] for e in posList}
+  symbList = [e for e in symbList if e in posList] #make sure they're the ones in the posList only
+  prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
+  prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
+  
+  
+  gs = {e:(e not in prices or prices[e]['price']/prices[e]['open']>=sellUp(e) or prices[e]['price']/prices[e]['open']<sellDn(e) or (buyPrices[e]>0 and (prices[e]['price']/buyPrices[e]>=sellUp(e) or prices[e]['price']/buyPrices[e]<sellDn(e))) for e in symbList} #return true if the price has reached a sellUp/dn point or it's not in the prices list
+  
+  return gs    
 
 #return whether symb is a good sell or not
+#this function is depreciated, replaced with goodSells
 def goodSell(symb):
   
   lock = o.threading.Lock()
@@ -64,12 +87,6 @@ def goodSell(symb):
     buyPrice = posList[symb]['buyPrice']
     inf = o.getInfo(symb,['price','open'])
     
-    '''
-    TODO
-    getlist should always return dict rather than list - of format {symb:note}
-  
-    on a buy and in syncposlist, note should be updated to what's in getlist
-    '''
     if(buyPrice>0):
       out = (inf['price']/buyPrice>=sellUp(symb) or inf['price']/buyPrice<sellDn(symb)) or (inf['price']/inf['open']>=sellUp(symb) or inf['price']/inf['open']<sellDn(symb))
     else:
@@ -111,30 +128,25 @@ def sellUp(symb=""):
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
 
-  preSellUp = float(c[algo]['preSellUp'])
-  postSellUp = float(c[algo]['postSellUp'])
-  if(symb in posList):
-    if(str(o.dt.date.today())>posList[symb]['note']):
-      sellUp = postSellUp
-    else:
-      sellUp = preSellUp
+  preSellUp = float(c[algo]['preSellUp']) #sell % before the catalyst date
+  postSellUp = float(c[algo]['postSellUp']) #sell % after the catalyst date
+  if(symb in posList and str(o.dt.date.today())>posList[symb]['note']):
+    return postSellUp
   else:
-    sellUp = mainSellUp
-  return sellUp
+    return preSellUp
 
-#TODO: this should also account for squeezing
 def sellDn(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
 
-  mainSellDn = float(c[algo]['sellDn'])
-  if(symb in posList):
-    sellDn = mainSellDn #TODO: account for squeeze here
+  preSellDn = float(c[algo]['preSellDn']) #sell % before the catalyst date
+  postSellDn = float(c[algo]['postSellDn']) #sell % after the catalyst date
+  if(symb in posList and str(o.dt.date.today())>posList[symb]['note']):
+     return postSellDn
   else:
-    sellDn = mainSellDn
-  return sellDn
+    return preSellDn
 
 def sellUpDn():
 

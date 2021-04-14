@@ -1,20 +1,19 @@
-#this file contains functions specifically for the high volume breakout algo
-#what changes when a stock has a high volume breakout? Can we see when that will happen? (also check earnings report)
+#this file contains functions specifically for the fibonacci retracemnet algo
+# https://www.investopedia.com/articles/active-trading/091114/strategies-trading-fibonacci-retracements.asp
+# https://www.investopedia.com/articles/markets/010515/use-fibonacci-point-out-profitable-trades.asp
+# https://tradingsim.com/blog/fibonacci-trading/
 
 import otherfxns as o
 
-algo = 'hivol' #name of the algo
+algo = 'fibo' #name of the algo
 #stocks held by this algo according to the records
-lock = o.threading.Lock()
-lock.acquire()
-stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
-lock.release()
+
 
 def getList(verbose=True):
   #perform checks to see which one ones will gain
   
   
-  return goodBuys
+  return goodBuys #return dict of symb:note
   
 
 

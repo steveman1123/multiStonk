@@ -1,23 +1,38 @@
-#this file contains functions specifically for the gap up algo
-#what is a gap up, and how can we see it coming?
-#https://www.investopedia.com/articles/trading/05/playinggaps.asp
-#https://bullsonwallstreet.com/how-to-know-if-a-stock-gap-up-will-fade-or-explode/
+#this file contains functions specifically for the reddit algo
+#how do stocks move after being discussed on reddit (in wallstreetbets, etc)?
+
+# https://www.reddit.com/dev/api
+# https://github.com/reddit-archive/reddit/wiki/API
 
 import otherfxns as o
 
-algo = 'gapup' #name of the algo
+algo = 'reddit' #name of the algo
 #stocks held by this algo according to the records
 lock = o.threading.Lock()
 lock.acquire()
 stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
 lock.release()
 
-def getList(verbose=True):
+def getList():
   #perform checks to see which one ones will gain
   
+  return goodBuys #return dict of symb:note
   
-  return goodBuys
+
+#get a list of stocks to be sifted through
+#type can be spo, status can be priced|upcoming|filled|withdrawn
+def getUnsortedList(status="all", type=""):
+  while True:
+    try:
+      r = o.requests("reddit API for various market subs",timeout=5)
+      break
+    except Exception:
+      print("Error getting unsorted list for reddit algo. Trying again...")
+      o.time.sleep(3)
+      pass
   
+  return []
+
 
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
@@ -39,8 +54,3 @@ def sellDn(symb=""):
 
 def sellUpDn():
   return float(o.c[algo]['sellUpDn'])
-
-
-#get a list of stocks to be sifted through
-def getUnsortedList():
-  return []

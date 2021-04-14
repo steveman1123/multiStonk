@@ -30,7 +30,7 @@ To Run:
 | gapup| not done |  
 | hivol| not done |  
 | ipos | not done |  
-| movers | not done |  
+| movers | ready to test |  
 | reddit | not done |  
 | sema | not done |  
 | split| not done |  

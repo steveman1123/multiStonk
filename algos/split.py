@@ -31,7 +31,7 @@ def getList(verbose=True):
   if(verbose): print("Checking history")
   #TODO: see what causes momentum to pick up and when a good time to sell may be
   
-  return goodBuys
+  return goodBuys #return dict of symb:note
   
 #check if something is a good one to buy (symbObj is the data returned per row in get unsortedList)
 def goodBuy(symbObj):

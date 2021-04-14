@@ -1,13 +1,11 @@
-#this file contains functions specifically for the FDA drug approval algo
-#we can see which companies are slated for an FDA drug approval. They almost always gain
+#this algo only looks at the stocks in the biopharmcatalyst.com big list of symbols and runs some due diligence on them to see if they're a good buy
 
 import otherfxns as o
 
-algo = 'fda' #name of the algo
-
+algo = 'fda2'
 
 def init(configFile):
-  global posList,c
+  global c
   #set the multi config file
   c = o.configparser.ConfigParser()
   c.read(configFile)
@@ -18,78 +16,23 @@ def init(configFile):
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
 
-#get list of stocks pending FDA approvals
 def getList(verbose=True):
-  if(verbose): print(f"getting unsorted list for {algo}")
-  ul = getUnsortedList()
-  if(verbose): print(f"Checking company wellness for {algo}")
-  arr = {e:"" for e in ul if goodBuy(e)}
-  if(verbose): print(f"{len(arr)} found for fda.")
-  
-  return arr
-
-def getUnsortedList(verbose=False):
-  if(verbose): print(f"{algo} getting stocks from drugs.com")
-  while True: #get pages of pending stocks
-    try:
-      r = o.requests.get("https://www.drugs.com/new-drug-applications.html", timeout=5).text
-      break
-    except Exception:
-      print(f"No connection, or other error encountered in getUnsortedList for {algo}. trying again...")
-      o.time.sleep(3)
-      continue
-  try:
-    arr = r.split("Company:</b>") #go down to stock list
-    arr = [e.split("<br>")[0].strip() for e in arr][1::] #get list of companies
-    arr = list(set(arr)) #remove duplicates
-    arr = [o.getSymb(e,maxTries=1) for e in arr] #get the symbols and exchanges of the companies
-    prices = o.getPrices([e[0]+"|stocks" for e in arr if e[1]=="NAS"]) #get only the nasdaq ones
-    arr = [e.split("|")[0] for e in prices if(float(c['fda']['minPrice'])<prices[e]['price']<float(c['fda']['maxPrice']))] #ensure we're within the price range
-  except Exception:
-    print(f"Bad data from drugs.com from {algo}")
-    arr = []
   
   
-  arr = list(set(arr))
-  # arr = list(set(arr+arr1)) #combine lists and remove duplicates  
-  return arr
-
-
-def goodSell(symb):
-  lock = o.threading.Lock()
-  lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
-  lock.release()
-
-  #check if price<sellDn
-  buyPrice = float(stockList[symb]['buyPrice'])
-  curPrice = o.getInfo(symb)['price']
-  if(buyPrice>0):
-    if(curPrice/buyPrice<sellDn(symb) or curPrice/buyPrice>=sellUp(symb)):
-      return True #price has moved outside of the sale price
-    else:
-      return False
-  else:
-    print(f"{symb} buy price is 0.")
-    return False
-
-def goodSells(symbList):
-  lock = o.threading.Lock()
-  lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
-  lock.release()
-
-  #get the prices each stock was bought at
-  buyPrices = {s:float(stockList[s]['buyPrice']) for s in symbList if(s in stockList)}
-  #get the stock's current prices
-  curPrices = o.getPrices(symbList)
-  #check that it has exceeded the stopLoss or takeProfit points
-  good2sell = {s:(curPrices[(s+"|stocks").upper()]/buyPrices[s]<sellDn(s) or curPrices[(s+"|stocks").upper()]/buyPrices[s]>=sellUp(s)) for s in buyPrices}
   
-  return good2sell
+  
+  
+  return gb #return dict of symb:note
 
-#TODO: make a goodBuys function too
-def goodBuy(symb, maxTries=3):
+#return whether stocks are good purchases or not
+def goodBuys(symbList):
+  arr = [(e+"|stocks").upper() for e in list(set(symbList))] #remove duplicates and append the |stocks label
+  prices = o.getPrices(arr) #get the current prices
+  
+  #narow down to stocks only within our price range
+  goodBuys = [e.split("|")[0] for e in arr if(e in prices and float(c[algo]['minPrice'])<prices[e]['price']<float(c[algo]['maxPrice']))]
+  #probably should do more logic after this
+  
   '''
   #get basic company info (for mktcap)
   tries=0
@@ -208,19 +151,53 @@ def goodBuy(symb, maxTries=3):
   
   total calls/stock: 7
   '''
-  return True
+  
+  outs = {s:(s in goodBuys) for s in symbList} #return dict of symb:goodBuy
+  
+  return outs
+  
+#determine if stocks are good to sell or not
+def goodSells(symbList):
+  print(f"{algo} incomplete")
+  return {s:False for s in symbList}
 
-def goodBuys(symbList, maxTries=3):
-  return {'symb':False}
+#return whether symb is a good sell or not
+def goodSell(symb):
+  print(f"{algo} incomplete")
+  return False
+
+#get a list of stocks to be sifted through
+def getUnsortedList(verbose=False):
+  if(verbose): print(f"{algo} getting stocks from biopharmcatalyst.com")
+    while True: #get pages of pending stocks
+    try:
+      r = o.requests.get("https://www.biopharmcatalyst.com/calendars/fda-calendar",timeout=5).text
+      break
+    except Exception:
+      print(f"No connection, or other error encountered in getUnsortedList in {algo}. trying again...")
+      o.time.sleep(3)
+      continue
+  try:
+    #TODO: pare down list based on some DD of the financials of the companies. Research what to look for
+    arr = r.split("var tickers = [")[1].split("];")[0].replace("'","").replace(" ","").split(",") #get stock list - contains the 800 or so tickers from the premium version
+  except Exception:
+    print(f"Bad data from biopharmcatalyst.com from {algo}")
+    arr = []
+  
+  return []
+
+
 
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
+  
   mainSellUp = float(c[algo]['sellUp'])
-  if(symb in stockList):
+  if(symb in posList):
+    #TODO: add exit condition (see it in getList)
     sellUp = mainSellUp #TODO: account for squeeze here
   else:
     sellUp = mainSellUp
@@ -230,17 +207,16 @@ def sellUp(symb=""):
 def sellDn(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
+  
   mainSellDn = float(c[algo]['sellDn'])
-  if(symb in stockList):
+  if(symb in posList):
     sellDn = mainSellDn #TODO: account for squeeze here
   else:
     sellDn = mainSellDn
   return sellDn
 
 def sellUpDn():
+  
   return float(c[algo]['sellUpDn'])
-
-def maxPrice():
-  return float(c[algo]['maxPrice'])

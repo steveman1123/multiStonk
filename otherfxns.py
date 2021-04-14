@@ -136,10 +136,11 @@ def getHistory2(symb, startDate, endDate, maxTries=3):
       break
     except Exception:
       print(f"Error in getHistory2 for {symb}. Trying again ({tries}/{maxTries})...")
+      tries += 1
       time.sleep(3)
       pass
-    tries += 1
-  if(j['data'] is None or tries>=maxTries or j['data']['totalRecords']==0): #TODO: this could have a failure if the stock isn't found/returns nothing
+  
+  if(tries>maxTries or j['data'] is None or j['data']['totalRecords']==0): #this could have a failure if the stock isn't found/returns nothing. More testing might be needed
     print(f"Failed to get {symb} history")
     return []
   else: #something's fucky with this api, jsyk
@@ -362,8 +363,8 @@ def nextTradeDate():
   
   return str(r)
 
-#return dict of current prices of assets (symblist is list format of symb|assetclass) output of {symb|assetclass:price}
-def getPrices(symbList,withVol=False,maxTries=3):
+#return dict of current prices of assets (symblist is list format of symb|assetclass) output of {symb|assetclass:{price,vol,open}}
+def getPrices(symbList,maxTries=3):
   maxSymbs = 20 #cannot do more than 20 at a time, so loop through requests
   d = [] #init data var
   r = {}
@@ -383,10 +384,11 @@ def getPrices(symbList,withVol=False,maxTries=3):
     d.extend(r['data']) #append the lists
 
   #isolate the symbols and prices and remove any that are none's
-  if(withVol):
-    prices = {f"{e['symbol']}|{e['assetClass']}":{'price':float(e['lastSalePrice'].replace("$","")),'vol':int(e['volume'].replace(",",""))} for e in d if e['volume'] is not None and e['lastSalePrice'] is not None}
-  else:
-    prices = {f"{e['symbol']}|{e['assetClass']}":{'price':float(e['lastSalePrice'].replace("$",""))} for e in d if e['lastSalePrice'] is not None}
+  prices = {f"{e['symbol']}|{e['assetClass']}":{
+                                                'price':float(e['lastSalePrice'].replace("$","")),
+                                                'vol':int(e['volume'].replace(",","")),
+                                                'open':float(e['lastSalePrice'].replace("$",""))-float(e['netChange'])
+                                                } for e in d if e['volume'] is not None and e['lastSalePrice'] is not None}
   return prices
   
 

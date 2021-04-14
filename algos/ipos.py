@@ -1,15 +1,12 @@
-#this file contains functions specifically for the earnings
-#what happens to a stock after various earnings calls?
+#this file contains functions specifically for the exponential moving average algo
+#how do stocks move before and after an ipo (and/or spo?)?
 
-# https://tradingreviews.net/why-stock-prices-fall-after-good-earnings-announcements
-# https://www.marketwatch.com/story/heres-how-to-trade-a-stock-after-an-earnings-surprise-2016-08-18
-# https://finance.zacks.com/impact-earnings-announcements-stock-prices-4265.html
-# https://www.investopedia.com/terms/e/earningssurprise.asp
-
+# https://www.investopedia.com/a-simple-technique-to-profit-from-ipos-5078487
+# https://www.tradingpedia.com/ipo-and-spo/
 
 import otherfxns as o
 
-algo = 'earnings' #name of the algo
+algo = 'ipos' #name of the algo
 #stocks held by this algo according to the records
 lock = o.threading.Lock()
 lock.acquire()
@@ -17,26 +14,29 @@ stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo
 lock.release()
 
 def getList(verbose=True):
+  if(verbose): print(f"Getting unsorted list for {algo}")
+  ul = getUnsortedList() #TODO: do we also want to look at spo's, and should we focus on only one type?
   #perform checks to see which one ones will gain
-  maxPrice =
-  minPrice = 
-
-#https://seekingalpha.com/article/1445911-a-remarkably-reliable-way-to-predict-post-earnings-price-moves
   
-  return goodBuys
+  #may need to read the news regarding it
+  
+  return goodBuys #return dict of symb:note
   
 
 #get a list of stocks to be sifted through
-def getUnsortedList():
+#type can be spo, status can be priced|upcoming|filled|withdrawn
+def getUnsortedList(status="all", type=""):
   while True:
     try:
-      r = o.json.loads(o.requests.get("https://api.nasdaq.com/api/calendar/earnings",headers={"user-agent":"-"}, timeout=5))['data']['rows']
+      r = o.json.loads(o.requests(f"https://api.nasdaq.com/api/ipo/calendar?type={type}",headers={"user-agent":'-'},timeout=5).text)
       break
     except Exception:
-      print("Error in getting unsorted list for earnings algo. Trying again...")
+      print("Error getting unsorted list for ipo algo. Trying again...")
       o.time.sleep(3)
       pass
-  return r
+  
+  return r['data'] if(status=="all") else r['data'][status]
+
 
 #TODO: this should also account for squeezing
 def sellUp(symb=""):

@@ -7,7 +7,7 @@
 
 import otherfxns as o
 
-algo = 'shortema' #name of the algo
+algo = 'sema' #name of the algo
 #stocks held by this algo according to the records
 # lock = o.threading.Lock()
 # lock.acquire()
@@ -18,7 +18,7 @@ def getList():
   print(f"getting unsorted list for {algo}")
   symbs = getUnsortedList()
   print(f"finding stocks for {algo}")
-  goodBuys = [e for e in symbs if goodBuy(e)] #the only time that the first char is a number is if it is a valid/good buy
+  goodBuys = {e:"" for e in symbs if goodBuy(e)} #return dict of symb:note
   print(f"{len(goodBuys)} found for {algo}")
   return goodBuys
  
