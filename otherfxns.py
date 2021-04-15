@@ -381,14 +381,14 @@ def getPrices(symbList,maxTries=3):
         tries+=1
         time.sleep(3)
         continue
-    d.extend(r['data']) #append the lists
+    if(r['data'] is not None): d.extend(r['data']) #append the lists
 
   #isolate the symbols and prices and remove any that are none's
   prices = {f"{e['symbol']}|{e['assetClass']}":{
                                                 'price':float(e['lastSalePrice'].replace("$","")),
                                                 'vol':int(e['volume'].replace(",","")),
-                                                'open':float(e['lastSalePrice'].replace("$",""))-float(e['netChange'])
-                                                } for e in d if e['volume'] is not None and e['lastSalePrice'] is not None}
+                                                'open':float(e['lastSalePrice'].replace("$",""))-(float(e['netChange']) if e['netChange']!='UNCH' else 0)
+                                                } for e in d if(e['volume'] is not None and e['lastSalePrice'] is not None)}
   return prices
   
 

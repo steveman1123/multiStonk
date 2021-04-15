@@ -77,7 +77,6 @@ class bcolor:
 listsUpdatedToday = False #tell everyone whether the list has been updated yet today or not
 closeTime = o.closeTime(estOffset=-1) #get the time in datetime format of when the market closes (reference this when looking at time till close)
 
-
 #main function to run continuously
 def main(verbose=True):
   global algoList, posList, listsUpdatedToday, closeTime
@@ -104,7 +103,7 @@ def main(verbose=True):
       totalCash = 0 #stop trading if we've started to eat into the margin, that way we don't overshoot
       
     if(o.marketIsOpen()):
-      print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${totalCash}, {len(posList)} algos")
+      print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, {len(posList)} algos")
       #update the lists if not updated yet and that it's not currently updating
       if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
         updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
@@ -125,7 +124,7 @@ def main(verbose=True):
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
         for algo in algoList:
-          buyThread = o.threading.Thread(target=check2buy, args=(algo,cashPerAlgo, algoList[algo])) #init the thread - note locking is required here
+          buyThread = o.threading.Thread(target=check2buy, args=(algo,cashPerAlgo, list(algoList[algo]))) #init the thread - note locking is required here
           buyThread.setName(algo) #set the name to the stock symb
           buyThread.start() #start the thread
     
@@ -217,7 +216,7 @@ def updateLists(verbose=False):
     lock = o.threading.Lock()
     revSplits = o.reverseSplitters()
     for e in algoList: #start a thread to update the list for each algorithm
-      print(f"updating {e} list")
+      # print(f"updating {e} list")
       updateThread = o.threading.Thread(target=updateList, args=(e,lock,revSplits)) #init the thread - note locking is required here
       updateThread.setName("update-"+e) #set the name to the stock symb
       updateThread.start() #start the thread
@@ -274,6 +273,7 @@ def check2sell(algo, pos):
             triggerThread.start() #start the thread
           '''
 
+#TODO: check2buy should run more continuously/should be it's own thread (rather than a single loop through, it should repeat until cash is spent per algo)
 #look to buy stocks from the stocks2buy list with the available funds for the algo
 def check2buy(algo, cashAvailable, stocks2buy):
   global posList
@@ -359,6 +359,7 @@ def check2sells(pos):
   for algo in posList:
     algoSymbs = [e for e in pos if e['symbol'] in posList[algo]] #only the stocks in both posList[algo] and held positions
     symbList = [e['symbol'] for e in algoSymbs] #isolate just the symbols
+    #TODO: in each algo, add an error report if there's a stock that doesn't appear to be tradable (that is, it's in symbList but doesn't show up in getPrices)
     gs = eval(f"{algo}.goodSells(symbList)") #get whether the stocks are good sells or not
     for e in algoSymbs: #go through the stocks of the algo
       print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t{posList[algo][e['symbol']]['note']}")

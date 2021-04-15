@@ -110,7 +110,7 @@ def sellAll(isManual=1):
 #TODO: return something else other than the string (or include other info to return beyond it)
 #TODO: need limit orders to be able to be placed
 # https://alpaca.markets/docs/api-documentation/api-v2/orders/
-def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPrice=0):
+def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPrice=0,verbose=False):
   # if(o.getInfo(symb,['istradable'])['istradable']):
   order = {
     "symbol":symb,
@@ -134,10 +134,10 @@ def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPri
   # print(r)
   try:
     #TODO: add trade info here?
-    print(f"Order to {r['side']} {r['qty']} share(s) of {r['symbol']} - {r['status']}")
+    if(verbose): print(f"Order to {r['side']} {r['qty']} share(s) of {r['symbol']} - {r['status']}")
     return r
   except Exception:
-    print(f"Error {side}ing {symb}")
+    if(verbose): print(f"Error {side}ing {symb}")
     return r
   # else:
     # return {'symbol':symb,'status':'error'}

@@ -26,12 +26,12 @@ def getList(verbose=True):
   
   #if today < ex div date, then buy
 
-  if(verbose): print(f"getting unsorted list for {algo}")
+  if(verbose): print(f"getting unsorted list for {algo}...")
   data = getUnsortedList(o.nextTradeDate()) #get the whole data list
-  if(verbose): print(f"finding stocks for {algo}")
+  if(verbose): print(f"finding stocks for {algo}...")
   prices = o.getPrices([s['symbol']+"|stocks" for s in data],withVol=True) #get the current price and volume
   goodBuys = {s.split("|")[0]:str(o.dt.datetime.strptime(data[s.split("|")[0]]['payment_Date'],"%m/%d/%Y").date()) for s in prices if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])}
-  if(verbose): print(f"{len(goodBuys)} found for {algo}")
+  if(verbose): print(f"{len(goodBuys)} found for {algo}.")
   return goodBuys
   
 

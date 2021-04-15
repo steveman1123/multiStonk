@@ -20,12 +20,12 @@ def init(configFile):
 
 #get list of stocks pending FDA approvals
 def getList(verbose=True):
-  if(verbose): print(f"getting unsorted list for {algo}")
+  if(verbose): print(f"getting unsorted list for {algo}...")
   ul = getUnsortedList()
-  if(verbose): print(f"finding stocks for {algo}")
+  if(verbose): print(f"finding stocks for {algo}...")
   arr = goodBuys(ul) #returns dict of {symb:gooduy(t/f)}
-  arr = {e:"" for e in arr if(arr[e])} #only look at the ones that are true
-  if(verbose): print(f"{len(arr)} found for fda.")
+  arr = {e:"-" for e in arr if(arr[e])} #only look at the ones that are true
+  if(verbose): print(f"{len(arr)} found for {algo}.")
   
   return arr
 
@@ -87,7 +87,7 @@ def goodSells(symbList):
   #get the stock's current prices
   curPrices = o.getPrices(symbList)
   #check that it has exceeded the stopLoss or takeProfit points
-  good2sell = {s:(curPrices[(s+"|stocks").upper()]['price']/buyPrices[s]<sellDn(s) or curPrices[(s+"|stocks").upper()]['price']/buyPrices[s]>=sellUp(s)) for s in buyPrices}
+  good2sell = {s:(s in curPrices and (curPrices[(s+"|stocks").upper()]['price']/buyPrices[s]<sellDn(s) or curPrices[(s+"|stocks").upper()]['price']/buyPrices[s]>=sellUp(s))) for s in buyPrices}
   
   return good2sell
 
@@ -98,11 +98,12 @@ def goodBuy(symb):
 
 #determine if stocks are good to buy or not
 #returns a dict with all the elements of symbList and t/f if it's a good buy {symb:goodbuy(t/f)}
-def goodBuys(symbList):
+def goodBuys(symbList,verbose=False):
   [minPrice,maxPrice] = [float(c[algo]['minPrice']),float(c[algo]['maxPrice'])] #get the price range
+  if(verbose): print(f"min: {minPrice}, max: {maxPrice}")
   prices = o.getPrices([e+"|stocks" for e in symbList]) #get current prices
   #make sure that price is within our target range and that the price was actually obtained
-  out = {s:(s in prices and minPrice<=prices[(s+"|stocks").upper()]['price']<=maxPrice) for s in symbList}
+  out = {s:((s+"|stocks").upper() in prices and minPrice<=prices[(s+"|stocks").upper()]['price']<=maxPrice) for s in symbList}
   
   return out
 

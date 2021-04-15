@@ -24,15 +24,15 @@ def getList(verbose=True):
   #TODO: adjust this value based on testing
   minFallPerc = float(c[algo]['minFallPerc']) #price must drop by at least this much
   
-  if(verbose): print(f"getting unsorted list for {algo}")
+  if(verbose): print(f"getting unsorted list for {algo}...")
   symbs = getUnsortedList()
-  if(verbose): print(f"finding stocks for {algo}")
+  if(verbose): print(f"finding stocks for {algo}...")
   
   #
   gb = {s['symbol']:float(s['change'][:-1])/100 for s in symbList['losers']}
   #only 
   gb = {s:gb[s] for s in gb if gb[s]<=minFallPerc}
-  if(verbose): print(f"{len(goodBuys)} found for {algo}")
+  if(verbose): print(f"{len(goodBuys)} found for {algo}.")
   return goodBuys
  
 

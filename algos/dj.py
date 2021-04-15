@@ -20,12 +20,12 @@ def init(configFile):
 
 #get a list of potential gainers according to this algo
 def getList(verbose=True):
-  if(verbose): print(f"getting unsorted list for {algo}")
+  if(verbose): print(f"getting unsorted list for {algo}...")
   symbs = getUnsortedList()
-  if(verbose): print(f"finding stocks for {algo}")
+  if(verbose): print(f"finding stocks for {algo}...")
   gb = goodBuys(symbs) #get dict of the list of stocks if they're good buys or not
   gb = {e:gb[e] for e in gb if gb[e][0].isnumeric()} #the only time that the first char is a number is if it is a valid/good buy
-  if(verbose): print(f"{len(gb)} found for {algo}")
+  if(verbose): print(f"{len(gb)} found for {algo}.")
   return gb
 
 #TODO: add verbose-ness to goodBuys, goodSells
@@ -107,20 +107,19 @@ def goodBuy(symb,days2look = -1, verbose=False): #days2look=how far back to look
 
 #perform the same checks as goodBuy but multiplexed for fewer requests
 #returns a dict of {symb:validBuyText} where validBuyText will contain the failure reason or if it succeeds, then it is the initial jump date
-def goodBuys(symbList, days2look=-1, verbose=True):
+def goodBuys(symbList, days2look=-1, verbose=False):
   if(days2look<0): days2look = int(c[algo]['simDays2look'])
   #calc price % diff over past 20 days (current price/price of day n) - current must be >= 80% for any
   #calc volume % diff over average past some days (~60 days?) - must be sufficiently higher (~300% higher?)
   
   days2wait4fall = int(c[algo]['simWait4fall']) #wait for stock price to fall for this many days
-  startDate = days2wait4fall + int(c[algo]['simStartDateDiff']) #add 1 to account for the jump day itself
   firstJumpAmt = float(c[algo]['simFirstJumpAmt']) #stock first must jump by this amount (1.3=130% over 1 day)
   sellUp = float(c[algo]['simSellUp']) #% to sell up at
   sellDn = float(c[algo]['simSellDn']) #% to sell dn at
   
   #make sure that the jump happened in the  frame rather than too long ago
   volAvgDays = int(c[algo]['simVolAvgDays']) #arbitrary number to avg volumes over
-  checkPriceDays = int(c[algo]['simChkPriceDays']) #check if the price jumped suo.bstantially over the last __ trade days
+  checkPriceDays = int(c[algo]['simChkPriceDays']) #check if the price jumped substantially over the last __ trade days
   checkPriceAmt = float(c[algo]['simChkPriceAmt']) #check if the price jumped by this amount in the above days (% - i.e 1.5 = 150%)
   volGain = float(c[algo]['simVolGain']) #check if the volume increased by this amount during the jump (i.e. 3 = 300% or 3x, 0.5 = 50% or 0.5x)
   volLoss = float(c[algo]['simVolLoss']) #check if the volume decreases by this amount during the price drop
@@ -130,13 +129,14 @@ def goodBuys(symbList, days2look=-1, verbose=True):
   end = str(o.dt.date.today())
   
   
-  prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices of all valid stocks (invalid ones will not be returned by getPrices)
+  prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices of all valid stocks (invalid ones will not be returned by getPrices) - using as a filter to get rid of not tradable stocks
   symbList = [e.split("|")[0] for e in prices] #only look at the valid stocks
   
   out = {} #data to be returned
   
-  validBuy = "not tradable" #set to the jump date if it's valid
   for symb in symbList:
+    startDate = days2wait4fall + int(c[algo]['simStartDateDiff']) #add 1 to account for the jump day itself
+
     dateData = o.getHistory(symb, start, end)
     if(startDate>=len(dateData)-2): #if a stock returns nothing or very few data pts
       validBuy = "Few data points available"
@@ -147,16 +147,18 @@ def goodBuys(symbList, days2look=-1, verbose=True):
         
         #if the price has jumped sufficiently for the first time
         if(float(dateData[startDate][1])/float(dateData[startDate+1][1])>=firstJumpAmt):
-          
+          if(verbose): print(f"{symb}\tinitial price jumped")
           avgVol = sum([int(dateData[i][2]) for i in range(startDate,min(startDate+volAvgDays,len(dateData)))])/volAvgDays #avg of volumes over a few days
           
           lastVol = int(dateData[startDate][2]) #the latest volume
           lastPrice = float(dateData[startDate][4]) #the latest highest price
   
           if(lastVol/avgVol>volGain): #much larger than normal volume
+            if(verbose): print(f"{symb}\tvol gained")
             #volume had to have gained
             #if the next day's price has fallen significantly and the volume has also fallen
             if(float(dateData[startDate-days2wait4fall][4])/lastPrice-1<priceDrop and int(dateData[startDate-days2wait4fall][2])<=lastVol*volLoss):
+              if(verbose): print(f"{symb}\tprice and vol dropped")
               #the jump happened, the volume gained, the next day's price and volumes have fallen
               dayPrice = lastPrice
               i = 1 #increment through days looking for a jump - start with 1 day before startDate
@@ -166,6 +168,7 @@ def goodBuys(symbList, days2look=-1, verbose=True):
                 i += 1
               
               if(lastPrice/dayPrice>=checkPriceAmt): #TODO: read through this logic some more to determine where exactly to put sellDn
+                if(verbose): print(f"{symb}\t")
                 #the price jumped compared to both the previous day and to the past few days, the volume gained, and the price and the volume both fell
                 #check to see if we missed the next jump (where we want to strike)
                 missedJump = False
@@ -177,9 +180,10 @@ def goodBuys(symbList, days2look=-1, verbose=True):
                       missedJump = True
                   if(not missedJump):
                     if(verbose): print("dj",symb)
-                    validBuy = dateData[startDate][0] #return the date the stock initially jumped
+                    validBuy = str(o.dt.datetime.strptime(dateData[startDate][0],"%m/%d/%Y").date()) #return the date the stock initially jumped (in yyyy-mm-dd format)
     
-    out[symb] = valdiBuy
+    if(verbose): print(symb+"\t"+validBuy)
+    out[symb] = validBuy
     
   return out
 
@@ -193,12 +197,17 @@ def goodSells(sellList, verbose=False): #sellList is a list of stocks ready to b
   sellList = [e for e in sellList if e in stockList] #only look at the stocks that are in the algo
   buyPrices = {s:float(stockList[s]['buyPrice']) for s in sellList} #get buyPrices {symb:buyPrce}
   infs = o.getPrices([s+"|stocks" for s in sellList]) #currently format of {symb|assetclass:{price,vol,open}}
-  infs = {s.split("|"[0]):infs[s] for s in infs} #now format of {symb:{price,vol,open}}
+  infs = {s.split("|")[0]:infs[s] for s in infs} #now format of {symb:{price,vol,open}}
   
   #compare prices to the opens
   outs = {s:(s in infs and (infs[s]['price']/infs[s]['open']<sellDn(s) or infs[s]['price']/infs[s]['open']>=sellUp(s))) for s in sellList}
   #compare prices to the buys
-  outs = {s:(outs[s] or buyPrices[s]>0 and (infs[s]['price']/buyPrices[s]<sellDn(s) or infs[s]['price']/buyPrices[s]>=sellUp(s))) for s in sellList}
+  outs = {s:(s in infs and s in buyPrices and (outs[s] or buyPrices[s]>0 and (infs[s]['price']/buyPrices[s]<sellDn(s) or infs[s]['price']/buyPrices[s]>=sellUp(s)))) for s in sellList}
+  
+  #display stocks that have an error
+  for e in [e for e in sellList if e not in outs]:
+    print(f"{e} not tradable")
+  
   return outs
 
 
@@ -276,7 +285,7 @@ def getUnsortedList(verbose=False):
   
   #now that we have the marketWatch list, let's get the stocksunder1 list - essentially the getPennies() fxn from other files
   if(verbose): print("Getting stocksunder1 data...")
-  urlList = ['nasdaq']#,'tech','biotech','marijuana','healthcare','energy'] #the ones not labeled for nasdaq are listed on OTC which we want to avoid
+  urlList = ['nasdaq','tech','biotech','marijuana','healthcare','energy'] #the ones not labeled for nasdaq are listed on OTC which we want to avoid
   for e in urlList:  
     if(verbose): print(e+" stock list")
     url = f'https://stocksunder1.org/{e}-penny-stocks/'
@@ -297,7 +306,6 @@ def getUnsortedList(verbose=False):
   if(verbose): print("Removing Duplicates...")
   symbList = list(dict.fromkeys(symbList)) #combine and remove duplicates
   
-  print("Done getting stock lists")
   return symbList
 
 #determine if a stock is a good sell or not
