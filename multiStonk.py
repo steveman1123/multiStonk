@@ -280,8 +280,10 @@ def check2buy(algo, cashAvailable, stocks2buy):
 
   random.shuffle(stocks2buy) #shuffle the stocks2buy to avoid front loading
   #calculate the cash to be put towards various stocks in the algo (shouldn't be more than the cash available, but shouldn't be less than than the minDolPerStock (unless mindol > cashAvail))
-  cashPerStock = min(cashAvailable,max(float(c['account params']['minDolPerStock']),cashAvailable/len(stocks2buy)))
-  
+  if(len(stocks2buy)>0):
+    cashPerStock = min(cashAvailable,max(float(c['account params']['minDolPerStock']),cashAvailable/len(stocks2buy)))
+  else:
+    print(f"No stocks to buy for {algo}")
   #loop through the stocks to be bought
   for stock in stocks2buy:
     

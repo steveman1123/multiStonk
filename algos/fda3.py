@@ -21,9 +21,7 @@ def getList(verbose=True):
   return out
 
 #return whether stocks are good buys or not - dict format {symb:goodBuyText} where goodBuyText is the status (will be the catalyst date if it is a good buy)
-def goodBuys(symbList): #where symbList is the output of getUnsortedList()
-  print(f"{algo} incomplete")
-
+def goodBuys(symbList, verbose=False): #where symbList is the output of getUnsortedList()
   #min and max prices
   [minPrice, maxPrice] = [float(c[algo]['minPrice']),float(c[algo]['maxPrice'])]
   
@@ -31,9 +29,9 @@ def goodBuys(symbList): #where symbList is the output of getUnsortedList()
   twelveMgain = float(c[algo]['twelveMgain']) #stock must gain this much in the last 12 months
   sixMgain = float(c[algo]['sixMgain']) #stock must gain this much in the last 12 months  
 
-  if(verbose): print(len(j))
+  if(verbose): print(len(symbList))
   #make sure that the earnings are present (that is: it has history on the market)
-  tradable = [e for e in j if e['cashflow']['earnings'] is not None]
+  tradable = [e for e in symbList if e['cashflow']['earnings'] is not None]
   if(verbose): print(len(tradable))
   #only look at stocks in our price range
   goodPrice = [e for e in tradable if minPrice<=e['companies']['price']<=maxPrice]
@@ -57,6 +55,8 @@ def goodBuys(symbList): #where symbList is the output of getUnsortedList()
       out[symb] = s['catalyst_date']
   
   if(verbose): print(len(out))
+  
+  return out
 
 
 #return whether stocks are good sells or not
@@ -72,7 +72,15 @@ def goodSells(symbList):
   prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
   
-  gs = {e:(e not in prices or prices[e]['price']/prices[e]['open']>=sellUp(e) or prices[e]['price']/prices[e]['open']<sellDn(e) or (buyPrices[e]>0 and (prices[e]['price']/buyPrices[e]>=sellUp(e) or prices[e]['price']/buyPrices[e]<sellDn(e))) for e in symbList} #return true if the price has reached a sellUp/dn point or it's not in the prices list
+  gs = {e:(e not in prices or
+           prices[e]['price']/prices[e]['open']>=sellUp(e) or
+           prices[e]['price']/prices[e]['open']<sellDn(e) or
+           (buyPrices[e]>0 and
+            (prices[e]['price']/buyPrices[e]>=sellUp(e) or
+             prices[e]['price']/buyPrices[e]<sellDn(e)
+            )
+           )
+          ) for e in symbList} #return true if the price has reached a sellUp/dn point or it's not in the prices list
   
   return gs    
 
