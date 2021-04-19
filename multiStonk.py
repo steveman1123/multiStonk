@@ -173,7 +173,7 @@ def main(verbose=True):
         print(f"Updating stock lists in {round((tto-60*float(c['time params']['updateLists']))/3600,2)} hours")
         time.sleep(tto-60*float(c['time params']['updateLists']))
       #update stock lists
-      print("Updating buyList")
+      print("Updating buyList") #TODO: move this into the thread or within the thread have a "done updating buylist"
       updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
       updateListsThread.setName('updateLists') #set the name to the stock symb
       updateListsThread.start() #start the thread
@@ -210,7 +210,7 @@ def updateLists(verbose=False):
   else:
     if(verbose): print("file does not exist")
     errored = True
-  
+  #TODO: check that all algos in the algolist are present in the buy list as well (in the event that an algo has been added or removed after updating today
   if(errored):
   
     lock = o.threading.Lock()
