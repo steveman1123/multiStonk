@@ -178,7 +178,8 @@ def jumpedToday(symb,jump):
       j = json.loads(requests.get(url,headers=HEADERS).text)
       close = float(j['data']['summaryData']['PreviousClose']['value'].replace('$','').replace(',','')) #previous day close
       high = float(j['data']['summaryData']['TodayHighLow']['value'].replace('$','').replace(',','').split('/')[0]) #today's high, today's low is index [1]
-      out = high/close>=jump
+      #check that close & high are not "N/A" - sometimes the api returns no data, then check for the jump
+      out = (close!="N/A" and high!="N/A") and (high/close>=jump)
       break
     except Exception:
       print(f"Error in jumpedToday. Trying again ({tries+1}/{maxTries} - {symb})...")

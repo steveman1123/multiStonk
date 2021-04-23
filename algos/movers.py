@@ -18,23 +18,27 @@ def init(configFile):
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
 
+#TODO: this will need to change so that goodBuys basically throws out the arg list and gets a fresh one from today's movers (rather than yesterday's movers that would be generated in the morning) - as it stands list is generated in the morning of today (containing yesterday's movers) then buying happens this afternoon (after yesterday's movers have moved), so will need to regen goodbuy list to get today's movers so they should gain tomorrow
+
 #return a dict of good buys {symb:note}
 #the note will contain the original fall % for losers
-def getList(verbose=True):
+def getList(isAfternoon=False, verbose=True):
   #TODO: adjust this value based on testing
-  minFallPerc = float(c[algo]['minFallPerc']) #price must drop by at least this much
-  
-  if(verbose): print(f"getting unsorted list for {algo}...")
-  symbs = getUnsortedList()
-  if(verbose): print(f"finding stocks for {algo}...")
-  
-  #
-  gb = {s['symbol']:float(s['change'][:-1])/100 for s in symbList['losers']}
-  #only 
-  gb = {s:gb[s] for s in gb if gb[s]<=minFallPerc}
-  if(verbose): print(f"{len(goodBuys)} found for {algo}.")
-  return goodBuys
- 
+  if(isAfternoon): #must be afternoon to update (to see today's biggest movers)
+    minFallPerc = float(c[algo]['minFallPerc']) #price must drop by at least this much
+    
+    if(verbose): print(f"getting unsorted list for {algo}...")
+    symbs = getUnsortedList()
+    if(verbose): print(f"finding stocks for {algo}...")
+    
+    #
+    gb = {s['symbol']:float(s['change'][:-1])/100 for s in symbList['losers']}
+    #only 
+    gb = {s:gb[s] for s in gb if gb[s]<=minFallPerc}
+    if(verbose): print(f"{len(goodBuys)} found for {algo}.")
+    return goodBuys
+  else:
+    return {}
 
 #determine whether the queries symb is a good one to buy or not
 #this function is depreciated, replaced with goodBuys
@@ -42,6 +46,7 @@ def goodBuy(symb, verbose=False):
   #TODO: see how a stock's price changes after being on the gainer or loser list
   #may want to look at history
   #need to test this one over time like what we did with the original fda one
+  
   return False
   
 #return whether symb is a good sell or not
@@ -56,6 +61,7 @@ def goodSell(symb, verbose=False):
 
 #multiplex the goodBuy fxn (symbList should be the output of getUnsortedList)
 def goodBuys(symbList):
+  
   minFallPerc = float(c[algo]['minFallPerc']) #price must drop by at least this much
   #
   gb = {s:(abs(float(s['change'][:-1])/100)>=minFallPerc) for s in symbList['losers']}

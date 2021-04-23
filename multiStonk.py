@@ -139,7 +139,7 @@ def main(verbose=True):
         algoCurVal = sum([posList[algo][s]['sharesHeld']*curPrices[s+"|stocks".upper()]['price'] for s in posList[algo] if s+"|stocks".upper() in curPrices]) #get the total value of the stocks in a given algo
         algoBuyVal = sum([posList[algo][s]['sharesHeld']*posList[algo][s]['buyPrice'] for s in posList[algo]]) #get the total amount initially invested in a given algo
         if(algoBuyVal>0): #make sure that we don't div0 if the list is empty
-          roi = round(algoCurVal/algoBuyVal,2)
+          roi = round(algoCurVal/algoBuyVal,2) #TODO: might have some miscalculation here, or could be in 0 values somewhere, but it indicates a very high roi (like: dj - 2.16, fda - 1.38, fda3 - 3.62, divs - 3.98) which is very not correct
         else:
           roi = 1 #if the buyVal is 0, then that means either no info or no stocks held, so it's nearly impossible to make a judgement
         print(f"{algo} - {bcolor.FAIL if roi<1 else bcolor.OKGREEN}{roi}{bcolor.ENDC}") #display the ROI
@@ -275,13 +275,14 @@ def check2sell(algo, pos):
 
 #TODO: check2buy should run more continuously/should be it's own thread (rather than a single loop through, it should repeat until cash is spent per algo)
 #look to buy stocks from the stocks2buy list with the available funds for the algo
-def check2buy(algo, cashAvailable, stocks2buy):
+def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
   global posList
 
   random.shuffle(stocks2buy) #shuffle the stocks2buy to avoid front loading
   #calculate the cash to be put towards various stocks in the algo (shouldn't be more than the cash available, but shouldn't be less than than the minDolPerStock (unless mindol > cashAvail))
   if(len(stocks2buy)>0):
     cashPerStock = min(cashAvailable,max(float(c['account params']['minDolPerStock']),cashAvailable/len(stocks2buy)))
+    if(verbose): print(f"stocks to buy for {algo}: {len(stocks2buy)}\tcash available for {algo}: {round(cashAvailable,2)}\tcash per stock: {round(cashPerStock,2)}")
   else:
     print(f"No stocks to buy for {algo}")
   #loop through the stocks to be bought
@@ -309,7 +310,7 @@ def check2buy(algo, cashAvailable, stocks2buy):
       [curPrice, mktCap] = [inf['price'],inf['mktcap']]
       shares = int(min(cashPerStock/curPrice,(mktCap/curPrice)*float(c['account params']['maxVolPerc']))) #set number of shares to be at most some % of the mktcap, otherwise as many int shares as cash is available
       if(shares>0): #cannot place an order for 0 shares
-        isBought = buy(shares,stock,algo,curPrice)
+        isBought = buy(shares,stock,algo,curPrice) #buy the stock
         if(isBought): print(f"Bought {shares} shares of {stock} for {algo} algo at around ${curPrice}/share")
     
 #a stock has reached a trigger point and should begin to be checked more often (it will be sold in this function)
@@ -328,31 +329,35 @@ def triggeredUp(symb, algo):
   if(isSold): print(f"Sold all shares of {symb} for {algo} algo")
 
 #run as long as the len of triggeredStocks>0 (where triggeredStocks is a set of format {"algo|symb"})
-def checkTriggered():
+def checkTriggered(verbose=False):
   global triggeredStocks
   lock = o.threading.Lock()
   maxPrices = {}
-  while len(triggeredStocks)>0: #only run if there's stocks to sell
-    prices = o.getPrices([e.split("|")[1]+"|stocks" for e in triggeredStocks]) #get prices for all stocks to sell
+  while len(list(triggeredStocks))>0: #only run if there's stocks to sell
+    if(verbose): print(f"{len(list(triggeredStocks))} stocks triggered for sale")
+    prices = o.getPrices([e.split("|")[1]+"|stocks" for e in list(triggeredStocks)]) #get prices for all stocks to sell
     maxPrices = {e:max(maxPrices[e],prices[e]['price']) if(e in maxPrices) else prices[e]['price'] for e in prices} #get the max prices of the stocks since watching
     #check for stocks in triggeredStocks that aren't in prices (some error occured that we hold it but it can't be traded)
     lock.acquire()
-    for e in [e for e in triggeredStocks if (e.split("|")[1]+"|stocks").upper() not in prices]:
+    for e in [e for e in list(triggeredStocks) if (e.split("|")[1]+"|stocks").upper() not in prices]:
       triggeredStocks.remove(e)
     lock.release()
       
     print("")
-    for e in triggeredStocks:
-      sellUpDn = eval(f"{e.split('|')[0]}.sellUpDn()")
-      curPrice = prices[(e.split("|")[1]+'|stocks').upper()]['price']
+    for e in list(triggeredStocks): #TODO: figure out why the sold stock isn't being removed from triggeredStocks (this causes this thread to run indefinitely)
+      sellUpDn = eval(f"{e.split('|')[0]}.sellUpDn()") #get the sellUpDn % - TODO: this should probably be moved out of this for loop and generate a dict {algo:sellUpDn} since it doesn't depend on the individual stock (this would reduce function calls)
+      curPrice = prices[(e.split("|")[1]+'|stocks').upper()]['price'] #get the current prices of the stocks
       if(curPrice>0): #make sure that the price is valid
+        #sell once the current price drops below some % of the maxPrice since watching or within one minute of close
         if(curPrice>=sellUpDn*maxPrices[(e.split('|')[1]+"|stocks").upper()] and (closeTime-dt.datetime.now()).total_seconds()>60):
           print(f"{e.split('|')[0]}\t{e.split('|')[1]}\t{round(curPrice/maxPrices[(e.split('|')[1]+'|stocks').upper()],2)} : {sellUpDn}")
+        else:
+          sell(e.split("|")[1],e.split("|")[0])          
       else:
         print(f"{e} current price is $0. Selling")
         sell(e.split("|")[1],e.split("|")[0])
     print("")
-    time.sleep(max(5,len(triggeredStocks)/5)) #wait at least 5 seconds between checks, and if there are more, wait longer
+    time.sleep(max(5,len(list(triggeredStocks))/5)) #wait at least 5 seconds between checks, and if there are more, wait longer
     
 #multiplex check2sell
 def check2sells(pos):
@@ -399,8 +404,9 @@ def sell(stock, algo):
       }
     open(c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update the posList file
     if(stock in triggeredStocks):
-      triggeredStocks.pop(stock)
+      triggeredStocks.remove(stock)
     lock.release()
+    print(f"Sold {algo}'s shares of {stock}")
     return True
   else:
     print(f"Order to sell {posList[algo][stock]['sharesHeld']} shares of {stock} not accepted")
