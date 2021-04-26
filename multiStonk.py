@@ -391,6 +391,7 @@ def sell(stock, algo):
     r = a.createOrder("sell",float(posList[algo][stock]['sharesHeld']),stock)
   else:
     print(f"No shares held of {stock}")
+    triggeredStocks.discard(algo+"|"+stock)
     return False
   if(r['status'] == "accepted"): #check that it actually sold
     lock = o.threading.Lock()
@@ -404,7 +405,7 @@ def sell(stock, algo):
         "note":""
       }
     open(c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update the posList file
-    triggeredStocks.discard(stock)
+    triggeredStocks.discard(algo+"|"+stock)
     lock.release()
     print(f"Sold {algo}'s shares of {stock}")
     return True
@@ -736,7 +737,7 @@ def syncPosList(verbose=False):
 if __name__ == '__main__':
   global posList,triggeredStocks
   
-  triggeredStocks = set()
+  triggeredStocks = set() #should contain elements of format algo|stock
   
   a.checkValidKeys(int(c['account params']['isPaper'])) #check that the keys being used are valid
   if(len(a.getPos())==0): #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
