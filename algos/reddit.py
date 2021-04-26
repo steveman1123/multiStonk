@@ -6,12 +6,8 @@
 
 import otherfxns as o
 
-algo = 'reddit' #name of the algo
-#stocks held by this algo according to the records
-lock = o.threading.Lock()
-lock.acquire()
-stockList = o.json.loads(open(o.c['file locations']['posList'],'r').read())[algo]
-lock.release()
+algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
+
 
 def getList():
   #perform checks to see which one ones will gain

@@ -4,7 +4,7 @@
 
 import otherfxns as o
 
-algo = 'dj' #name of the algo
+algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
 def init(configFile):
   global posList,c

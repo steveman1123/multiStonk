@@ -2,7 +2,7 @@
 
 import otherfxns as o
 
-algo = 'fda2'
+algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
 def init(configFile):
   global c

@@ -11,7 +11,8 @@ from workdays import networkdays as nwd
 
 #TODO: add verbose setting to (at the very least) getList, goodBuy, and goodSell
 
-algo = 'ema' #name of the algo
+algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
+
 
 def init(configFile):
   global posList,c

@@ -16,7 +16,8 @@ from colorama import init as colorinit
 
 colorinit() #allow coloring in Windows terminals
 
-
+#TODO: should add the ability to store a global unsorted list that multiple algos pull from (eg define a price and vol range, then pass that to every algo that requests it)
+#TODO: combine various signals into one algo, but also have each signal as its own algo?
 
 #parse args and get the config file
 configFile="./configs/multi.config"
@@ -139,7 +140,7 @@ def main(verbose=True):
         algoCurVal = sum([posList[algo][s]['sharesHeld']*curPrices[s+"|stocks".upper()]['price'] for s in posList[algo] if s+"|stocks".upper() in curPrices]) #get the total value of the stocks in a given algo
         algoBuyVal = sum([posList[algo][s]['sharesHeld']*posList[algo][s]['buyPrice'] for s in posList[algo]]) #get the total amount initially invested in a given algo
         if(algoBuyVal>0): #make sure that we don't div0 if the list is empty
-          roi = round(algoCurVal/algoBuyVal,2) #TODO: might have some miscalculation here, or could be in 0 values somewhere, but it indicates a very high roi (like: dj - 2.16, fda - 1.38, fda3 - 3.62, divs - 3.98) which is very not correct
+          roi = round(algoCurVal/algoBuyVal,2) #TODO: might have some miscalculation here, or could be in 0 values somewhere, but it indicates a very high roi (like: dj - 2.16, fda - 1.38, fda3 - 3.62, divs - 3.98) which is very not correct - might have to remove the 0 values from the stock list? or like run a syncposlist prior to this
         else:
           roi = 1 #if the buyVal is 0, then that means either no info or no stocks held, so it's nearly impossible to make a judgement
         print(f"{algo} - {bcolor.FAIL if roi<1 else bcolor.OKGREEN}{roi}{bcolor.ENDC}") #display the ROI
@@ -340,7 +341,7 @@ def checkTriggered(verbose=False):
     #check for stocks in triggeredStocks that aren't in prices (some error occured that we hold it but it can't be traded)
     lock.acquire()
     for e in [e for e in list(triggeredStocks) if (e.split("|")[1]+"|stocks").upper() not in prices]:
-      triggeredStocks.remove(e)
+      triggeredStocks.discard(e)
     lock.release()
       
     print("")
@@ -403,13 +404,12 @@ def sell(stock, algo):
         "note":""
       }
     open(c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update the posList file
-    if(stock in triggeredStocks):
-      triggeredStocks.remove(stock)
+    triggeredStocks.discard(stock)
     lock.release()
     print(f"Sold {algo}'s shares of {stock}")
     return True
   else:
-    print(f"Order to sell {posList[algo][stock]['sharesHeld']} shares of {stock} not accepted")
+    print(f"Order to sell {posList[algo][stock]['sharesHeld']} shares of {stock} for {algo} not accepted")
     return False
 
 #basically just a market buy of this many shares of this stock for this algo

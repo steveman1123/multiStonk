@@ -19,29 +19,30 @@ To Run:
 ### stocks
 | algo | status|  
 | ---: | ---: |
+| accdis | not done |
 | divs | testing |  
 | dj   | done |  
 | earn | not done |  
 | ema  | ready to test |  
+| eom | not done |
 | fda  | done |  
 | fda2 | not done |  
 | fda3 | ready to test |  
 | fib  | not done |  
 | gapup| not done |  
-| hivol| not done |  
 | ipos | not done |  
-| movers | ready to test |  
+| mfi | not done |
+| movers | not done |  
+| nvi | not done |
+| obv | not done |
 | reddit | not done |  
+| rsi | not done |
 | sema | not done |  
 | split| not done |  
+| vo | not done |
+| vpt | not done |
+| vwap | not done |
 
-### forex
-| algo | status|  
-| ---: | ---: |  
-| fib  | not done |  
-| hs   | not done |  
-  
-https://www.forex.com/en-us/education/education-themes/trading-strategies/  
 
 
 # Program Idea and Structure
