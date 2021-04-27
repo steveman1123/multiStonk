@@ -71,7 +71,7 @@ def goodSells(symbList):
   prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
   prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
-  
+  #TODO: this seems to be returning things are before the strike date. Should not sell before catalyst date
   gs = {e:(e not in prices or
            prices[e]['price']/prices[e]['open']>=sellUp(e) or
            prices[e]['price']/prices[e]['open']<sellDn(e) or

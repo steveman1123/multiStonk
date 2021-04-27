@@ -136,7 +136,7 @@ def main(verbose=True):
       print("Algo ROI's:")
       for algo in posList:
         curPrices = o.getPrices([e+"|stocks" for e in posList[algo]]) #get the current prices of all the stocks in a given algo
-        
+        #TODO: the ROI is bein miscalculated somewhere
         algoCurVal = sum([posList[algo][s]['sharesHeld']*curPrices[s+"|stocks".upper()]['price'] for s in posList[algo] if s+"|stocks".upper() in curPrices]) #get the total value of the stocks in a given algo
         algoBuyVal = sum([posList[algo][s]['sharesHeld']*posList[algo][s]['buyPrice'] for s in posList[algo]]) #get the total amount initially invested in a given algo
         if(algoBuyVal>0): #make sure that we don't div0 if the list is empty

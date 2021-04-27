@@ -87,7 +87,7 @@ def getUnsortedList(exdate):
       print("Error in getting unsorted list for divs algo. Trying again...")
       o.time.sleep(3)
       pass
-  out = {e['symbol']:e for e in r} #change from a list to a dict of format {symb:data}
+  out = {e['symbol']:e for e in r if(e['payment_Date']!="N/A")} #change from a list to a dict of format {symb:data} and remove invalid dates (or ones that are N/A)
   return out
 
 #get the latest div dates for a stock (announced, ex div, record, payment)

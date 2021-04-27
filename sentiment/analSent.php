@@ -8,6 +8,8 @@
 https://beamtic.com/http-requests-in-php
 https://api.nasdaq.com/api/news/topic/articlebysymbol?q={symb}%7Cstocks&offset=0&limit={numHeads}
 
+https://thisinterestsme.com/php-curl-custom-headers/
+
 TODO: add comments
 */
  
@@ -18,12 +20,14 @@ $symbs = json_decode($symbFile, true);
 $symb = array_rand($symbs);
 $numHeads = 5;
 //$url = "https://api.nasdaq.com/api/news/topic/articlebysymbol?q=".$symb."%7Cstocks&offset=0&limit=".$numHeads;
-$url = urlencode("http://stevenw.duckdns.org/stevenw/");
+//$url = "http://stevenw.duckdns.org/stevenw/";
+$url = "https://er.jsc.nasa.gov/seh/";
 
 $surl = "https://beamtic.com/api/request-headers"; // The POST URL
 
-$js = file_get_contents($url);
 
+
+$js = file_get_contents($url);
 var_dump($js);
 
 /*
@@ -71,6 +75,7 @@ $head = "";
 <html lang=en>
   <head>
     <title>Sentiment Analysis Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
     <style>
       html, body {
         width: 100%;
