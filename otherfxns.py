@@ -171,10 +171,9 @@ def getHistory2(symb, startDate, endDate, maxTries=3):
     return out
 
 #return if the stock jumped today some %
-def jumpedToday(symb,jump):
+def jumpedToday(symb,jump, maxTries=3):
   url = f'https://api.nasdaq.com/api/quote/{symb}/summary?assetclass=stocks'
   tries=0
-  maxTries = 3 #sometimes this one really hangs but it's not terribly important, so we set a max limit and just assume it didn't jump today if it fails
   while tries<maxTries:
     try:
       j = json.loads(requests.get(url,headers=HEADERS).text)

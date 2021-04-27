@@ -111,16 +111,12 @@ def main(verbose=True):
         updateListsThread.setName('updateLists') #set the name to the stock symb
         updateListsThread.start() #start the thread
 
-      print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\tnotes")
-      print("----\t------\t-----\t-----------\t-----------\t-----")
+      print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\tnote")
+      print("----\t------\t-----\t-----------\t-----------\t----")
       #look to sell things
       check2sells(pos)
       
-      # this function is depreciated
-      # for algo in algoList:
-      #   check2sell(algo,pos) #only look at the ones currently held
-      
-      if((closeTime-dt.datetime.now()).total_seconds()<=60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
+      if((closeTime-dt.datetime.now()).total_seconds()<=30*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
         tradableCash = totalCash if totalCash<float(c['account params']['cash2hold']) else max(totalCash-float(c['account params']['cash2hold'])*float(c['account params']['cashMargin']),0) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
@@ -146,11 +142,13 @@ def main(verbose=True):
         print(f"{algo} - {bcolor.FAIL if roi<1 else bcolor.OKGREEN}{roi}{bcolor.ENDC}") #display the ROI
       
       #update the max port val
-      portHist = a.getProfileHistory(str(dt.date.today()),'1M')['equity']
-      maxPortVal=max([e for e in portHist if e is not None])
-      print(f"\nMax portfolio value from last month: ${maxPortVal}")
-      print(f"Current portfolio value: ${portHist[-1]}\n")
-
+      portHist = a.getProfileHistory(str(dt.date.today()),'1M')
+      portHist = {str(dt.datetime.fromtimestamp(portHist['timestamp'][i]).date()):portHist['equity'][i] for i in range(len(portHist['timestamp']))}
+      maxPortVal = max(list(portHist.values())) # get the max portfolio value
+      
+      #display max val and date
+      print(f"\nThe highest portfolio value in the last month was ${maxPortVal} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
+      print(f"Current portfolio value: ${portHist[max(list(portHist.keys()))]}\n")
       syncPosList() #sync up posList to live data
 
       if(o.dt.date.today().weekday()==4 and o.dt.datetime.now().time()>o.dt.time(12)): #if it's friday afternoon
@@ -596,7 +594,7 @@ def syncPosList(verbose=False):
     for symb in [s for s in recPos if recPos[s]>heldPos[s]]: #for all stocks where the recorded is greater than the held
       for algo in posList: #for every algo
         #remove any that may be exact matches
-        if float(posList[algo][symb]['sharesHeld'])==recPos[symb]-heldPos[symb]:
+        if(symb in posList[algo] and float(posList[algo][symb]['sharesHeld'])==recPos[symb]-heldPos[symb]):
           if(verbose): print(f"Removing {float(posList[algo][symb]['sharesHeld'])} shares of {symb} from {algo} records")
           recPos[symb] -= float(posList[algo][symb]['sharesHeld'])
           if(recPos[symb]==0):

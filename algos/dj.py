@@ -92,7 +92,7 @@ def goodBuy(symb,days2look = -1, verbose=False): #days2look=how far back to look
                 #check to see if we missed the next jump (where we want to strike)
                 missedJump = False
                 validBuy = "Missed jump"
-                if(not o.jumpedToday(symb, sellUp)): #history grabs from previous day and before, it does not grab today's info. Check that it hasn't jumped today too
+                if(not o.jumpedToday(symb, sellUp,maxTries=1)): #history grabs from previous day and before, it does not grab today's info. Check that it hasn't jumped today too (only query once since it's really not important)
                   for e in range(0,startDate):
                     if(verbose): print(str(dateData[e])+" - "+str(float(dateData[e][4])/float(dateData[e+1][1])) +" - "+ str(sellUp))
                     if(float(dateData[e][4])/float(dateData[e+1][1]) >= sellUp): #compare the high vs previous close

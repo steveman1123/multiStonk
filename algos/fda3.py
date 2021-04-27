@@ -60,7 +60,7 @@ def goodBuys(symbList, verbose=False): #where symbList is the output of getUnsor
 
 
 #return whether stocks are good sells or not
-def goodSells(symbList):
+def goodSells(symbList): #where symbList is a list of symbols
   lock = o.threading.Lock()
   lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
@@ -71,16 +71,16 @@ def goodSells(symbList):
   prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
   prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
-  #TODO: this seems to be returning things are before the strike date. Should not sell before catalyst date
+  #should return true if it doesn't show up in the price list or the price is now out of bounds
   gs = {e:(e not in prices or
-           prices[e]['price']/prices[e]['open']>=sellUp(e) or
-           prices[e]['price']/prices[e]['open']<sellDn(e) or
-           (buyPrices[e]>0 and
-            (prices[e]['price']/buyPrices[e]>=sellUp(e) or
-             prices[e]['price']/buyPrices[e]<sellDn(e)
-            )
+          prices[e]['price']/prices[e]['open']>=sellUp(e) or #TODO: might be able to combine these two lines into 1 of format (not dn<=price<up)
+          prices[e]['price']/prices[e]['open']<sellDn(e) or
+          (buyPrices[e]>0 and
+           (prices[e]['price']/buyPrices[e]>=sellUp(e) or
+            prices[e]['price']/buyPrices[e]<sellDn(e)
            )
-          ) for e in symbList} #return true if the price has reached a sellUp/dn point or it's not in the prices list
+          )
+          ) for e in symbList}
   
   return gs    
 

@@ -31,7 +31,7 @@ def getList(verbose=True):
   data = getUnsortedList(o.nextTradeDate()) #get the whole data list
   if(verbose): print(f"finding stocks for {algo}...")
   prices = o.getPrices([s+"|stocks" for s in data]) #get the current price and volume
-  goodBuys = {s.split("|")[0]:str(o.dt.datetime.strptime(data[s.split("|")[0]]['payment_Date'],"%m/%d/%Y").date()) for s in prices if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])}
+  goodBuys = {s.split("|")[0]:str(o.dt.datetime.strptime(data[s.split("|")[0]]['payment_Date'],"%m/%d/%Y").date()) for s in prices if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])} #vol measures volume so far today which may run into issues if run during premarket or early in the day since the stock won't have much volume
   if(verbose): print(f"{len(goodBuys)} found for {algo}.")
   return goodBuys
   
@@ -68,11 +68,23 @@ def goodSells(symbList):
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
   
+  buyPrices = {e:posList[e]['buyPrice'] for e in posList} #get the prices each were bought at
   symbList = [e for e in symbList if e in posList] #make sure they're the ones in the posList only
   prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
   prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
-  gs = {e:(e not in prices or (str(o.dt.date.today())>posList[e]['note'] and (prices[e]['price']/prices[e]['open']>=sellUp(e) or prices[e]['price']/prices[e]['open']<sellDn(e) or (buyPrices[e]>0 and prices[e]['price']/buyPrices[e]>=sellUp(e) or prices[e]['price']/buyPrices[e]<sellDn(e))))) for e in symbList} #return true if the date is after the payment date and the price has reached a sellUp/dn point or it's not in the prices list
+  #TODO: account for note being blank or containing other text
+  gs = {e:(e not in prices or
+           (str(o.dt.date.today())>posList[e]['note'] and
+            (prices[e]['price']/prices[e]['open']>=sellUp(e) or
+             prices[e]['price']/prices[e]['open']<sellDn(e) or
+             (buyPrices[e]>0 and
+              prices[e]['price']/buyPrices[e]>=sellUp(e) or
+              prices[e]['price']/buyPrices[e]<sellDn(e)
+              )
+             )
+            )
+           ) for e in symbList} #return true if the date is after the payment date and the price has reached a sellUp/dn point or it's not in the prices list
   
   return gs
 
