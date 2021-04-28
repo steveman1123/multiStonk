@@ -131,8 +131,7 @@ def getUnsortedList(verbose=False):
   return arr
 
 
-#TODO: this should also account for squeezing
-#TODO: This should change depending on if it's before or after the catalyst date - sellDn and sellUp should increase (eg from 0.7-1.2 to 0.85-1.5)
+#TODO: should possibly have a global posList value that's updated once a day? That way we're not reading from the file constantly (that would speed things up (there is no effective read limit like there is with a write limit))
 def sellUp(symb=""):
   lock = o.threading.Lock()
   lock.acquire()

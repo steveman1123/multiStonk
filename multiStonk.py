@@ -111,8 +111,8 @@ def main(verbose=True):
         updateListsThread.setName('updateLists') #set the name to the stock symb
         updateListsThread.start() #start the thread
 
-      print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\tnote")
-      print("----\t------\t-----\t-----------\t-----------\t----")
+      print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\ttriggers\tnotes")
+      print("----\t------\t-----\t-----------\t-----------\t----------\t----------")
       #look to sell things
       check2sells(pos)
       
@@ -368,7 +368,7 @@ def check2sells(pos):
     #TODO: in each algo, add an error report if there's a stock that doesn't appear to be tradable (that is, it's in symbList but doesn't show up in getPrices)
     gs = eval(f"{algo}.goodSells(symbList)") #get whether the stocks are good sells or not
     for e in algoSymbs: #go through the stocks of the algo
-      print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t{posList[algo][e['symbol']]['note']}")
+      print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t"+str(eval(f'{algo}.sellDn("{e["symbol"]}")'))+" & "+str(eval(f'{algo}.sellUp("{e["symbol"]}")'))+f"\t{posList[algo][e['symbol']]['note']}")
       
       if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'): #only sell if not bought today
         if(gs[e['symbol']]): #if the stock is a good sell
@@ -423,8 +423,8 @@ def buy(shares, stock, algo, buyPrice):
         "sharesHeld":float(posList[algo][stock]['sharesHeld'])+float(r['qty']) if stock in posList[algo] else float(r['qty']),
         "lastTradeDate":str(dt.date.today()),
         "lastTradeType":"buy",
-        #running avg = (prevAvg*n+newVals)/(n+m)
-        "buyPrice":(posList[algo][stock]['buyPrice']*posList[algo][stock]['sharesHeld']+buyPrice)/(posList[algo][stock]['sharesHeld']+float(r['qty'])) if stock in posList[algo] else buyPrice,
+        #running avg = (prevAvg*n+newAvg*m)/(n+m)
+        "buyPrice":(posList[algo][stock]['buyPrice']*posList[algo][stock]['sharesHeld']+buyPrice*float(r['qty']))/(posList[algo][stock]['sharesHeld']+float(r['qty'])) if stock in posList[algo] else buyPrice,
         "shouldSell":False,
         "note":algoList[algo][stock] if stock in algoList[algo] else ""
       }
