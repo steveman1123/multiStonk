@@ -284,7 +284,7 @@ def reverseSplitters():
   
 
 #get data that's in the info api call (current price returned by default)
-# available data (at the moment): price, vol, mktcap, open, prevclose, istradable
+# available data (at the moment): ['price', 'vol', 'mktcap', 'open', 'prevclose', 'istradable']
 #return dict of format {'option':value}
 def getInfo(symb,data=['price']):
   url = f'https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca

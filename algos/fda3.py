@@ -60,17 +60,21 @@ def goodBuys(symbList, verbose=False): #where symbList is the output of getUnsor
 
 
 #return whether stocks are good sells or not
-def goodSells(symbList): #where symbList is a list of symbols
+def goodSells(symbList,verbose=False): #where symbList is a list of symbols
   lock = o.threading.Lock()
   lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
   
-  buyPrices = {e:posList[e]['buyPrice'] for e in posList}
-  symbList = [e for e in symbList if e in posList] #make sure they're the ones in the posList only
+  if(verbose): print(f"stocks in {algo}: {list(posList)}\n")
+  
+  symbList = [e for e in symbList if e.upper() in posList] #make sure they're the ones in the posList only
+  buyPrices = {e:posList[e]['buyPrice'] for e in symbList} #get the prices each stock was bought at
+  if(verbose): print(f"stocks in the buyPrices: {list(buyPrices)}")
   prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
   prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
+  if(verbose): print(f"stocks in prices: {list(curPrices)}")
   #should return true if it doesn't show up in the price list or the price is now out of bounds
   gs = {e:(e not in prices or
           prices[e]['price']/prices[e]['open']>=sellUp(e) or #TODO: might be able to combine these two lines into 1 of format (not dn<=price<up)

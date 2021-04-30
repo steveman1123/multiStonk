@@ -5,6 +5,10 @@ import otherfxns as o
 
 algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
+#TODO: how to handle large drops that are either potentially oversold, or valid such as what happened here (price dropped from $25 to $15 after this news):
+# https://finance.yahoo.com/news/cara-therapeutics-announces-topline-results-110000707.html
+# ^ check how insider trading is, and upcoming important dates (like announcements of phase results, etc)
+# if it still falls significantly despite those, then wait at least a week and then make a decision based on the articles being posted
 
 def init(configFile):
   global posList,c
@@ -76,20 +80,27 @@ def goodSell(symb):
     return False
 
 #multiplex the good sell function
-def goodSells(symbList):
+def goodSells(symbList,verbose=False):
   lock = o.threading.Lock()
   lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
-
-  #get the prices each stock was bought at
-  buyPrices = {s:float(stockList[s]['buyPrice']) for s in symbList if(s in stockList)}
-  #get the stock's current prices
-  curPrices = o.getPrices(symbList)
-  #check that it has exceeded the stopLoss or takeProfit points
-  good2sell = {s:(s in curPrices and (curPrices[(s+"|stocks").upper()]['price']/buyPrices[s]<sellDn(s) or curPrices[(s+"|stocks").upper()]['price']/buyPrices[s]>=sellUp(s))) for s in buyPrices}
   
-  return good2sell
+  if(verbose): print(f"stocks in {algo}: {list(posList)}\n")
+  symbList = [e.upper() for e in symbList if e.upper() in posList] #make sure they're the ones in the posList only
+  buyPrices = {e:float(posList[e]['buyPrice']) for e in symbList} #get the prices each stock was bought at
+  if(verbose): print(f"stocks in the buyPrices: {list(buyPrices)}")
+  prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
+  prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
+  
+  if(verbose): print(f"stocks in prices: {list(prices)}")
+  #check that it has exceeded the stopLoss or takeProfit points
+  gs = {s:(s not in prices or
+           prices[(s)]['price']/buyPrices[s]<sellDn(s) or
+           prices[(s)]['price']/buyPrices[s]>=sellUp(s)
+          ) for s in symbList}
+  
+  return gs
 
 #determine whether a stock is a good buy or not
 #depreciated, replaced with goodBuys

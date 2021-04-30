@@ -1,6 +1,5 @@
-#this file contains functions specifically for the double jump algo
+#this file contains functions specifically for the double jump (aka dead cat bounce) algo
 #when a penny stock gains a significant amount with a large volume then falls with a small volume, then it generally gains a second time
-#dead cat bounce?
 
 import otherfxns as o
 
@@ -92,13 +91,13 @@ def goodBuy(symb,days2look = -1, verbose=False): #days2look=how far back to look
                 #check to see if we missed the next jump (where we want to strike)
                 missedJump = False
                 validBuy = "Missed jump"
-                if(not o.jumpedToday(symb, sellUp,maxTries=1)): #history grabs from previous day and before, it does not grab today's info. Check that it hasn't jumped today too (only query once since it's really not important)
+                if(not o.jumpedToday(symb, sellUp, maxTries=1)): #history grabs from previous day and before, it does not grab today's info. Check that it hasn't jumped today too (only query once since it's really not important)
                   for e in range(0,startDate):
                     if(verbose): print(str(dateData[e])+" - "+str(float(dateData[e][4])/float(dateData[e+1][1])) +" - "+ str(sellUp))
                     if(float(dateData[e][4])/float(dateData[e+1][1]) >= sellUp): #compare the high vs previous close
                       missedJump = True
                   if(not missedJump):
-                    if(verbose): print("dj",symb)
+                    if(verbose): print(algo,symb)
                     validBuy = dateData[startDate][0] #return the date the stock initially jumped
 
   if(verbose): print(symb, validBuy)
@@ -173,13 +172,13 @@ def goodBuys(symbList, days2look=-1, verbose=False):
                 #check to see if we missed the next jump (where we want to strike)
                 missedJump = False
                 validBuy = "Missed jump"
-                if(not o.jumpedToday(symb, sellUp)): #history grabs from previous day and before, it does not grab today's info. Check that it hasn't jumped today too
+                if(not o.jumpedToday(symb, sellUp, maxTries=1)): #history grabs from previous day and before, it does not grab today's info. Check that it hasn't jumped today too
                   for e in range(0,startDate):
                     if(verbose): print(str(dateData[e])+" - "+str(float(dateData[e][4])/float(dateData[e+1][1])) +" - "+ str(sellUp))
                     if(float(dateData[e][4])/float(dateData[e+1][1]) >= sellUp): #compare the high vs previous close
                       missedJump = True
                   if(not missedJump):
-                    if(verbose): print("dj",symb)
+                    if(verbose): print(algo,symb)
                     validBuy = str(o.dt.datetime.strptime(dateData[startDate][0],"%m/%d/%Y").date()) #return the date the stock initially jumped (in yyyy-mm-dd format)
     
     if(verbose): print(symb+"\t"+validBuy)

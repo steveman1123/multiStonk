@@ -81,20 +81,32 @@ closeTime = o.closeTime(estOffset=-1) #get the time in datetime format of when t
 #main function to run continuously
 def main(verbose=True):
   global algoList, posList, listsUpdatedToday, closeTime
+  ask2sell = True #if this is true, then the program will ask to sell all if portval drops below some % of maxPortVal
   portHist = a.getProfileHistory(str(dt.date.today()),'1M')['equity'] #get the closing prices of the portfolio over the last month
   maxPortVal=max([e for e in portHist if e is not None]) #get the max portfolio value over the last month and remove blank entries
   cashMargin = float(c['account params']['cashMargin']) #extra cash to hold above hold value
   if(cashMargin<1): #cashMargin MUST BE GREATER THAN 1 in order for it to work correctly
     raise ValueError("Error: withdrawable funds margin is less than 1. Multiplier must be >=1")
   cash2hold = float(c['account params']['cash2hold'])
-  acct = a.getAcct() #initialize the acct var
+  isManualSellOff = not int(c['account params']['portAutoSellOff'])
   
-  
-  #make sure we're still above the threshold to trade
-  while float(acct['portfolio_value'])>=maxPortVal*float(c['account params']['portStopLoss']):
+  while True:
     
     acct = a.getAcct() #get account info
     pos = a.getPos() #get all held positions (no algo assigned)
+    
+    #make sure we're still above the threshold to trade
+    if(ask2sell and float(acct['portfolio_value'])>=maxPortVal*float(c['account params']['portStopLoss'])):
+      print(f"Portfolio value of ${acct['portfolio_value']} is less than {c['account params']['portStopLoss']} times the max portfolio value of ${maxPortVal}.\nSelling all.\nProgram will need to be reinitiated manually.")
+      soldAll = a.sellAll(isManual=isManualSellOff) #if the portfolio value falls below our stop loss, automatically sell everything
+      if(soldAll): break #stop the program if the selling occured
+      if(isManualSellOff): #if the selling is set to manual, then ask if the user wants to keep being asked to sell all or not
+        ask2sell = (input("Ask to sell all again today (y/n)? ").lower())!="n"
+        if(ask2sell):
+          print("Will continue asking to sell all today")
+        else:
+          print("Will ask to sell all again tomorrow")
+      
     
     totalCash = float(acct['cash'])
     if(totalCash>=cash2hold*cashMargin): #if we have more buying power than the min plus some leeway, then reduce it to hold onto that buy pow
@@ -132,11 +144,10 @@ def main(verbose=True):
       print("Algo ROI's:")
       for algo in posList:
         curPrices = o.getPrices([e+"|stocks" for e in posList[algo]]) #get the current prices of all the stocks in a given algo
-        #TODO: the ROI is bein miscalculated somewhere
         algoCurVal = sum([posList[algo][s]['sharesHeld']*curPrices[s+"|stocks".upper()]['price'] for s in posList[algo] if s+"|stocks".upper() in curPrices]) #get the total value of the stocks in a given algo
         algoBuyVal = sum([posList[algo][s]['sharesHeld']*posList[algo][s]['buyPrice'] for s in posList[algo]]) #get the total amount initially invested in a given algo
         if(algoBuyVal>0): #make sure that we don't div0 if the list is empty
-          roi = round(algoCurVal/algoBuyVal,2) #TODO: might have some miscalculation here, or could be in 0 values somewhere, but it indicates a very high roi (like: dj - 2.16, fda - 1.38, fda3 - 3.62, divs - 3.98) which is very not correct - might have to remove the 0 values from the stock list? or like run a syncposlist prior to this
+          roi = round(algoCurVal/algoBuyVal,2)
         else:
           roi = 1 #if the buyVal is 0, then that means either no info or no stocks held, so it's nearly impossible to make a judgement
         print(f"{algo} - {bcolor.FAIL if roi<1 else bcolor.OKGREEN}{roi}{bcolor.ENDC}") #display the ROI
@@ -148,7 +159,7 @@ def main(verbose=True):
       
       #display max val and date
       print(f"\nThe highest portfolio value in the last month was ${maxPortVal} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
-      print(f"Current portfolio value: ${portHist[max(list(portHist.keys()))]}\n")
+      print(f"Current portfolio value: ${portHist[max(list(portHist.keys()))]}, {100*round(portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of the highest\n")
       syncPosList() #sync up posList to live data
 
       if(o.dt.date.today().weekday()==4 and o.dt.datetime.now().time()>o.dt.time(12)): #if it's friday afternoon
@@ -180,8 +191,6 @@ def main(verbose=True):
       closeTime = o.closeTime(estOffset=-1) #get the next closing time
       time.sleep(a.timeTillOpen())
       
-  print(f"Portfolio value of ${acct['portfolio_value']} is less than {c['account params']['portStopLoss']} times the max portfolio value of ${maxPortVal}.\nSelling all.\nProgram will need to be reinitiated manually.")
-  a.sellAll(isManual=not int(c['account params']['portAutoSellOff'])) #if the portfolio value falls below our stop loss, automatically sell everything
 
 #update all lists to be bought (this should be run as it's own thread)
 def updateLists(verbose=False):
@@ -343,7 +352,7 @@ def checkTriggered(verbose=False):
     lock.release()
       
     print("")
-    for e in list(triggeredStocks): #TODO: figure out why the sold stock isn't being removed from triggeredStocks (this causes this thread to run indefinitely)
+    for e in list(triggeredStocks):
       sellUpDn = eval(f"{e.split('|')[0]}.sellUpDn()") #get the sellUpDn % - TODO: this should probably be moved out of this for loop and generate a dict {algo:sellUpDn} since it doesn't depend on the individual stock (this would reduce function calls)
       curPrice = prices[(e.split("|")[1]+'|stocks').upper()]['price'] #get the current prices of the stocks
       if(curPrice>0): #make sure that the price is valid
