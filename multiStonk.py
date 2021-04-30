@@ -155,7 +155,7 @@ def main(verbose=True):
       
       #update the max port val
       portHist = a.getProfileHistory(str(dt.date.today()),'1M')
-      portHist = {str(dt.datetime.fromtimestamp(portHist['timestamp'][i]).date()):portHist['equity'][i] for i in range(len(portHist['timestamp']))}
+      portHist = {str(dt.datetime.fromtimestamp(portHist['timestamp'][i]).date()):portHist['equity'][i] for i in range(len(portHist['timestamp'])) if portHist['equity'][i] is not None}
       maxPortVal = max(list(portHist.values())) # get the max portfolio value
       
       #display max val and date
