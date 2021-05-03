@@ -14,20 +14,20 @@ To Run:
  - API keys must be populated in the API key file
  - run ```python3 multistonk.py``` and let it go 24/7 (recommend using a raspberry pi)
 
-## Algo statuses as of 2021-04-10
+## Algo statuses as of 2021-05-01
 
 ### stocks
 | algo | status|  
 | ---: | ---: |
 | accdis | not done |
-| divs | testing |  
+| divs | done |  
 | dj   | done |  
 | earn | not done |  
-| ema  | ready to test |  
+| ema  | not done |  
 | eom | not done |
 | fda  | done |  
 | fda2 | not done |  
-| fda3 | ready to test |  
+| fda3 | done |  
 | fib  | not done |  
 | gapup| not done |  
 | ipos | not done |  
@@ -47,18 +47,17 @@ To Run:
 
 # Program Idea and Structure
 
-multistonk.py contains the main function to run until the portfolio value drops a certain % as well as support functions for that  
+```multistonk.py``` contains the main function to run until the portfolio value drops a certain % as well as support functions for that  
 The functions in the file there use the config files to determine where files are located, various alpaca account settings, timing settings, and settings for each individual algorithm  
-otherfxns.py contains functions that don't require api keys - so strictly calculations or nasdaq api requests
-alpacafxns.py contains functions specifically for the alpaca.markets api
-forexfxns.py contains functions specifically for the forex.com api
-multiForex.py contains a similar setup to multiStonk, but using the forex market instead
+```otherfxns.py``` contains functions that don't require api keys - so strictly calculations or nasdaq api requests
+```alpacafxns.py``` contains functions specifically for the alpaca.markets api
+
 
 Each stock algo file must contain at least the following functions:  
- - getList
- - goodSell
- - sellUpDn
- - sellUp
- - sellDn
+ - ```init``` - initialize the algo with the proper config and settings
+ - ```getList``` - return a dict of {symb:note} for stocks to buy for the given algo
+ - ```goodSells``` - return a dict of {symb: t/f} whether a stock is a good one to sell or not
+ - ```sellUpDn``` - return the value for the stoc price to drop by after triggering as a goodSell
+ - ```sellUp``` - high end trigger point
+ - ```sellDn``` - low end trigger point
 
-At least until further notice.  

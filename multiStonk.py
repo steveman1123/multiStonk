@@ -129,13 +129,14 @@ def main(verbose=True):
       #look to sell things
       check2sells(pos)
       
-      if((closeTime-dt.datetime.now()).total_seconds()<=30*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
+      #start checking to buy things if within the buy time frame and lists are not being updated
+      if((closeTime-dt.datetime.now()).total_seconds()<=60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
         tradableCash = totalCash if totalCash<float(c['account params']['cash2hold']) else max(totalCash-float(c['account params']['cash2hold'])*float(c['account params']['cashMargin']),0) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
         for algo in algoList:
-          buyThread = o.threading.Thread(target=check2buy, args=(algo,cashPerAlgo, list(algoList[algo]))) #init the thread - note locking is required here
-          buyThread.setName(algo) #set the name to the stock symb
+          buyThread = o.threading.Thread(target=check2buy, args=(algo,cashPerAlgo, list(algoList[algo]))) #init the thread
+          buyThread.setName(algo) #set the name to the algo
           buyThread.start() #start the thread
     
       time.sleep(60)
@@ -374,6 +375,7 @@ def checkTriggered(verbose=False):
 #multiplex check2sell
 def check2sells(pos):
   global triggeredStocks
+  #TODO: don't display or run anything for stocks that were bought today
   #determine if the stocks in the algo are good sells (should return as a dict of {symb:goodSell(t/f)})
   for algo in posList:
     algoSymbs = [e for e in pos if e['symbol'] in posList[algo]] #only the stocks in both posList[algo] and held positions
@@ -404,7 +406,7 @@ def sell(stock, algo):
     print(f"No shares held of {stock}")
     triggeredStocks.discard(algo+"|"+stock)
     return False
-  if(r['status'] == "accepted"): #check that it actually sold
+  if(if('status' in r and r['status'] == "accepted"): #check that it actually sold
     lock = o.threading.Lock()
     lock.acquire()
     posList[algo][stock] = { #update the entry in posList
@@ -429,7 +431,7 @@ def buy(shares, stock, algo, buyPrice):
   r = a.createOrder("buy",shares,stock) #this needs to happen first so that it can be as accurate as possible
   global posList
 
-  if(r['status'] == "accepted"): #check to make sure that it actually bought
+  if('status' in r and r['status'] == "accepted"): #check to make sure that it actually bought
     lock = o.threading.Lock()
     lock.acquire()
     posList[algo][stock] = { #update the entry in posList
