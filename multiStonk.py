@@ -383,9 +383,9 @@ def check2sells(pos):
     #TODO: in each algo, add an error report if there's a stock that doesn't appear to be tradable (that is, it's in symbList but doesn't show up in getPrices)
     gs = eval(f"{algo}.goodSells(symbList)") #get whether the stocks are good sells or not
     for e in algoSymbs: #go through the stocks of the algo
-      print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t"+str(eval(f'{algo}.sellDn("{e["symbol"]}")'))+" & "+str(eval(f'{algo}.sellUp("{e["symbol"]}")'))+f"\t{posList[algo][e['symbol']]['note']}")
+      if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'): #only display/sell if not bought today
+        print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t"+str(eval(f'{algo}.sellDn("{e["symbol"]}")'))+" & "+str(eval(f'{algo}.sellUp("{e["symbol"]}")'))+f"\t{posList[algo][e['symbol']]['note']}")
       
-      if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'): #only sell if not bought today
         if(gs[e['symbol']]): #if the stock is a good sell
           if(algo+"|"+e['symbol'] not in triggeredStocks): #make sure that it's not already present
             triggeredStocks.add(algo+"|"+e['symbol']) #if not, then add it to the triggered list
@@ -406,7 +406,7 @@ def sell(stock, algo):
     print(f"No shares held of {stock}")
     triggeredStocks.discard(algo+"|"+stock)
     return False
-  if(if('status' in r and r['status'] == "accepted"): #check that it actually sold
+  if('status' in r and r['status'] == "accepted"): #check that it actually sold
     lock = o.threading.Lock()
     lock.acquire()
     posList[algo][stock] = { #update the entry in posList
@@ -431,7 +431,7 @@ def buy(shares, stock, algo, buyPrice):
   r = a.createOrder("buy",shares,stock) #this needs to happen first so that it can be as accurate as possible
   global posList
 
-  if('status' in r and r['status'] == "accepted"): #check to make sure that it actually bought
+  if('status' in r and r['status'] == "accepted"): #check to make sure that it actually bought - TODO: does the presence of 'status' indicate that it bought or not?
     lock = o.threading.Lock()
     lock.acquire()
     posList[algo][stock] = { #update the entry in posList
