@@ -23,5 +23,5 @@ for i in range(65,91):
 
 print(len(cs))
 
-with open('allSymbs.json','w') as f:
+with open('../../stockStuff/allSymbs.json','w') as f:
   f.write(json.dumps(cs,indent=2))
