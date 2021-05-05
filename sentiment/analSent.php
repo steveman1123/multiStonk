@@ -41,7 +41,11 @@ global $symbFile;
 global $headlinesFile;
 
 //set the working directory (this is where this file is assuming that there's a simple include '/path/to/this/file' file in the server document root)
-$fileLocation = join("/",array_slice(explode("\\",get_included_files()[1]),0,-1));
+if(substr_count(PHP_OS,"WIN")) { //split via \ on windows, and / on non-windows
+  $fileLocation = join("/",array_slice(explode("\\",get_included_files()[1]),0,-1));
+} else {
+  $fileLocation = join("/",array_slice(explode("/",get_included_files()[1]),0,-1));
+}
 $unlistedLocation = join("/",array_slice(explode("/",$fileLocation),0,-2))."/stockStuff"; //location outside of the git repo
 $symbFile = $unlistedLocation."/allSymbs.json"; //where all the nasdaq symbols are stored - TODO: may want to expand beyond just nasdaq
 $headlinesFile = $unlistedLocation."/headlines.json"; //where the headlines are stored
