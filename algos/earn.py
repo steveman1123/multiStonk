@@ -24,9 +24,8 @@ def init(configFile):
   lock.release()
 
 
-#TODO: alt idea: look for earnings happening next week, of those look for ones with the min num of analysts, of those look for prices that have been increasing, of those look for ones in our price range and volume range
-
 '''
+https://seekingalpha.com/article/1445911-a-remarkably-reliable-way-to-predict-post-earnings-price-moves
 1. Stock price action in the most recent weeks.
 If stock moved steadily higher for month leading to announcement, particularly for last week, expectations might be escalating. Conversely, if stock moved lower leading to the announcement, expectations might be low and stock might move higher even if the company merely matches analyst estimates.
 
@@ -52,21 +51,61 @@ One shortcoming of the model is that it doesn't always provide predictive value.
 '''
 
 
-
 def getList(verbose=True):
   #perform checks to see which one ones will gain
   maxPrice = float(c[algo]['maxPrice']) #max price point
   minPrice = float(c[algo]['minPrice']) #min price point
-  minEsts = int(c[algo]['minEsts']) #min number of analyst estimates
   
+  #each check will add or subtract from a score  (as lacking one or more of the indicators isn't necessarily a dealbreaker)
+  ul = getUnsortedList() #format of {date, inf:{lastYrRpt,lastYrEPS,time,symb,name,mktcap,fiscQuartEnd,epsFrcst,numEsts}}
+  prices = o.getPrices([e['symbol']+"|stocks" for e in ul['inf']])
+  ul = [e for e in ul if (e['symbol']+"|stocks").upper() in prices and minPrice<=prices((e['symbol']+"|stocks").upper())['price']<=maxPrice] #only keep elements that are in prices and within our price range
   
-
-#https://seekingalpha.com/article/1445911-a-remarkably-reliable-way-to-predict-post-earnings-price-moves
+  for e in ul:
+    hist = o.getHistory(e['symbol']) #get the last year's history
+    #check that the price has been going up or down or steady over the past few weeks (high, low, or neutral expectations)
+    if(farRecentPrice<=midRecentPrice<=recentPrice):
+      higher score
+    elif(farRecentPrice>=midRecentPrice>=recentPrice):
+      lower score
+    else:
+      # recentPrice is similar to farRecentPrice and midRecentPrice or other
+      eh score
+    
+    #compare whisper numbers to predicted? (significantly higher/lower should indicate high/low expectations)
+    #skip for now. Must find good sources of whisper numbers
+    
+    #compare price changes to previous earning price changes (does it consistantly go up/dn after a hit/miss?)
+    earnDates = o.getEarnInf(symb) #get previous earning call dates
+    # compare hist's for week after dates, always up/down? correlated to hit/miss estimates?
+    
+    
+    #rsi = 100-(100/(1+avgGain/avgLoss)) (generally use 14 periods for averages) - overbought >> rsi>=0.7, oversold >> rsi<=0.3
+    rsi = getRSI(hist)
+    
+    #check blog/reddit/other news sentiments
+    #will need to incorporate sentiment analysis into newsscrape, and also import it into otherfxns
+    
+    #check if any hedge funds hold it
+    # https://www.holdingschannel.com/
+    # https://api.nasdaq.com/api/company/MSFT/institutional-holdings
+  
   
   return goodBuys #return dict of {symb:note}
-  
 
-#get a list of stocks to be sifted through
+#calculate the rsi based on the most recent history of lenth per (hist is output of getHistory 
+def getRSI(hist,per=14):
+  if(per<len(hist)): #ensure that there's enough info to calculate it
+    difs = [hist[i][1]/hist[i+1][1] for i in range(per)] #get the daily changes
+    avgGain = mean([e for e in difs if e>1])
+    avgLoss = mean([e for e in difs if e<1])
+    rsi = 100-(100/(1+avgGain/avgLoss))
+    return rsi
+  else:
+    print("not enough info to calculate rsi")
+    return None
+
+#get a list of stocks to be sifted through - format of {date, inf:[data]}
 def getUnsortedList(maxTries=3):
   tries=0
   while tries<maxTries:

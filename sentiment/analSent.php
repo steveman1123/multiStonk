@@ -23,9 +23,11 @@ TODO:
 add scoring
 add comments
 make things into their own functions
-add file locking
+add file locking (another step needed for concurrent users)
 make more adjustments for multiple users
 remove words that are just numbers or are less than 2 letters long (also might want to remove words not in a real dict (like stock symbols))
+
+
 
 for scores:
 might be easiest to just have a scores file, have the user have a cookie with their username, then return back their score (that'd solve concurrency right away, and high scores)

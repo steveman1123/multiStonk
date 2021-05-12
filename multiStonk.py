@@ -8,7 +8,7 @@ print("\nStarting up...")
 
 import otherfxns as o
 import alpacafxns as a
-import random, time, json, sys, os
+import random, time, json, sys, os, traceback
 from glob import glob
 from operator import eq
 import datetime as dt
@@ -18,6 +18,11 @@ colorinit() #allow coloring in Windows terminals
 
 #TODO: should add the ability to store a global unsorted list that multiple algos pull from (eg define a price and vol range, then pass that to every algo that requests it)
 #TODO: combine various signals into one algo, but also have each signal as its own algo?
+#TODO: add sentiment analysis to newsScrape
+#TODO: check on overall market trends/sentiment and adjust which algos to use based on volitility (would need to give some kind of scoring to see what volitility the algos operate the best in)
+#TODO: use this api for reddit sent analysis: https://api.pushshift.io/reddit/search/comment/?subreddit=
+# ^ https://github.com/pushshift/api
+#TODO: account for transactions in the last month when calculating maxPortVal
 
 #parse args and get the config file
 configFile="./configs/multi.config"
@@ -750,27 +755,30 @@ def syncPosList(verbose=False):
 if __name__ == '__main__':
   global posList,triggeredStocks
   
-  triggeredStocks = set() #should contain elements of format algo|stock
+  try:
+    triggeredStocks = set() #should contain elements of format algo|stock
+    
+    a.checkValidKeys(int(c['account params']['isPaper'])) #check that the keys being used are valid
+    if(len(a.getPos())==0): #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
+      print(f"Will start buying {c['time params']['buyTime']} minutes before next close")
+    
+    posList = setPosList(algoList) #initiate/populate the list of positions by algo
+    
+    #init the algos
+    for algo in algoList:
+      exec(f"{algo}.init('{configFile}')")
   
-  a.checkValidKeys(int(c['account params']['isPaper'])) #check that the keys being used are valid
-  if(len(a.getPos())==0): #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
-    print("Will start buying "+str(c['time params']['buyTime'])+" minutes before next close")
-  
-  posList = setPosList(algoList) #initiate/populate the list of positions by algo
-  
-  #init the algos
-  for algo in algoList:
-    exec(f"{algo}.init('{configFile}')")
-
-  #tell the user what algos are being tested
-  print("\nUsing the algos: ",end="")
-  print(*list(algoList),sep=", ",end="\n\n")
-  
-  syncPosList() #in the event that something changed during the last run, this should catch it
-  print("\n") #leave a space between startup and main sequence
-  
-  main() #start running the program
-
+    #tell the user what algos are being tested
+    print("\nUsing the algos: ",end="")
+    print(*list(algoList),sep=", ",end="\n\n")
+    
+    syncPosList() #in the event that something changed during the last run, this should catch it
+    print("\n") #leave a space between startup and main sequence
+    
+    main() #start running the program
+  except:
+    print("An unhandled error was encountered. Please check the log.")
+    traceback.print_exc(file=open(c['file locations']['errLog'],"a"))
 
 '''
 how to do due diligence:

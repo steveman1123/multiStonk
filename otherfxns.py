@@ -437,3 +437,9 @@ def marketIsOpen():
       pass
   return isOpen
 
+#get info regarding earnings from the past year
+def getEarnInf(symb):
+  #https://api.nasdaq.com/api/company/{symb}/earnings-surprise
+  #https://api.nasdaq.com/api/analyst/{symb}/earnings-forecast
+  #https://api.nasdaq.com/api/analyst/{symb}/earnings-date
+  return None

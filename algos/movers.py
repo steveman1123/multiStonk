@@ -19,6 +19,8 @@ def init(configFile):
   lock.release()
 
 #TODO: this will need to change so that goodBuys basically throws out the arg list and gets a fresh one from today's movers (rather than yesterday's movers that would be generated in the morning) - as it stands list is generated in the morning of today (containing yesterday's movers) then buying happens this afternoon (after yesterday's movers have moved), so will need to regen goodbuy list to get today's movers so they should gain tomorrow
+#TODO: see also momentum trading: https://www.investopedia.com/trading/introduction-to-momentum-trading/
+# ^ https://api.nasdaq.com/api/analyst/{symb}/estimate-momentum
 
 #return a dict of good buys {symb:note}
 #the note will contain the original fall % for losers
