@@ -50,7 +50,8 @@ I have found that actual hedge fund cash commitments is a much better indicator 
 One shortcoming of the model is that it doesn't always provide predictive value. In one article I reviewed the expectation levels for eight reporting companies and concluded that none of them displayed unusually high or low expectation levels so that my model could not help in predicting the post-earnings stock price move -- Predicting The Direction Of Next Week's Earnings-Reporting Companies
 '''
 
-
+#return dict of good buys of format {symb:note}
+#where the note contains the earnings date
 def getList(verbose=True):
   #perform checks to see which one ones will gain
   maxPrice = float(c[algo]['maxPrice']) #max price point
@@ -58,25 +59,20 @@ def getList(verbose=True):
   
   #each check will add or subtract from a score  (as lacking one or more of the indicators isn't necessarily a dealbreaker)
   ul = getUnsortedList() #format of {date, inf:{lastYrRpt,lastYrEPS,time,symb,name,mktcap,fiscQuartEnd,epsFrcst,numEsts}}
+  earnDate = ul['date'] #get the date before it's stripped off
   prices = o.getPrices([e['symbol']+"|stocks" for e in ul['inf']])
-  ul = [e for e in ul if (e['symbol']+"|stocks").upper() in prices and minPrice<=prices((e['symbol']+"|stocks").upper())['price']<=maxPrice] #only keep elements that are in prices and within our price range
+  ul = [e for e in ul['inf'] if (e['symbol']+"|stocks").upper() in prices and minPrice<=prices((e['symbol']+"|stocks").upper())['price']<=maxPrice] #only keep elements that are in prices and within our price range
   
+  goodBuys = {}
   for e in ul:
     hist = o.getHistory(e['symbol']) #get the last year's history
     #check that the price has been going up or down or steady over the past few weeks (high, low, or neutral expectations)
-    if(farRecentPrice<=midRecentPrice<=recentPrice):
-      higher score
-    elif(farRecentPrice>=midRecentPrice>=recentPrice):
-      lower score
-    else:
-      # recentPrice is similar to farRecentPrice and midRecentPrice or other
-      eh score
     
     #compare whisper numbers to predicted? (significantly higher/lower should indicate high/low expectations)
     #skip for now. Must find good sources of whisper numbers
     
     #compare price changes to previous earning price changes (does it consistantly go up/dn after a hit/miss?)
-    earnDates = o.getEarnInf(symb) #get previous earning call dates
+    earnDates = o.getEarnDates(symb) #get previous earning call dates
     # compare hist's for week after dates, always up/down? correlated to hit/miss estimates?
     
     
@@ -86,24 +82,48 @@ def getList(verbose=True):
     #check blog/reddit/other news sentiments
     #will need to incorporate sentiment analysis into newsscrape, and also import it into otherfxns
     
-    #check if any hedge funds hold it
-    # https://www.holdingschannel.com/
+    #check hedge funds activity regarding it
     # https://api.nasdaq.com/api/company/MSFT/institutional-holdings
-  
+    holdings = o.getInstAct(symb)
+    
+    
+    score = 0 #init the goodBuy score
+    #start applying scoring
+    #check 2 week and 6 week marks (arbitrary dates) - check the 5d avg from each of those points
+    #6 different possiblities:
+    # 6wk < 2wk & 6wk < now & 2wk < now (best)
+    # 6wk < 2wk & 6wk < now & 2wk > now (okay)
+    # 6wk < 2wk & 6wk > now & 2wk > now (not good)
+    # 6wk > 2wk & 6wk < now & 2wk < now (okay)
+    # 6wk > 2wk & 6wk < now & 2wk > now (not good)
+    # 6wk > 2wk & 6wk > now & 2wk > now (worst) <- but possible that it could be too pessimistic, and could bounce up
+    
+    
+    #see how previous earning price changes happen (if there's a pattern that could occur)
+    
+    
+    if(rsi>=0.7): #TODO: ensure this is the correct assumption
+      score += 1
+    
+    
+    
+    
+    if(score>=c['minScore']):
+      goodBuys[symb] = earnDate
   
   return goodBuys #return dict of {symb:note}
 
-#calculate the rsi based on the most recent history of lenth per (hist is output of getHistory 
+#calculate the rsi based on the most recent history of lenth per (hist is output of getHistory)
 def getRSI(hist,per=14):
   if(per<len(hist)): #ensure that there's enough info to calculate it
     difs = [hist[i][1]/hist[i+1][1] for i in range(per)] #get the daily changes
     avgGain = mean([e for e in difs if e>1])
     avgLoss = mean([e for e in difs if e<1])
-    rsi = 100-(100/(1+avgGain/avgLoss))
+    rsi = 1-(1/(1+avgGain/avgLoss)) #value between 0 and 1
     return rsi
   else:
     print("not enough info to calculate rsi")
-    return None
+    return 0
 
 #get a list of stocks to be sifted through - format of {date, inf:[data]}
 def getUnsortedList(maxTries=3):

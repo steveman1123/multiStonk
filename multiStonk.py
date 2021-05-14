@@ -35,6 +35,7 @@ if(len(sys.argv)>1): #if there's an argument present
             "[ -h | path/to/file.config ]\n"
             "-h\t: displays this help menu\n"
             "path\t: point to the config file containing all settings required to run the program (defaults to "+configFile+")\n"
+            "\nTODO: add documentation here where things are located, and how to use it\n"
             ))
       exit()
     elif(os.path.isfile(arg) and arg.lower().endswith(".config")): #check that the arg is a valid file and ends with .config

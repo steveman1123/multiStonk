@@ -9,8 +9,13 @@ from math import ceil
 from statistics import mean
 from workdays import workday as wd
 
+otherCfgFile = "./configs/other.config"
+
 c = configparser.ConfigParser()
-c.read('./configs/other.config')
+if(os.path.isfile(otherCfgFile)):
+  c.read(otherCfgFile)
+else:
+  raise Exception(f"otherfxns config file not found at '{otherCfgFile}'. Please ensure file is present and correct pwd.")
 
 stockDir = c['file locations']['stockDataDir'] #where stock history data is stored (csv files)
 HEADERS = json.loads(c['net cfg']['headers']) #headers to send on each data request
@@ -20,6 +25,7 @@ HEADERS = json.loads(c['net cfg']['headers']) #headers to send on each data requ
 #get the history of a stock from the nasdaq api (date format is yyyy-mm-dd)
 #default to returning the last year's worth of data
 #TODO: possibly make a blank file for those that have failed as mark to show it's been tried but failed in the past?
+#TODO: change this to a dict of format {date:{hi,lo,cl,op,vol}}? - conversely, switch over to getHistory2 completely and save as json instead of csv
 def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today().month,dt.date.today().day)), endDate=str(dt.date.today()), maxTries=3,verbose=False):
   if(endDate<=startDate):
     raise Exception("Invalid Date Range (end<=start)")
@@ -437,9 +443,39 @@ def marketIsOpen():
       pass
   return isOpen
 
-#get info regarding earnings from the past year
-def getEarnInf(symb):
-  #https://api.nasdaq.com/api/company/{symb}/earnings-surprise
-  #https://api.nasdaq.com/api/analyst/{symb}/earnings-forecast
-  #https://api.nasdaq.com/api/analyst/{symb}/earnings-date
-  return None
+#get the dates of the earning calls for the last year (as a list of datetime date objects)
+def getEarnDates(symb, maxTries=3):
+  tries=0
+  out = []
+  while tries<maxTries:
+    try:
+      r = json.loads(requests.get(f"https://api.nasdaq.com/api/company/{symb}/earnings-surprise",timeout=5).content)
+      if(r['status']['bcodeMessage'] is None): #valid response
+        out = [dt.datetime.strptime(e['dateReported'],"%m/%d/%Y").date() for e in r['data']['earningsSurpriseTable']['rows']]
+      else: #got a valid return, but bad data was passed
+        print(r['status']['bCodeMessage'][0]['errorMessage'])
+    except Exception:
+      print("No connection or other error encountered in getEarnInf. Trying again...")
+      tries += 1
+      time.sleep(3)
+      continue
+  return out
+
+
+#get institutional activity for a given stock
+def getInstAct(symb, maxTries=3):
+  tries=0
+  out = []
+  while tries<maxTries:
+    try:
+      # could also look here for more info: https://www.holdingschannel.com/
+      r = json.loads(requests.get(f"https://api.nasdaq.com/api/company/{symb}/institutional-holdings",timeout=5).content)['data']
+      out = r['activePositions']['rows']
+      break
+    except Exception:
+      print("No connection or other error occured in getInstAct. Trying again...")
+      tries+=1
+      time.sleep(3)
+      continue
+  return out
+
