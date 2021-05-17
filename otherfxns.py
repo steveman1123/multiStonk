@@ -122,6 +122,7 @@ def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today(
   #     ^ or at least research where it should be saved to avoid writing to sdcard
   with open(stockDir+symb+".csv") as csv_file:
     csv_reader = csv.reader(csv_file, delimiter=',')
+    #TODO: set date to yyyy-mm-dd format (or even as a dt date object), set prices and volumes to float types. Probably also want to make it a json rather than csv. Will have to adjust all calls to this function then
     out = [[ee.replace('$','').replace('N/A','0').strip() for ee in e] for e in csv_reader][1::] #trim first line to get rid of headers, also replace $'s and N/A volumes to calculable values
   return out
 
@@ -443,17 +444,18 @@ def marketIsOpen():
       pass
   return isOpen
 
-#get the dates of the earning calls for the last year (as a list of datetime date objects)
-def getEarnDates(symb, maxTries=3):
+#get the earning calls for the last year (date, forecasted, and actual) - dict of {date(mm/dd/yyyy):{forecast,actual}}
+def getEarnInf(symb, maxTries=3):
   tries=0
-  out = []
+  out = {}
   while tries<maxTries:
     try:
-      r = json.loads(requests.get(f"https://api.nasdaq.com/api/company/{symb}/earnings-surprise",timeout=5).content)
-      if(r['status']['bcodeMessage'] is None): #valid response
-        out = [dt.datetime.strptime(e['dateReported'],"%m/%d/%Y").date() for e in r['data']['earningsSurpriseTable']['rows']]
+      r = json.loads(requests.get(f"https://api.nasdaq.com/api/company/{symb}/earnings-surprise",headers=HEADERS,timeout=5).content)
+      if(r['status']['bCodeMessage'] is None): #valid response
+        out = {e['dateReported']:{'forecast':(float(e['consensusForecast']) if e['consensusForecast'] != "N/A" else None),'actual':e['eps']} for e in r['data']['earningsSurpriseTable']['rows']}
       else: #got a valid return, but bad data was passed
         print(r['status']['bCodeMessage'][0]['errorMessage'])
+      break
     except Exception:
       print("No connection or other error encountered in getEarnInf. Trying again...")
       tries += 1
@@ -463,14 +465,19 @@ def getEarnDates(symb, maxTries=3):
 
 
 #get institutional activity for a given stock
+#returns list of increased, decreased, held, and total positions
 def getInstAct(symb, maxTries=3):
   tries=0
   out = []
   while tries<maxTries:
     try:
       # could also look here for more info: https://www.holdingschannel.com/
-      r = json.loads(requests.get(f"https://api.nasdaq.com/api/company/{symb}/institutional-holdings",timeout=5).content)['data']
-      out = r['activePositions']['rows']
+      r = json.loads(requests.get(f"https://api.nasdaq.com/api/company/{symb}/institutional-holdings",headers=HEADERS,timeout=5).content)
+      if(r['status']['bCodeMessage'] is None): #valid response
+        out = r['data']['activePositions']['rows']
+        out = {e['positions'].split(" ")[0].lower():{"holders":int(e['holders'].replace(',','')),"shares":int(e['shares'].replace(',',''))} for e in out}
+      else: #got a valid return, but bad data was passed
+        print(r['status']['bCodeMessage'][0]['errorMessage'])
       break
     except Exception:
       print("No connection or other error occured in getInstAct. Trying again...")

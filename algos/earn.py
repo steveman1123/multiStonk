@@ -8,10 +8,11 @@
 
 
 import otherfxns as o
+# import newsScrape as ns
 
 algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
-def init(configFile):
+def init(configFile, verbose=False):
   global posList,c
   #set the multi config file
   c = o.configparser.ConfigParser()
@@ -19,9 +20,21 @@ def init(configFile):
   
   #stocks held by this algo according to the records
   lock = o.threading.Lock()
-  lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
-  lock.release()
+
+  #TODO: do these checks for all algos
+  if(o.os.path.isfile(c['file locations']['posList'])):
+    lock.acquire()
+    posList = o.json.loads(open(c['file locations']['posList'],'r').read())
+    lock.release()
+    if(algo in posList):
+      posList = posList[algo]
+    else:
+      if(verbose): print(f"{algo} not found the posList")
+      posList = {}
+  else:
+    if(verbose): print("posList file does not exist")
+    posList = {}
+    
 
 
 '''
@@ -61,64 +74,92 @@ def getList(verbose=True):
   ul = getUnsortedList() #format of {date, inf:{lastYrRpt,lastYrEPS,time,symb,name,mktcap,fiscQuartEnd,epsFrcst,numEsts}}
   earnDate = ul['date'] #get the date before it's stripped off
   prices = o.getPrices([e['symbol']+"|stocks" for e in ul['inf']])
-  ul = [e for e in ul['inf'] if (e['symbol']+"|stocks").upper() in prices and minPrice<=prices((e['symbol']+"|stocks").upper())['price']<=maxPrice] #only keep elements that are in prices and within our price range
+  prices = {s.split("|")[0]:prices[s]['price'] for s in prices} #isolate to {symb:price}
+  ul = [e for e in ul['inf'] if(e['symbol'] in prices and minPrice<=prices[e['symbol']]<=maxPrice)] #only keep elements that are in prices and within our price range
+
+  if(verbose): print(f"{len(ul)} potential earners on {earnDate}")
   
-  goodBuys = {}
-  for e in ul:
-    hist = o.getHistory(e['symbol']) #get the last year's history
+  goodBuys = {e['symbol']:earnDate for e in ul} #during normal running, this should be empty dict
+  '''
+  for i,e in enumerate(ul):
+    if(verbose): print(f"\n({i}/{len(ul)})\t{e['symbol']}")
+    hist = o.getHistory(e['symbol'],startDate=str(o.dt.date(o.dt.date.today().year-1,(o.dt.date.today().month-3-1)%12+1,o.dt.date.today().day))) #get the last year and 3 months worth of history
+    if(verbose): print(f"{len(hist)} days available")
     #check that the price has been going up or down or steady over the past few weeks (high, low, or neutral expectations)
-    
     #compare whisper numbers to predicted? (significantly higher/lower should indicate high/low expectations)
     #skip for now. Must find good sources of whisper numbers
-    
     #compare price changes to previous earning price changes (does it consistantly go up/dn after a hit/miss?)
-    earnDates = o.getEarnDates(symb) #get previous earning call dates
-    # compare hist's for week after dates, always up/down? correlated to hit/miss estimates?
-    
-    
-    #rsi = 100-(100/(1+avgGain/avgLoss)) (generally use 14 periods for averages) - overbought >> rsi>=0.7, oversold >> rsi<=0.3
+    earnDates = o.getEarnInf(e['symbol']) #get previous earning call dates
+    #overbought >> rsi>=0.7, oversold >> rsi<=0.3
     rsi = getRSI(hist)
-    
     #check blog/reddit/other news sentiments
-    #will need to incorporate sentiment analysis into newsscrape, and also import it into otherfxns
-    
-    #check hedge funds activity regarding it
-    # https://api.nasdaq.com/api/company/MSFT/institutional-holdings
-    holdings = o.getInstAct(symb)
-    
-    
+    holdings = o.getInstAct(e['symbol']) #check hedge funds activity regarding it
+        
     score = 0 #init the goodBuy score
-    #start applying scoring
-    #check 2 week and 6 week marks (arbitrary dates) - check the 5d avg from each of those points
-    #6 different possiblities:
-    # 6wk < 2wk & 6wk < now & 2wk < now (best)
-    # 6wk < 2wk & 6wk < now & 2wk > now (okay)
-    # 6wk < 2wk & 6wk > now & 2wk > now (not good)
-    # 6wk > 2wk & 6wk < now & 2wk < now (okay)
-    # 6wk > 2wk & 6wk < now & 2wk > now (not good)
-    # 6wk > 2wk & 6wk > now & 2wk > now (worst) <- but possible that it could be too pessimistic, and could bounce up
-    
-    
+    smac6 = o.mean([float(e[1]) for e in hist[5*6:5*7]]) #get the current sma from 6 weeks ago
+    smac2 = o.mean([float(e[1]) for e in hist[5*2:5*3]]) #get the current sma from 2 weeks ago
+    cpurch = float(hist[0][1]) #not the actual nominal purchase price, but the most recent closing price (yesterday, as nominally this should be run pre-premarket)
+    tol62 = float(c[algo]['tol62']) #tolerance for the 6 week to 2 week comparison
+    tol6p = float(c[algo]['tol6p']) #tolerance for the 6 week to purchase price comparison
+    tol2p = float(c[algo]['tol2p']) #tolerance for the 2 week to purchase price comparison
     #see how previous earning price changes happen (if there's a pattern that could occur)
-    
-    
-    if(rsi>=0.7): #TODO: ensure this is the correct assumption
+    for d in earnDates:
+      #looking for consistancy:
+      #see how price is affected if eps is reached or not (if it consistantly goes up or down, or it doesn't)
+      #check SMA at 6wks before
+      #TODO: adjust how this get factored into the scoring (and max scoring)
+      if(d in [e[0] for e in hist]): #ensure that the date can be found (sometimes there isn't enough data to actually see it)
+        didx = [e[0] for e in hist].index(d) #date index in hist
+        #check 2 week and 6 week marks (arbitrary dates) - check the 5d avg from each of those points
+        smap6 = o.mean([float(e[1]) for e in hist[didx+5*6:didx+5*7]]) #6-7 weeks prior to the earnings
+        smap2 = o.mean([float(e[1]) for e in hist[didx+5*2:didx+5*3]]) #2-3 weeks prior to the earnings
+        ppurch = float(hist[didx+1][1]) #price on the nominal purchase date close (a day before earnings call)
+        smad = o.mean([float(e[1]) for e in hist[didx:didx+5]]) #week after the day of the earning
+        
+        #add to the score if the ratios are similar between each time point and it gains afterwards
+        if(abs(smap6/smap2-smac6/smac2) <= tol62 and abs(smap6/ppurch-smac6/cpurch) <= tol6p and abs(smap2/ppurch-smac2/cpurch) <= tol2p):
+          if(smad>ppurch*sellUp()): #if subsequent price after call date is >purchPrice with some tolerance
+            if(verbose): print(f"similar setup followed by a gain found at {d}")
+            score += 1
+          elif(smad<ppurch*sellDn()): #if price after call date is <purchPrice with some tolerance
+            if(verbose): print(f"similar setup followed by a loss found at {d}")
+            score -= 1 #it lost with this pattern, so for sure don't want this one
+      else: #date isn't present in the hist
+        if(verbose): print(f"{d} not present in the data")
+        
+      
+    rsiTol = float(c[algo]['rsiTol']) #tolerance for the rsi cut off
+    #is the rsi in a extreme state?
+    if(rsi>=rsiTol): #TODO: ensure this is the correct assumption
+      if(verbose): print(f"rsi is sufficient at {round(rsi,2)}")
       score += 1
+    else:
+      if(verbose): print(f"rsi is not sufficient at {round(rsi,2)}")
     
+    #have more hedge funds increased their holdings than decreased?
+    if(holdings['increased']['holders']>holdings['decreased']['holders']):
+      if(verbose): print("hedge funds are sufficient")
+      score += 1
+    else:
+      if(verbose): print(f"hedge funds are not sufficient")
     
+    maxScore = len(earnDates)+1+1 #max possible obtainable score (total earn dates (usually 4)+rsi+holdings)
+    if(verbose): print(f"score: {score}, maxScore: {maxScore}")
     
-    
-    if(score>=c['minScore']):
-      goodBuys[symb] = earnDate
+    if(score/maxScore>=float(c[algo]['minScorePct'])): #must reach the cutoff score to be considered a good buy
+      goodBuys[e['symbol']] = earnDate
+  
+  '''
   
   return goodBuys #return dict of {symb:note}
+
 
 #calculate the rsi based on the most recent history of lenth per (hist is output of getHistory)
 def getRSI(hist,per=14):
   if(per<len(hist)): #ensure that there's enough info to calculate it
-    difs = [hist[i][1]/hist[i+1][1] for i in range(per)] #get the daily changes
-    avgGain = mean([e for e in difs if e>1])
-    avgLoss = mean([e for e in difs if e<1])
+    difs = [float(hist[i][1])/float(hist[i+1][1]) for i in range(per)] #get the daily changes
+    avgGain = o.mean([e for e in difs if e>1])
+    avgLoss = o.mean([e for e in difs if e<1])
     rsi = 1-(1/(1+avgGain/avgLoss)) #value between 0 and 1
     return rsi
   else:
@@ -128,10 +169,12 @@ def getRSI(hist,per=14):
 #get a list of stocks to be sifted through - format of {date, inf:[data]}
 def getUnsortedList(maxTries=3):
   tries=0
+  r = []
   while tries<maxTries:
     try:
       date = o.nextTradeDate() if tries>1 else str(o.dt.date.today()) #try getting the data at least twice, then if it still doesn't work, then try looking at the next trade date (this should take care of earnings not being announced on the weekends or holidays)
-      r = o.json.loads(o.requests.get(f"https://api.nasdaq.com/api/calendar/earnings?date={date}",headers={"user-agent":"-"}, timeout=5))['data']['rows']
+      r = o.json.loads(o.requests.get(f"https://api.nasdaq.com/api/calendar/earnings?date={date}",headers=o.HEADERS, timeout=5).content)['data']['rows']
+      if(r is None): raise("null response") #raise an error if nothing is returned (like on a closed market day)
       break
     except Exception:
       print(f"Error in getting unsorted list for {algo} algo. Trying again...")
@@ -142,8 +185,8 @@ def getUnsortedList(maxTries=3):
 
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
-  mainSellUp = float(o.c[algo]['sellUp'])
-  if(symb in stockList):
+  mainSellUp = float(c[algo]['sellUp'])
+  if(symb in posList):
     sellUp = mainSellUp #TODO: account for squeeze here
   else:
     sellUp = mainSellUp
@@ -151,12 +194,12 @@ def sellUp(symb=""):
 
 #TODO: this should also account for squeezing
 def sellDn(symb=""):
-  mainSellDn = float(o.c[algo]['sellDn'])
-  if(symb in stockList):
+  mainSellDn = float(c[algo]['sellDn'])
+  if(symb in posList):
     sellDn = mainSellDn #TODO: account for squeeze here
   else:
     sellDn = mainSellDn
   return sellDn
 
 def sellUpDn():
-  return float(o.c[algo]['sellUpDn'])
+  return float(c[algo]['sellUpDn'])

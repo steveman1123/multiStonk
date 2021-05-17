@@ -6,7 +6,6 @@
 //  ob_start("ob_gzhandler"); else ob_start();
 
 
-//TODO: add scoring
 //TODO: add multiple users
 //TODO: add "accounts" (basically just usernames with associated scores) and display them
 
@@ -66,6 +65,8 @@ $symbs = (array)json_decode(file_get_contents($symbFile, true)); //get all the s
 
 //get $numHeads number of headlines for $symb from the internet
 function getInternetHeadlines($symb, $numHeads) {
+  //TODO: use multiple sources (cnbc, yahoo finance, market watch)
+  // ^ it should randomly select one of the sources and save them in the same format
   $url = "https://api.nasdaq.com/api/news/topic/articlebysymbol?q=$symb%7Cstocks%26offset=0%26limit=$numHeads";
   
   if(substr_count(PHP_OS,"WIN")>0) { //is a windows system

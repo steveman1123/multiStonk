@@ -11,18 +11,21 @@ cnbc - works, very large site
 
 '''
 
-import alpacafxns as a
+import time, json, requests, re
+from bs4 import BeautifulSoup as bs
 
-def scrapeYF(symb):
+def scrapeYF(symb, maxTries=3):
   # print("Getting yahoo finance news...")
-  while True:
+  tries=0
+  while tries<maxTries:
     try:
-      r = a.o.requests.get(f"https://finance.yahoo.com/quote/{symb}",headers={"user-agent":"-"},timeout=5).text #get data
-      s = a.o.bs(r,'html.parser') #make it soup
+      r = requests.get(f"https://finance.yahoo.com/quote/{symb}",headers={"user-agent":"-"},timeout=5).text #get data
+      s = bs(r,'html.parser') #make it soup
       break
     except Exception:
-      print("Connection Error...")
-      a.o.time.sleep(3)
+      print("No connection or other error encountered in scrapeYF. Trying again...")
+      tries+=1
+      time.sleep(3)
       continue
 
   #TODO: see if a date is available, if so, add it, if not, make a note of it
@@ -48,58 +51,35 @@ def scrapeYF(symb):
 
 
 #get new from the nasdaq api. this currently probably only works with stocks, and not any other security
-def scrapeNASDAQ(symb,headNum=5):
-  while True:
+def scrapeNASDAQ(symb,headNum=5,maxTries=3):
+  tries=0
+  while tries<maxTries:
     try:
-      #the following two return essentially the same information, however quote-news returns slightly more than recent-articles
-      newsNum = nasNewsNum(symb,2)
-      if(newsNum>0):
-        r = a.o.json.loads(a.o.requests.get(f"https://www.nasdaq.com/api/v1/quote-news/{newsNum}/{headNum}",headers={"user-agent":'-'}, timeout=5).text)
-      else:
-        print("Symbol does not exist")
-        return []
-      # r = json.loads(requests.get(f"https://www.nasdaq.com/api/v1/recent-articles/{symbNewsNum(symb)}/{headNum}",headers={"user-agent":'-'}, timeout=5).text)
+      r = json.loads(requests.get(f"https://api.nasdaq.com/api/news/topic/articlebysymbol?q={symb}%7Cstocks%26limit={headNum}",headers={"user-agent":'-'}, timeout=5).text)
       break
     except Exception:
       print(f"Error in getNews for {symb}. Trying again...")
-      a.o.time.sleep(3)
+      tries+=1
+      time.sleep(3)
       pass
   return r
 
   
-#get the number used in the quote-news and recent-articles nasdaq api's
-#NOTE: this is a totally sketch way to get this and we really should figure out how to translate the number because it can look at more than just stocks
-def nasNewsNum(symb, maxTries=3):
-  tries = 0
-  num=0
-  while tries<maxTries:
-    try:
-      r = a.o.requests.get(f"https://www.nasdaq.com/market-activity/stocks/{symb}",headers={"user-agent":'-'}, timeout=5).text
-      num = int(r.split('data-symbol-id="')[1].split('">')[0])
-      break
-    except Exception:
-      print(f"Error in nasNewsNum for {symb} ({tries+1}/{maxTries}). Trying again...")
-      a.o.time.sleep(3)
-      tries += 1
-      pass
-  return num
-
-
 #TODO: check out the html from this site to see their quote api (in js near the top of the page)
 def scrapeCNBC(symb):
   # print("Getting cnbc news...")
   while True:
     try:
-      r = a.o.requests.get(f"https://www.cnbc.com/quotes/?symbol={symb}",headers={"user-agent":"-"},timeout=5).text
+      r = requests.get(f"https://www.cnbc.com/quotes/?symbol={symb}",headers={"user-agent":"-"},timeout=5).text
       break
     except Exception:
       print("Connection Error...")
-      a.o.time.sleep(3)
+      time.sleep(3)
       continue
 
   #data is stored in js var symbolInfo
   inf = r.split('symbolInfo = ')[1].split(';\n')[0] #isolate symbol info
-  inf = a.o.json.loads(inf) #convert to json
+  inf = json.loads(inf) #convert to json
   try:
     inf = inf['assets']['partner']['rss']['channel']['item'] #isolate news
   except Exception:
@@ -132,14 +112,38 @@ def scrapeCNBC(symb):
 #press releases require js, but news does not. Figure out source and get both
 def scrapeMW(symb):
   # print("Getting market watch news...")
-  r = a.o.requests.get(f"https://www.marketwatch.com/investing/stock/{symb}", headers={"user-agent":"-"},timeout=5).content
-  #s = a.o.bs(r,'html.parser')
+  r = requests.get(f"https://www.marketwatch.com/investing/stock/{symb}", headers={"user-agent":"-"},timeout=5).content
+  s = bs(r,'html.parser')
+  
   print(r)
 
 
 #analyze the sentiment of a given string to return if it has a positive or negative tone
 def analSent(text):
-  return False
+  sentFile = '../stockStuff/wordScores.json' #file containing the weight of every word
+  # sentiment calc is something like sum(averages sents of each word)/number of words
+  # TODO: there should also be a confidence number as well (calculated based on number of votes)
+  # confidence should be calculated according to the number of votes (more votes=more confidence (and similar number of votes per word))
+  # confidence could be min^2/max number of votes? That way we get relative spread of votes  with basis on the minimum?
+  # or could be avgVotes*min/max
+  
+  # get the word sentiments
+  wordScores = json.loads(open(sentFile,'r').read())
+  
+  # clean string to only have lowercase letters and spaces then split by spaces
+  text = re.sub("/[^A-Za-z ]/","",text).split(" ")
+  
+  sent = 0
+  conf = 0
+  for w in text:
+    if(w in wordScores):
+      sent += wordScores[w]['sent']/wordScores[w]['votes']
+      conf += wordScores[w]['votes']
+
+  sent /= len(text) #average sentiment over number of words
+  conf /= len(text) #average votes over number of words
+  return {"sent":sent,"conf":conf}
+  
 
 
 #combine all different news sources
