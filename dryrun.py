@@ -3,6 +3,23 @@
 import otherfxns as o
 import sys,json,time,os
 import datetime as dt
+from colorama import init as colorinit
+
+colorinit() #allow coloring in Windows terminals
+
+#change display text color
+class bcolor:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 
 cfgFile = './configs/dryrun.config'
 
@@ -52,26 +69,32 @@ while True:
   #go through all recorded ones (including today's), skip the ones already initiated, keep the ones present and in the price range, and remove the rest
   for e in list(purchList):
     if(purchList[e]['buyPrice']==0):
-      if(e in prices and minPrice<=prices[e]<=maxPrice):
+      if(e in prices):
         purchList[e]['buyPrice'] = prices[e]
       else:
         purchList.pop(e)
   
   print(f'testing algo "{algo}"')
-  print("symb\tcurrent\thigh\thighDate\tlow\tlowDate\tnote")
-  print("----\t-------\t----\t--------\t---\t-------\t----")
+  print("symb\tcurrent\thigh\thighDate\tlow\tlowDate\t\tnote")
+  print("----\t-------\t-----\t----------\t-----\t----------\t----------")
   for e in purchList:
     if(e in prices):
       if(prices[e]/purchList[e]['buyPrice']>purchList[e]['high']):
-        purchList[e]['high'] = prices[e]/purchList[e]['buyPrice']
+        purchList[e]['high'] = round(prices[e]/purchList[e]['buyPrice'],2)
         purchList[e]['highDate'] = str(dt.date.today())
       elif(prices[e]/purchList[e]['buyPrice']<purchList[e]['low']):
-        purchList[e]['low'] = prices[e]/purchList[e]['buyPrice']
+        purchList[e]['low'] = round(prices[e]/purchList[e]['buyPrice'],2)
         purchList[e]['lowDate'] = str(dt.date.today())
     else:
       purchList[e]['note'] = "Delisted"
     
-    print(f"{purchDate[e]}\t{prices[e]/purchList[e]['buyPrice']}\t{purchDate[e]['high']}\t{purchDate[e]['highDate']}\t{purchDate[e]['low']}\t{purchDate[e]['lowDate']}")
+    print((f"{e}\t"
+          f"{bcolor.FAIL if prices[e]/purchList[e]['buyPrice']<1 else bcolor.OKGREEN}{round(prices[e]/purchList[e]['buyPrice'],2)}{bcolor.ENDC}\t"
+          f"{bcolor.FAIL if purchList[e]['high']<1 else bcolor.OKGREEN}{purchList[e]['high']}{bcolor.ENDC}\t"
+          f"{purchList[e]['highDate']}\t"
+          f"{bcolor.FAIL if purchList[e]['low']<1 else bcolor.OKGREEN}{purchList[e]['low']}{bcolor.ENDC}\t"
+          f"{purchList[e]['lowDate']}\t"
+          f"{purchList[e]['note']}"))
       
   
   open(c['file locations']['purchList'],'w').write(json.dumps(purchList)) #save to the file
