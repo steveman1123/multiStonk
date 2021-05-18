@@ -15,7 +15,11 @@ def init(configFile):
   #stocks held by this algo according to the records
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())
+  if(algo in posList):
+    posList = posList[algo]
+  else:
+    posList = {}
   lock.release()
 
 #TODO: this will need to change so that goodBuys basically throws out the arg list and gets a fresh one from today's movers (rather than yesterday's movers that would be generated in the morning) - as it stands list is generated in the morning of today (containing yesterday's movers) then buying happens this afternoon (after yesterday's movers have moved), so will need to regen goodbuy list to get today's movers so they should gain tomorrow
@@ -23,25 +27,20 @@ def init(configFile):
 # ^ https://api.nasdaq.com/api/analyst/{symb}/estimate-momentum
 
 #return a dict of good buys {symb:note}
-#the note will contain the original fall % for losers
+#the note contains the overall change %
 def getList(isAfternoon=False, verbose=True):
   #TODO: adjust this value based on testing
-  if(isAfternoon): #must be afternoon to update (to see today's biggest movers)
-    minFallPerc = float(c[algo]['minFallPerc']) #price must drop by at least this much
-    
-    if(verbose): print(f"getting unsorted list for {algo}...")
-    symbs = getUnsortedList()
-    if(verbose): print(f"finding stocks for {algo}...")
-    
-    #
-    gb = {s['symbol']:float(s['change'][:-1])/100 for s in symbList['losers']}
-    #only 
-    gb = {s:gb[s] for s in gb if gb[s]<=minFallPerc}
-    if(verbose): print(f"{len(goodBuys)} found for {algo}.")
-    return goodBuys
-  else:
-    return {}
-
+  ul = getUnsortedList()
+  out = {}
+  for e in ul:
+    for s in ul[e]:
+      if(float(c[algo]['minPrice'])<=float(s['lastSalePrice'])<=float(c[algo]['maxPrice'])):
+        out[s['symbol']] = s['change']
+  return out
+  
+  
+  
+  
 #determine whether the queries symb is a good one to buy or not
 #this function is depreciated, replaced with goodBuys
 def goodBuy(symb, verbose=False):
@@ -86,18 +85,25 @@ def goodSells(symbList):
   return gs  
 
 #get a list of stocks to be sifted through (also contains last price, and change)
-def getUnsortedList(verbose=False):
+def getUnsortedList(verbose=False,maxTries=3):
   symbList = {}
-  while True:
+  tries=0
+  while tries<maxTries:
     try:
-      r = o.json.loads(o.request("https://api.nasdaq.com/api/marketmovers",headers={'user-agent','-'},timeout=5).text)['data']['STOCKS']
+      r = o.requests.get("https://api.nasdaq.com/api/marketmovers",headers=o.HEADERS,timeout=5).text #get the data
+      r = r.replace("%","").replace("+","").replace("$","") #get rid of supurfulous symbols
+      r = o.json.loads(r)['data']['STOCKS'] #cconvert to json object (dict)
+      symbList['gainers'] = r['MostAdvanced']['table']['rows']
+      symbList['losers'] = r['MostDeclined']['table']['rows']
+      if(verbose): print(f"{len(symbList['gainers'])} total gainers, {len(symbList['losers'])} total losers")
+      break
     except Exception:
       print("Error encoutered getting market movers. Trying again...")
+      tries+=1
+      if(verbose): print(f"{tries}/{maxTries}")
       o.time.sleep(3)
   
-  symbList['gainers'] = r['mostAdvanced']['table']['rows']
-  symbList['losers'] = r['mostDeclined']['table']['rows']
-  
+  #return of format {gainers/losers:{symbol,name,lastprice,lastchange,lastchangepct}}
   return symbList
     
   

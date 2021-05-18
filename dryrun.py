@@ -46,8 +46,8 @@ while True:
   todayList = eval(f"{algo}.getList()") #get today's list
   
   #get the cumulative list history (contains "purchase" date, symb, note, maxGain, maxLoss)
-  if(os.path.isfile(c['file locations']['purchList'])): #if file exists
-    purchList = json.loads(open(c['file locations']['purchList'],'r').read()) #read from the file
+  if(os.path.isfile(c['file locations']['purchLists']+algo+".json")): #if file exists
+    purchList = json.loads(open(c['file locations']['purchLists']+algo+".json",'r').read()) #read from the file
   else: #file doesn't exist
     purchList = {} #init with nothing
   #append today onto the cumulative and save to file
@@ -75,8 +75,8 @@ while True:
         purchList.pop(e)
   
   print(f'testing algo "{algo}"')
-  print("symb\tcurrent\thigh\thighDate\tlow\tlowDate\t\tnote")
-  print("----\t-------\t-----\t----------\t-----\t----------\t----------")
+  print("symb\tcurrent\tbuyDate\t\thigh\thighDate\tlow\tlowDate\t\tnote")
+  print("----\t-------\t----------\t-----\t----------\t-----\t----------\t----------")
   for e in purchList:
     if(e in prices):
       if(prices[e]/purchList[e]['buyPrice']>purchList[e]['high']):
@@ -90,6 +90,7 @@ while True:
     
     print((f"{e}\t"
           f"{bcolor.FAIL if prices[e]/purchList[e]['buyPrice']<1 else bcolor.OKGREEN}{round(prices[e]/purchList[e]['buyPrice'],2)}{bcolor.ENDC}\t"
+          f"{purchList[e]['purchDate']}\t"
           f"{bcolor.FAIL if purchList[e]['high']<1 else bcolor.OKGREEN}{purchList[e]['high']}{bcolor.ENDC}\t"
           f"{purchList[e]['highDate']}\t"
           f"{bcolor.FAIL if purchList[e]['low']<1 else bcolor.OKGREEN}{purchList[e]['low']}{bcolor.ENDC}\t"
@@ -97,7 +98,7 @@ while True:
           f"{purchList[e]['note']}"))
       
   
-  open(c['file locations']['purchList'],'w').write(json.dumps(purchList)) #save to the file
+  open(c['file locations']['purchLists']+algo+".json",'w').write(json.dumps(purchList)) #save to the file
 
 
   #display the list

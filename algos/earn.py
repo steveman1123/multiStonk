@@ -183,6 +183,15 @@ def getUnsortedList(maxTries=3):
       pass
   return {'date':date,'inf':r}
 
+
+#where symblist is a list of stocks and the function returns the same stocklist as a dict of {symb:goodsell(t/f)}
+def goodSells(symbList):
+  prices = o.getPrices([e['symbol']+"|stocks" for e in ul['inf']])
+  prices = {s.split("|")[0]:prices[s]['price'] for s in prices} #isolate to {symb:price}
+  #return true for all that are present in the price list and poslist and that are outside the triggers (that is, not inside the triggers)
+  gs[e] = {e:(e in prices and e in posList and not sellDn()<prices[e]/posList[e]['buyList']<sellUp()) for e in symbList}
+  return gs
+
 #TODO: this should also account for squeezing
 def sellUp(symb=""):
   mainSellUp = float(c[algo]['sellUp'])

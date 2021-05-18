@@ -74,6 +74,7 @@ def goodSells(symbList):
   prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
   #TODO: account for note being blank or containing other text
+  #TODO: also add dividend amt to note (string format should be "yyyy-mm-dd, #.##")
   gs = {e:(e not in prices or
            (str(o.dt.date.today())>posList[e]['note'] and
             (prices[e]['price']/prices[e]['open']>=sellUp(e) or
@@ -177,5 +178,4 @@ def sellDn(symb=""):
     return preSellDn
 
 def sellUpDn():
-  
   return float(c[algo]['sellUpDn'])

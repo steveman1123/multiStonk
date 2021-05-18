@@ -131,7 +131,7 @@ def main(verbose=True):
         updateListsThread.start() #start the thread
 
       print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\ttriggers\tnotes")
-      print("----\t------\t-----\t-----------\t-----------\t----------\t----------")
+      print("----\t------\t-----\t-----------\t-----------\t-----------\t----------")
       #look to sell things
       check2sells(pos)
       
