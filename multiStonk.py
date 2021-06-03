@@ -149,6 +149,7 @@ def main(verbose=True):
     
     else: #market is closed
       #display the total p/l % of each algo
+      #TODO: should add a cash generated value to each algo that's updated when something is bought or sold (that is: how much cash ahs been invested, and how much has been returned. Then include those numbers in this calculation for better accuracy)
       print("Algo ROI's:")
       for algo in posList:
         curPrices = o.getPrices([e+"|stocks" for e in posList[algo]]) #get the current prices of all the stocks in a given algo
@@ -163,11 +164,11 @@ def main(verbose=True):
       #update the max port val
       portHist = a.getProfileHistory(str(dt.date.today()),'1M')
       portHist = {str(dt.datetime.fromtimestamp(portHist['timestamp'][i]).date()):portHist['equity'][i] for i in range(len(portHist['timestamp'])) if portHist['equity'][i] is not None}
-      maxPortVal = max(list(portHist.values())) # get the max portfolio value
+      maxPortVal = round(max(list(portHist.values())),2) # get the max portfolio value of the last month
       
       #display max val and date
-      print(f"\nThe highest portfolio value in the last month was ${maxPortVal} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
-      print(f"Current portfolio value: ${portHist[max(list(portHist.keys()))]}, {100*round(portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of the highest\n")
+      print(f"\nHighest portVal in the last month: ${maxPortVal} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
+      print(f"Current portVal: ${portHist[max(list(portHist.keys()))]}, {100*round(portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of the highest\n")
       syncPosList() #sync up posList to live data
 
       if(o.dt.date.today().weekday()==4 and o.dt.datetime.now().time()>o.dt.time(12)): #if it's friday afternoon
