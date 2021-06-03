@@ -164,11 +164,11 @@ def main(verbose=True):
       #update the max port val
       portHist = a.getProfileHistory(str(dt.date.today()),'1M')
       portHist = {str(dt.datetime.fromtimestamp(portHist['timestamp'][i]).date()):portHist['equity'][i] for i in range(len(portHist['timestamp'])) if portHist['equity'][i] is not None}
-      maxPortVal = round(max(list(portHist.values())),2) # get the max portfolio value of the last month
+      maxPortVal = max(list(portHist.values())) # get the max portfolio value of the last month
       
       #display max val and date
-      print(f"\nHighest portVal in the last month: ${maxPortVal} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
-      print(f"Current portVal: ${portHist[max(list(portHist.keys()))]}, {100*round(portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of the highest\n")
+      print(f"\nHighest portVal in the last month: ${round(maxPortVal,2)} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
+      print(f"Current portVal: ${round(portHist[max(list(portHist.keys()))],2)}, {100*round(portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of the highest\n")
       syncPosList() #sync up posList to live data
 
       if(o.dt.date.today().weekday()==4 and o.dt.datetime.now().time()>o.dt.time(12)): #if it's friday afternoon
