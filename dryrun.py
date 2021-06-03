@@ -41,7 +41,6 @@ else: #no argument present
 exec(f"import {algo}")
 exec(f"{algo}.init('{cfgFile}')")
 
-#TODO: figure out how scoring should work. Right now it's not effective at all
 while True:
   todayList = eval(f"{algo}.getList()") #get today's list
   

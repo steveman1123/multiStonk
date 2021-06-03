@@ -75,17 +75,15 @@ def goodSells(symbList):
   
   #TODO: account for note being blank or containing other text
   #TODO: also add dividend amt to note (string format should be "yyyy-mm-dd, #.##")
-  gs = {e:(e not in prices or
-           (str(o.dt.date.today())>posList[e]['note'] and
+  gs = {e:(e not in prices or #ensure is valid
             (prices[e]['price']/prices[e]['open']>=sellUp(e) or
-             prices[e]['price']/prices[e]['open']<sellDn(e) or
-             (buyPrices[e]>0 and
-              prices[e]['price']/buyPrices[e]>=sellUp(e) or
-              prices[e]['price']/buyPrices[e]<sellDn(e)
+              prices[e]['price']/prices[e]['open']<sellDn(e) or
+              (buyPrices[e]>0 and
+                prices[e]['price']/buyPrices[e]>=sellUp(e) or
+                prices[e]['price']/buyPrices[e]<sellDn(e)
               )
-             )
             )
-           ) for e in symbList} #return true if the date is after the payment date and the price has reached a sellUp/dn point or it's not in the prices list
+          ) for e in symbList} #return true if the date is after the payment date and the price has reached a sellUp/dn point or it's not in the prices list
   
   return gs
 
