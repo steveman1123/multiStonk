@@ -168,7 +168,8 @@ def main(verbose=True):
       
       #display max val and date
       print(f"\nHighest portVal in the last month: ${round(maxPortVal,2)} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
-      print(f"Current portVal: ${round(portHist[max(list(portHist.keys()))],2)}, {100*round(portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of the highest\n")
+      print(f"Current portVal: ${round(portHist[max(list(portHist.keys()))],2)}, {100*round(portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of the highest")
+      print(f"Portfolio stop-loss of {round(100*float(c['account params']['portStopLoss']),2)}% of highest, or ${round(float(c['account params']['portStopLoss'])*maxPortVal,2)}\n")
       syncPosList() #sync up posList to live data
 
       if(o.dt.date.today().weekday()==4 and o.dt.datetime.now().time()>o.dt.time(12)): #if it's friday afternoon
@@ -778,7 +779,9 @@ if __name__ == '__main__':
     print("\n") #leave a space between startup and main sequence
     
     main() #start running the program
-  except:
+  except KeyboardInterrupt: #exit on ctrl+c
+    print("Exiting")
+  except Exception: #record unhandled exceptions
     print("An unhandled error was encountered. Please check the log.")
     traceback.print_exc(file=open(c['file locations']['errLog'],"a"))
 
