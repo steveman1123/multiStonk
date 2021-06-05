@@ -1,4 +1,4 @@
-#this file contains functions specifically for the stocks that are listed in investopedia
+#this file contains functions specifically for the stocks that are listed in investopedia - these are probably updated monthly
 # https://www.investopedia.com/updates/top-penny-stocks/
 
 
@@ -25,18 +25,24 @@ def init(configFile):
 
 #return a dict of good buys {symb:note}
 #the note contains the overall change %
-def getList(isAfternoon=False, verbose=True):
+def getList(verbose=False):
+  if(verbose): print("getting unsorted list...")
   ul = getUnsortedList()
+  if(verbose): print("checking for goodBuys...")
+  l = goodBuys(ul)
+  if(verbose): print(l)
+  out = {e:list(ul)[0] for e in l}
   return out
   
   
   
 
 #multiplex the goodBuy fxn (symbList should be the output of getUnsortedList)
+#return dict of {symb:t/f}
 def goodBuys(symbList):
   
   #TODO: check prices and other info investopedia may have (plus cross reference with other sites)
-  gb = {s:True for s in symbList['losers']}
+  gb = {s:True for s in symbList[list(symbList)[0]]}
   return gb
 
 #where symblist is a list of stocks and the function returns the same stocklist as a dict of {symb:goodsell(t/f)}
@@ -51,18 +57,29 @@ def goodSells(symbList):
   prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
   prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
-  gs = {e:(e not in prices or prices[e]['price']/prices[e]['open']>=sellUp(e) or prices[e]['price']/prices[e]['open']<sellDn(e) or prices[e]['price']/buyPrices[e]>=sellUp(e) or prices[e]['price']/buyPrices[e]<sellDn(e)) for e in symbList} #return true if the price has reached a sellUp/dn point or it's not in the prices list
+  gs = {e:(e not in prices or
+           prices[e]['price']/prices[e]['open']>=sellUp(e) or
+           prices[e]['price']/prices[e]['open']<sellDn(e) or
+           prices[e]['price']/buyPrices[e]>=sellUp(e) or
+           prices[e]['price']/buyPrices[e]<sellDn(e))
+        for e in symbList} #return true if the price has reached a sellUp/dn point or it's not in the prices list
   
   return gs  
 
-#get a list of stocks to be sifted through (also contains last price, and change)
+#get a list of stocks to be sifted through - returns dict of {date:[list, of, symbols]}
 def getUnsortedList(verbose=False,maxTries=3):
-  symbList = {}
+  out = {}
   tries=0
   while tries<maxTries:
     try:
       r = o.requests.get("https://www.investopedia.com/updates/top-penny-stocks/",headers=o.HEADERS,timeout=5).text #get the data
-      #TODO: parse site data
+      d = r.split('displayed-date_1-0')[1].split("<")[0].split("Updated ")[1] # isolate the last updated date
+      d = str(o.dt.datetime.strptime(d,"%b %d, %Y").date()) #convert from "mmm d, yyyy" to "yyyy-mm-dd"
+      
+      r = [e for e in r.split("<") if e.startswith("span")] #only use spans (other acronyms can appear in the paragraphs, and we don't want those)
+      symbList = o.re.findall("\([A-Z]+\)", "".join(r)) #convert list back to string and pare down to wanted strings (the acronyms)
+      symbList = [e[1:-1] for e in symbList] #trim off parens
+      out[d] = symbList
       break
     except Exception:
       print("Error encoutered getting investopedia stocks. Trying again...")
@@ -71,14 +88,14 @@ def getUnsortedList(verbose=False,maxTries=3):
       o.time.sleep(3)
   
   
-  return symbList
+  return out
     
   
-#TODO: add comments
+#determine how much the take-profit should be for change since buy or change since close
 def sellUp(symb=""):
   return float(c[algo]['sellUp'])
 
-
+#determine how much the stop-loss should be for change since buy or change since close
 def sellDn(symb=""):
   return float(c[algo]['sellDn'])
 

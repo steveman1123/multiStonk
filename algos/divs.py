@@ -19,19 +19,19 @@ def init(configFile):
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
   lock.release()
 
-#return dict of {symb:note} where the note is payment date in yyyy-mm-dd format
+#return dict of {symb:note} where the note is payment date and div amount, formatted as "yyyy-mm-dd, $.$$"
 def getList(verbose=True):
   
   #perform checks to see which one ones will gain
   #check history of the stocks. Look for pattern that denotes a gain after the initial div date (could possibly look like a buy low. Stock gains to div, div processes, dips, then gains again. Sell at that gain)
   
   #if today < ex div date, then buy
-
+  #TODO: have a minimum div amount? Or avg price to div amt?
   if(verbose): print(f"getting unsorted list for {algo}...")
   data = getUnsortedList(o.nextTradeDate()) #get the whole data list
   if(verbose): print(f"finding stocks for {algo}...")
   prices = o.getPrices([s+"|stocks" for s in data]) #get the current price and volume
-  goodBuys = {s.split("|")[0]:str(o.dt.datetime.strptime(data[s.split("|")[0]]['payment_Date'],"%m/%d/%Y").date()) for s in prices if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])} #vol measures volume so far today which may run into issues if run during premarket or early in the day since the stock won't have much volume
+  goodBuys = {s.split("|")[0]:str(o.dt.datetime.strptime(data[s.split("|")[0]]['payment_Date'],"%m/%d/%Y").date())+", "+data[s.split("|")[0]]['dividend_Rate'] for s in prices if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])} #vol measures volume so far today which may run into issues if run during premarket or early in the day since the stock won't have much volume
   if(verbose): print(f"{len(goodBuys)} found for {algo}.")
   return goodBuys
   
@@ -73,8 +73,6 @@ def goodSells(symbList):
   prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
   prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
-  #TODO: account for note being blank or containing other text
-  #TODO: also add dividend amt to note (string format should be "yyyy-mm-dd, #.##")
   gs = {e:(e not in prices or #ensure is valid
             (prices[e]['price']/prices[e]['open']>=sellUp(e) or
               prices[e]['price']/prices[e]['open']<sellDn(e) or
@@ -148,7 +146,7 @@ def getDivDates(symb,maxTries=3):
 
 
 
-#TODO: add comments
+#determine how much the take-profit should be for change since buy or change since close
 def sellUp(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
@@ -156,12 +154,14 @@ def sellUp(symb=""):
   lock.release()
   
   [preSellUp, postSellUp] = [float(c[algo]['preSellUp']), float(c[algo]['postSellUp'])]
-  
-  if(symb in posList and str(o.dt.date.today())>posList[symb]['note']):
+  #TODO: account for note being blank or containing other text (just in case)
+
+  if(symb in posList and str(o.dt.date.today())>=posList[symb]['note'].split(",")[0]):
     return postSellUp
   else:
     return preSellUp
 
+#determine how much the stop-loss should be for change since buy or change since close
 def sellDn(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
@@ -170,10 +170,11 @@ def sellDn(symb=""):
   
   [preSellDn, postSellDn] = [float(c[algo]['preSellDn']), float(c[algo]['postSellDn'])]
   
-  if(symb in posList and str(o.dt.date.today())>posList[symb]['note']):
+  if(symb in posList and str(o.dt.date.today())>=posList[symb]['note'].split(",")[0]):
     return postSellDn
   else:
     return preSellDn
 
+#after triggering the take-profit, the price must fall this much before selling (rtailing stop-loss)
 def sellUpDn():
   return float(c[algo]['sellUpDn'])

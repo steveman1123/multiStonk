@@ -1,5 +1,5 @@
-#this file contains functions specifically for the reddit algo
-#how do stocks move after being discussed on reddit (in wallstreetbets, etc)?
+#this file contains functions specifically for the meme stocks algo
+#how do stocks move after being discussed on reddit, other unofficial forums like 4chan (in wallstreetbets, etc)?
 
 # https://www.reddit.com/dev/api
 # https://github.com/reddit-archive/reddit/wiki/API
