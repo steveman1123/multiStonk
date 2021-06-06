@@ -177,7 +177,7 @@ def getUnsortedList(maxTries=3):
       if(r is None): raise("null response") #raise an error if nothing is returned (like on a closed market day)
       break
     except Exception:
-      print(f"Error in getting unsorted list for {algo} algo. Trying again...")
+      print(f"Error in getting unsorted list for {algo} algo on {date}. Trying again...")
       o.time.sleep(3)
       tries+=1
       pass

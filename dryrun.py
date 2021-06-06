@@ -89,7 +89,7 @@ while True:
       purchList[e]['note'] = "Delisted"
     
     print((f"{e}\t"
-          f"{bcolor.FAIL if prices[e]/purchList[e]['buyPrice']<1 else bcolor.OKGREEN}{round(prices[e]/purchList[e]['buyPrice'],2)}{bcolor.ENDC}\t"
+          f"{bcolor.OKGREEN if e in prices and prices[e]/purchList[e]['buyPrice']>=1 else bcolor.FAIL}{round(prices[e]/purchList[e]['buyPrice'],2) if e in prices else 0}{bcolor.ENDC}\t"
           f"{purchList[e]['purchDate']}\t"
           f"{bcolor.FAIL if purchList[e]['high']<1 else bcolor.OKGREEN}{purchList[e]['high']}{bcolor.ENDC}\t"
           f"{purchList[e]['highDate']}\t"
