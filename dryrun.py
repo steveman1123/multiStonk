@@ -20,15 +20,11 @@ class bcolor:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
-
-
 cfgFile = './configs/dryrun.config'
-
 c = o.configparser.ConfigParser()
 c.read(cfgFile)
 
 sys.path.append(c['file locations']['stockAlgosDir'])
-
 
 if(len(sys.argv)>1): #if there's an argument present
   if(len(sys.argv)<3):
@@ -37,7 +33,6 @@ if(len(sys.argv)>1): #if there's an argument present
     raise ValueError("Too many arguments. Please specify only one algo to test")
 else: #no argument present
   raise ValueError("No argument present. Please specify the algo to test")
-  
 
 exec(f"import {algo}")
 exec(f"{algo}.init('{cfgFile}')")
@@ -51,8 +46,14 @@ while True:
   else: #file doesn't exist
     purchList = {} #init with nothing
   #append today onto the cumulative and save to file
-  for e in todayList:
-    purchList[e] = {
+  for e in todayList: # for all the new ones
+    d = e #set the base name
+    i=0 #set the base appending number
+    #only append a number to the name if the symbol is already present and the purchDate was before today
+    while d in purchList and purchList[d]['purchDate']<str(dt.date.today()):
+      i += 1 #increment
+      d = e+str(i) #append number
+    purchList[d] = { #store data
       "purchDate":str(dt.date.today()),
       "buyPrice":0,
       "note":todayList[e],
