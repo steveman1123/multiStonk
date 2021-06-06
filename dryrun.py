@@ -74,20 +74,20 @@ while True:
       else:
         purchList.pop(e)
   
-  print(f'testing algo "{algo}"')
   print("symb\tcurrent\tbuyDate\t\thigh\thighDate\tlow\tlowDate\t\tnote")
   print("----\t-------\t----------\t-----\t----------\t-----\t----------\t----------")
   for e in purchList:
     if(e in prices):
-      if(prices[e]/purchList[e]['buyPrice']>purchList[e]['high']):
+      if(prices[e]/purchList[e]['buyPrice']>purchList[e]['high']): #if the change is the new highest, record it
         purchList[e]['high'] = round(prices[e]/purchList[e]['buyPrice'],2)
         purchList[e]['highDate'] = str(dt.date.today())
-      elif(prices[e]/purchList[e]['buyPrice']<purchList[e]['low']):
+      elif(prices[e]/purchList[e]['buyPrice']<purchList[e]['low']): #if the change is the new lowest, record it
         purchList[e]['low'] = round(prices[e]/purchList[e]['buyPrice'],2)
         purchList[e]['lowDate'] = str(dt.date.today())
-    else:
+    else: #it's not in the prices
       purchList[e]['note'] = "Delisted"
     
+    #display the list
     print((f"{e}\t"
           f"{bcolor.OKGREEN if e in prices and prices[e]/purchList[e]['buyPrice']>=1 else bcolor.FAIL}{round(prices[e]/purchList[e]['buyPrice'],2) if e in prices else 0}{bcolor.ENDC}\t"
           f"{purchList[e]['purchDate']}\t"
@@ -99,10 +99,6 @@ while True:
       
   
   open(c['file locations']['purchLists']+algo+".json",'w').write(json.dumps(purchList)) #save to the file
-
-
-  #display the list
-  
-  
+  print(f'testing algo "{algo}"')
   
   time.sleep(86400) #check once a day
