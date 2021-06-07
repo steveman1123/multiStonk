@@ -31,7 +31,7 @@ def getList(verbose=True):
   data = getUnsortedList(o.nextTradeDate()) #get the whole data list
   if(verbose): print(f"finding stocks for {algo}...")
   prices = o.getPrices([s+"|stocks" for s in data]) #get the current price and volume
-  goodBuys = {s.split("|")[0]:str(o.dt.datetime.strptime(data[s.split("|")[0]]['payment_Date'],"%m/%d/%Y").date())+", "+data[s.split("|")[0]]['dividend_Rate'] for s in prices if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])} #vol measures volume so far today which may run into issues if run during premarket or early in the day since the stock won't have much volume
+  goodBuys = {s.split("|")[0]:str(o.dt.datetime.strptime(data[s.split("|")[0]]['payment_Date'],"%m/%d/%Y").date())+", "+str(data[s.split("|")[0]]['dividend_Rate']) for s in prices if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])} #vol measures volume so far today which may run into issues if run during premarket or early in the day since the stock won't have much volume
   if(verbose): print(f"{len(goodBuys)} found for {algo}.")
   return goodBuys
   
