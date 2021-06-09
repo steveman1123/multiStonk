@@ -348,7 +348,7 @@ def sellUp(symb=""):
 
   if(symb in stockList):
     try: #try setting the last jump, if it doesn't work, set it to yesterday TODO: this is logically wrong and should be fixed (something should change in the actual posList file)
-      lastJump = o.dt.datetime.strptime(stockList[symb]['lastJumpDate'],"%Y-%m-%d").date()
+      lastJump = o.dt.datetime.strptime(stockList[symb]['note'],"%Y-%m-%d").date()
     except Exception:
       lastJump = o.dt.date.today()-o.dt.timedelta(1)
 
@@ -372,13 +372,13 @@ def sellDn(symb=""):
   
   if(symb in stockList):
     try: #try setting the last jump, if it doesn't work, set it to yesterday
-      lastJump = o.dt.datetime.strptime(stockList[symb]['lastJumpDate'],"%Y-%m-%d").date()
+      lastJump = o.dt.datetime.strptime(stockList[symb]['note'],"%Y-%m-%d").date()
     except Exception:
       lastJump = o.dt.date.today()-o.dt.timedelta(1)
 
     #after some weeks since the initial jump, the sell values should reach 1 after some more weeks
     #piecewise function: if less than time to start squeezing, remain constant, else start squeezing linearily per day
-    sellDn = round(mainSellDn if(o.dt.date.today()<lastJump+o.dt.timedelta(startSqueeze*7)) else mainSellDn-(mainSellDn-1)*(a.o.dt.date.today()-(lastJump+o.dt.timedelta(startSqueeze*7))).days/(squeezeTime*7),2)
+    sellDn = round(mainSellDn if(o.dt.date.today()<lastJump+o.dt.timedelta(startSqueeze*7)) else mainSellDn-(mainSellDn-1)*(o.dt.date.today()-(lastJump+o.dt.timedelta(startSqueeze*7))).days/(squeezeTime*7),2)
 
   else:
     sellDn = mainSellDn
