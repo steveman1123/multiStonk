@@ -1,7 +1,6 @@
 #this file contains functions specifically for the stocks that are listed in investopedia - these are probably updated monthly
 # https://www.investopedia.com/updates/top-penny-stocks/
 
-
 import otherfxns as o
 
 algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
@@ -67,6 +66,12 @@ def goodSells(symbList):
   return gs  
 
 #get a list of stocks to be sifted through - returns dict of {date:[list, of, symbols]}
+
+#TODO: add the following urls:
+# https://www.investopedia.com/updates/penny-stocks-buy-technical-analysis/
+# https://www.investopedia.com/investing/best-growth-stocks/
+# https://www.investopedia.com/investing/oil-gas-penny-stocks/
+
 def getUnsortedList(verbose=False,maxTries=3):
   out = {}
   tries=0

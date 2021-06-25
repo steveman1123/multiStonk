@@ -8,6 +8,7 @@ algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the
 def init(configFile):
   global posList,c
   #set the multi config file
+  #TODO: add error if the file doesn't exist
   c = o.configparser.ConfigParser()
   c.read(configFile)
   
@@ -146,7 +147,7 @@ def goodBuys(symbList, days2look=-1, verbose=False):
         
         #if the price has jumped sufficiently for the first time
         if(float(dateData[startDate][1])/float(dateData[startDate+1][1])>=firstJumpAmt):
-          if(verbose): print(f"{symb}\tinitial price jumped")
+          if(verbose): print(f"{symb}\tinitial price jumped on {dateData[startDate][0]}")
           avgVol = sum([int(dateData[i][2]) for i in range(startDate,min(startDate+volAvgDays,len(dateData)))])/volAvgDays #avg of volumes over a few days
           
           lastVol = int(dateData[startDate][2]) #the latest volume
@@ -157,7 +158,7 @@ def goodBuys(symbList, days2look=-1, verbose=False):
             #volume had to have gained
             #if the next day's price has fallen significantly and the volume has also fallen
             if(float(dateData[startDate-days2wait4fall][4])/lastPrice-1<priceDrop and int(dateData[startDate-days2wait4fall][2])<=lastVol*volLoss):
-              if(verbose): print(f"{symb}\tprice and vol dropped")
+              if(verbose): print(f"{symb}\tprice and vol dropped on {dateData[startDate-days2wait4fall][0]}")
               #the jump happened, the volume gained, the next day's price and volumes have fallen
               dayPrice = lastPrice
               i = 1 #increment through days looking for a jump - start with 1 day before startDate
@@ -296,10 +297,13 @@ def getUnsortedList(verbose=False):
         print("No connection, or other error encountered (SU1). Trying again...")
         o.time.sleep(3)
         continue
+    #TODO: possibly would be good to remove bs altogether? Seems like it might be confusing elements. Could just split string based on " predictions<"
     table = o.bs(html,'html.parser').find_all('table')[6] #6th table in the webpage - this may change depending on the webpage
     for e in table.find_all('tr')[1::]: #skip the first element that's the header
+      #remove non-alphanumerics from the td text (after removing " predictions")
       #print(o.re.sub(r'\W+','',e.find_all('td')[0].get_text().replace(' predictions','')))
-      symbList.append(o.re.sub(r'\W+','',e.find_all('td')[0].get_text().replace(' predictions','')))
+      t = o.re.sub(r'\W+','',e.find_all('td')[0].get_text().replace(' predictions',''))
+      if(len(t)<=5 and t.isupper()): symbList.append(t) #sometimes there is extra data that's in the table, remove it if it's really long or if it's not all uppercase
   
   
   if(verbose): print("Removing Duplicates...")
