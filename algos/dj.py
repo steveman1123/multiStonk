@@ -15,7 +15,7 @@ def init(configFile):
   #stocks held by this algo according to the records
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
 
 #get a list of potential gainers according to this algo
@@ -192,7 +192,7 @@ def goodBuys(symbList, days2look=-1, verbose=False):
 def goodSells(sellList, verbose=False): #sellList is a list of stocks ready to be sold
   lock = o.threading.Lock()
   lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo] #load up the stock data for the algo
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo] #load up the stock data for the algo
   lock.release()
   sellList = [e for e in sellList if e in stockList] #only look at the stocks that are in the algo
   buyPrices = {s:float(stockList[s]['buyPrice']) for s in sellList} #get buyPrices {symb:buyPrce}
@@ -317,7 +317,7 @@ def goodSell(symb):
   #check if price<sellDn
   lock = o.threading.Lock()
   lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   buyPrice = float(stockList[symb]['buyPrice'])
   inf = o.getInfo(symb,['price','open'])
@@ -343,7 +343,7 @@ def goodSell(symb):
 def sellUp(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   mainSellUp = float(c[algo]['sellUp']) #account for squeeze here
@@ -367,7 +367,7 @@ def sellUp(symb=""):
 def sellDn(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   mainSellDn = float(c[algo]['sellDn'])

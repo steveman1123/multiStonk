@@ -77,7 +77,7 @@ def getList(verbose=True):
   prices = {s.split("|")[0]:prices[s]['price'] for s in prices} #isolate to {symb:price}
   ul = [e for e in ul['inf'] if(e['symbol'] in prices and minPrice<=prices[e['symbol']]<=maxPrice)] #only keep elements that are in prices and within our price range
 
-  if(verbose): print(f"{len(ul)} potential earners on {earnDate}")
+  if(verbose): print(f"{len(ul)} potential gainers on {earnDate}")
   
   goodBuys = {e['symbol']:earnDate for e in ul} #during normal running, this should be empty dict
   '''

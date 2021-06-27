@@ -19,7 +19,7 @@ def init(configFile):
   #stocks held by this algo according to the records
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
 
 #get list of stocks pending FDA approvals
@@ -64,7 +64,7 @@ def getUnsortedList(verbose=False):
 def goodSell(symb):
   lock = o.threading.Lock()
   lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
 
   #check if price<sellDn
@@ -83,7 +83,7 @@ def goodSell(symb):
 def goodSells(symbList,verbose=False):
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   if(verbose): print(f"stocks in {algo}: {list(posList)}\n")

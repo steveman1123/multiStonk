@@ -2,6 +2,9 @@
 #what changes when a stock has a dividend?
 #https://www.investopedia.com/articles/stocks/11/dividend-capture-strategy.asp
 
+#TODO: incorporate preferential towards high yields (ag and more):
+# https://www.investopedia.com/investing/agriculture-stocks-pay-dividends/
+
 import otherfxns as o
 
 algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
@@ -16,7 +19,7 @@ def init(configFile):
   #stocks held by this algo according to the records
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
 
 #return dict of {symb:note} where the note is payment date and div amount, formatted as "yyyy-mm-dd, $.$$"
@@ -42,7 +45,7 @@ def getList(verbose=True):
 def goodSell(symb):
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   dates = getDivDates(symb)
@@ -65,7 +68,7 @@ def goodSell(symb):
 def goodSells(symbList):
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   buyPrices = {e:posList[e]['buyPrice'] for e in posList} #get the prices each were bought at
@@ -150,7 +153,7 @@ def getDivDates(symb,maxTries=3):
 def sellUp(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   [preSellUp, postSellUp] = [float(c[algo]['preSellUp']), float(c[algo]['postSellUp'])]
@@ -165,7 +168,7 @@ def sellUp(symb=""):
 def sellDn(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   [preSellDn, postSellDn] = [float(c[algo]['preSellDn']), float(c[algo]['postSellDn'])]

@@ -23,7 +23,11 @@ def init(configFile):
   #stocks held by this algo according to the records
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())
+  if(algo in posList):
+    posList = posList[algo]
+  else:
+    posList = {}
   lock.release()
 
 def getList(verbose=True):
@@ -126,7 +130,7 @@ def goodSell(symb, verbose=False):
   #to sell: look for when Lema>Sema, then look for the first time that the price >Sema and <Lema after being <Sema
   lock = o.threading.Lock()
   lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo] #stocks held by this algo according to the records
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo] #stocks held by this algo according to the records
   lock.release()
   
   #mark to sell (just in case it's not caught somewhere else)
@@ -259,7 +263,7 @@ def getUnsortedList(verbose=False):
 def sellUp(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo] #stocks held by this algo according to the records
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo] #stocks held by this algo according to the records
   lock.release()
   mainSellUp = float(c[algo]['sellUp'])
   startSqueeze = float(c[algo]['startSqueeze'])
@@ -276,7 +280,7 @@ def sellUp(symb=""):
 def sellDn(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo] #stocks held by this algo according to the records
+  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo] #stocks held by this algo according to the records
   lock.release()
   mainSellDn = float(c[algo]['sellDn'])
   if(symb in stockList):

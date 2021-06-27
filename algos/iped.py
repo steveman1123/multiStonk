@@ -30,25 +30,22 @@ def getList(verbose=False):
   if(verbose): print("checking for goodBuys...")
   l = goodBuys(ul)
   if(verbose): print(l)
-  out = {e:list(ul)[0] for e in l}
+  out = {e:ul[e] for e in l}
   return out
-  
-  
   
 
 #multiplex the goodBuy fxn (symbList should be the output of getUnsortedList)
 #return dict of {symb:t/f}
 def goodBuys(symbList):
-  
   #TODO: check prices and other info investopedia may have (plus cross reference with other sites)
-  gb = {s:True for s in symbList[list(symbList)[0]]}
+  gb = {s:True for s in symbList}
   return gb
 
 #where symblist is a list of stocks and the function returns the same stocklist as a dict of {symb:goodsell(t/f)}
 def goodSells(symbList):
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   buyPrices = {e['buyPrice'] for e in posList}
@@ -65,34 +62,89 @@ def goodSells(symbList):
   
   return gs  
 
-#get a list of stocks to be sifted through - returns dict of {date:[list, of, symbols]}
-
-#TODO: add the following urls:
-# https://www.investopedia.com/updates/penny-stocks-buy-technical-analysis/
-# https://www.investopedia.com/investing/best-growth-stocks/
-# https://www.investopedia.com/investing/oil-gas-penny-stocks/
+#get a list of stocks to be sifted through - returns dict of {symb:"date, type"}
 
 def getUnsortedList(verbose=False,maxTries=3):
   out = {}
+  
+  #get the top penny stocks
   tries=0
   while tries<maxTries:
     try:
       r = o.requests.get("https://www.investopedia.com/updates/top-penny-stocks/",headers=o.HEADERS,timeout=5).text #get the data
       d = r.split('displayed-date_1-0')[1].split("<")[0].split("Updated ")[1] # isolate the last updated date
       d = str(o.dt.datetime.strptime(d,"%b %d, %Y").date()) #convert from "mmm d, yyyy" to "yyyy-mm-dd"
-      
       r = [e for e in r.split("<") if e.startswith("span")] #only use spans (other acronyms can appear in the paragraphs, and we don't want those)
       symbList = o.re.findall("\([A-Z]+\)", "".join(r)) #convert list back to string and pare down to wanted strings (the acronyms)
-      symbList = [e[1:-1] for e in symbList] #trim off parens
-      out[d] = symbList
+      symbList = {e[1:-1]:d+", top" for e in symbList} #trim off parens and convert to dict {symb:"date, type"}
+      out.update(symbList) #append to output
       break
     except Exception:
-      print("Error encoutered getting investopedia stocks. Trying again...")
+      print("Error encoutered getting investopedia top penny stocks. Trying again...")
+      if(verbose): print(f"{tries}/{maxTries}")
+      tries+=1
+      o.time.sleep(3)  
+  
+  
+  #get the technical analysis stocks
+  tries=0
+  while tries<maxTries:
+    try:
+      r = o.requests.get("https://www.investopedia.com/updates/penny-stocks-buy-technical-analysis/",headers=o.HEADERS,timeout=5).text #get the data
+      d = r.split('displayed-date_1-0')[1].split("<")[0].split("Updated ")[1] # isolate the last updated date
+      d = str(o.dt.datetime.strptime(d,"%b %d, %Y").date()) #convert from "mmm d, yyyy" to "yyyy-mm-dd"
+      r = [e for e in r.split("<") if e.startswith("span")] #only use spans (other acronyms can appear in the paragraphs, and we don't want those)
+      symbList = o.re.findall("\([A-Z]+\)", "".join(r)) #convert list back to string and pare down to wanted strings (the acronyms)
+      symbList = {e[1:-1]:d+", techanal" for e in symbList} #trim off parens and convert to dict {symb:"date, type"}
+      out.update(symbList) #append to output
+      break
+    except Exception:
+      print("Error encoutered getting investopedia technical analysis penny stocks. Trying again...")
+      if(verbose): print(f"{tries}/{maxTries}")
+      tries+=1
+      o.time.sleep(3)  
+  
+  
+  #get the oil and gas penny stocks
+  tries=0
+  while tries<maxTries:
+    try:
+      r = o.requests.get("https://www.investopedia.com/investing/oil-gas-penny-stocks/",headers=o.HEADERS,timeout=5).text #get the data
+      d = r.split('displayed-date_1-0')[1].split("<")[0].split("Updated ")[1] # isolate the last updated date
+      d = str(o.dt.datetime.strptime(d,"%b %d, %Y").date()) #convert from "mmm d, yyyy" to "yyyy-mm-dd"
+      rows = o.bs(r.replace("\n",""),'html.parser').find_all('tr') #remove newlines and get the rows
+      rtx = [row.get_text() for row in rows] #remove all html data, just get text
+      symbList = o.re.findall("\([A-Z.]+\)", "".join(rtx)) #get all data in the parens (should only be the symbols)
+      symbList = {e[1:-1]:d+", oilgas" for e in symbList} #trim off parens and convert to dict {symb:"date, type"}
+      out.update(symbList) #append to output
+      break
+    except Exception:
+      print("Error encoutered getting investopedia oil and gas penny stocks. Trying again...")
+      if(verbose): print(f"{tries}/{maxTries}")
+      tries+=1
+      o.time.sleep(3)  
+
+
+  #get the technology penny stocks
+  tries=0
+  while tries<maxTries:
+    try:
+      r = o.requests.get("https://www.investopedia.com/investing/technology-penny-stocks/",headers=o.HEADERS,timeout=5).text #get the data
+      d = r.split('displayed-date_1-0')[1].split("<")[0].split("Updated ")[1] # isolate the last updated date
+      d = str(o.dt.datetime.strptime(d,"%b %d, %Y").date()) #convert from "mmm d, yyyy" to "yyyy-mm-dd"
+      rows = o.bs(r.replace("\n",""),'html.parser').find_all('tr') #remove newlines and get the rows
+      rtx = [row.get_text() for row in rows] #remove all html data, just get text
+      symbList = o.re.findall("\([A-Z.]+\)", "".join(rtx)) #get all data in the parens (should only be the symbols)
+      symbList = {e[1:-1]:d+", techno" for e in symbList} #trim off parens and convert to dict {symb:"date, type"}
+      out.update(symbList) #append to output
+      break
+    except Exception:
+      print("Error encoutered getting investopedia oil and gas penny stocks. Trying again...")
       if(verbose): print(f"{tries}/{maxTries}")
       tries+=1
       o.time.sleep(3)
-  
-  
+
+
   return out
     
   

@@ -1,33 +1,61 @@
 import json,sys
 import matplotlib.pyplot as plt
 import datetime as dt
+
+sys.path.append("../")
 import otherfxns as o
 
 
 algo = 'earn'
-listDir = "../stockStuff/dryRunLists/"
+listDir = "../../stockStuff/dryRunLists/"
 
 j = json.loads(open(listDir+algo+'.json','r').read())
 
-l = [[e,j[e]['low'],j[e]['lowDate'],j[e]['high'],j[e]['highDate'],j[e]['purchDate']] for e in j] #convert the json data to a list (symb, data)
+t1 = 40
+t2 = 20
+tf = 5
+
+
+l = [[e,
+      j[e]['low'],
+      j[e]['lowDate'],
+      j[e]['high'],
+      j[e]['highDate'],
+      j[e]['purchDate'],
+      o.getHistory(e,str(dt.datetime.strptime(j[e]['purchDate'],"%Y-%m-%d").date()-dt.timedelta(2*t1)),j[e]['purchDate'])] for e in j] #convert the json data to a list (symb, data)
 
 l.sort(key = lambda x: x[1]) #sort list by second element
 
 
+# m1 = o.mean([float(e[-1][f][1]) for f in range(t1-tf,t1)])
+# m2 = o.mean([float(e[-1][f][1]) for f in range(t2-tf,t2)])
+# m3 = o.mean([float(e[-1][f][1]) for f in range(0,tf)])
+
+maxPrice = 5
+
+l = [e[:-1] for e in l if len(e[-1])>=t1 and 
+     o.mean([float(e[-1][f][1]) for f in range(t1-tf,t1)])<=maxPrice and 
+     o.mean([float(e[-1][f][1]) for f in range(t1-tf,t1)])>
+     o.mean([float(e[-1][f][1]) for f in range(t2-tf,t2)])>
+     o.mean([float(e[-1][f][1]) for f in range(0,tf)])]
 
 
-print("\n\n\n")
-tgt1 = 0.92
+
+print("\n\n")
+tgt1 = 0.9
 tgt2 = 1.25
 
-low = [s[0] for s in l if s[1]<tgt1]
-med = [s[0] for s in l if s[1]>=tgt1 and s[3]<=tgt2]
-high = [s[0] for s in l if s[3]>tgt2]
+low = [s[0] for s in l if s[1]<=tgt1] #below target
+med = [s[0] for s in l if s[1]>tgt1 and s[3]<=tgt2] #between targets
+high = [s[0] for s in l if s[3]>tgt2] #above target and high date before low date
+var = [s for s in low if s in high]
+total = len(low)+len(med)+len(high)
 
-print(f"less than {tgt1}:\t\t{len(low)}")
-print(f"btw {tgt1} & {tgt2}:\t{len(med)}")
-print(f"greater than {tgt2}:\t{len(high)}")
-print(len(low)+len(med)+len(high))
+print(f"less than {tgt1}:\t\t{len(low)}\t{round(len(low)/total,2)}")
+print(f"btw {tgt1} & {tgt2}:\t\t{len(med)}\t{round(len(med)/total,2)}")
+print(f"greater than {tgt2}:\t{len(high)}\t{round(len(high)/total,2)}")
+print(*var,sep="\n")
+print(total)
 print(len(l))
 
 #print("symb\tbuyDate\t\tbuyPrice\thigh\thiDate\t\tlo\tloDate\t\tnote")

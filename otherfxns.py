@@ -373,7 +373,7 @@ def nextTradeDate():
   return str(r)
 
 #return dict of current prices of assets (symblist is list format of symb|assetclass) output of {symb|assetclass:{price,vol,open}}
-def getPrices(symbList,maxTries=3):
+def getPrices(symbList,maxTries=3,verbose=False):
   maxSymbs = 20 #cannot do more than 20 at a time, so loop through requests
   d = [] #init data var
   r = {}
@@ -390,14 +390,20 @@ def getPrices(symbList,maxTries=3):
         tries+=1
         time.sleep(3)
         continue
+    if(verbose): print(json.dumps(r['data'],indent=2))
     if(r['data'] is not None): d.extend(r['data']) #append the lists
 
   #isolate the symbols and prices and remove any that are none's
-  prices = {f"{e['symbol']}|{e['assetClass']}":{
+  prices={}
+  for e in d:
+    if(e['volume'] is not None and len(e['volume'])>0 and e['lastSalePrice'] is not None and len(e['lastSalePrice'])>0 and e['netChange'] is not None and len(e['netChange'])>0):
+      if(verbose): print(e)
+      prices[f"{e['symbol']}|{e['assetClass']}"] = {
                                                 'price':float(e['lastSalePrice'].replace("$","")),
                                                 'vol':int(e['volume'].replace(",","")),
                                                 'open':float(e['lastSalePrice'].replace("$",""))-(float(e['netChange']) if e['netChange']!='UNCH' else 0)
-                                                } for e in d if(e['volume'] is not None and e['lastSalePrice'] is not None)}
+                                                }
+
   return prices
   
 
@@ -445,7 +451,7 @@ def marketIsOpen():
   return isOpen
 
 #get the earning calls for the last year (date, forecasted, and actual) - dict of {date(mm/dd/yyyy):{forecast,actual}}
-def getEarnInf(symb, maxTries=3):
+def getEarnSurp(symb, maxTries=3):
   tries=0
   out = {}
   while tries<maxTries:
@@ -457,7 +463,7 @@ def getEarnInf(symb, maxTries=3):
         print(r['status']['bCodeMessage'][0]['errorMessage'])
       break
     except Exception:
-      print("No connection or other error encountered in getEarnInf. Trying again...")
+      print(f"No connection or other error encountered in getEarnSurp for {symb}. Trying again...")
       tries += 1
       time.sleep(3)
       continue
@@ -486,3 +492,135 @@ def getInstAct(symb, maxTries=3):
       continue
   return out
 
+#get previous 4 quarters and upcoming 4 quarters eps for a given stock
+#return dict of format {date:eps}
+def getEPS(symb, maxTries=3):
+  tries=0
+  out = {}
+  while tries<maxTries:
+    try:
+      r = json.loads(requests.get(f"https://api.nasdaq.com/api/quote/{symb}/eps",headers=HEADERS,timeout=5).content)
+      if(r['status']['bCodeMessage'] is None): #valid response
+        if(r['data']['earningsPerShare'] is not None):
+          r = r['data']['earningsPerShare']
+        else:
+          r = {}
+      else: #got a valid return, but bad data was passed
+        print(r['status']['bCodeMessage'][0]['errorMessage'])
+      break
+    except Exception:
+      print(f"No connection or other error encountered in getEPS for {symb}. Trying again...")
+      tries += 1
+      time.sleep(3)
+      continue
+  
+  #for every element in the list
+  for e in r:
+    if("Previous" in e['type']):
+      out[e['period']] = {"consensus":e['consensus'],"earnings":e['earnings']}
+  
+  return out
+
+#get upcoming earning forecasts
+def getEarnFcast(symb, maxTries=3):
+  tries=0
+  out = {}
+  while tries<maxTries:
+    try:
+      r = json.loads(requests.get(f"https://api.nasdaq.com/api/analyst/{symb}/earnings-forecast",headers=HEADERS,timeout=5).content)
+      if(r['status']['bCodeMessage'] is None): #valid response
+        if(r['data']['quarterlyForecast'] is not None):
+          r = r['data']['quarterlyForecast']['rows']
+        else:
+          r = {}
+      else: #got a valid return, but bad data was passed
+        print(r['status']['bCodeMessage'][0]['errorMessage'])
+      break
+    except Exception:
+      print(f"No connection or other error encountered in getEarnFcast for {symb}. Trying again...")
+      tries += 1
+      time.sleep(3)
+      continue
+  
+  #for every element in the list
+  for e in r:
+    out[e['fiscalEnd']] = {"consensus":e['consensusEPSForecast'],"low":e['lowEPSForecast'],"high":e['highEPSForecast'],"estno":e['noOfEstimates']}
+  
+  return out
+
+
+#get the shorting interest of a given stock
+def getShortInt(symb, maxTries=3):
+  tries=0
+  out = {}
+  while tries<maxTries:
+    try:
+      r = json.loads(requests.get(f"https://api.nasdaq.com/api/quote/{symb}/short-interest?assetclass=stocks",headers=HEADERS,timeout=5).content)
+      if(r['status']['bCodeMessage'] is None): #valid response
+        r = r['data']['shortInterestTable']['rows']
+      else: #got a valid return, but bad data was passed
+        print(r['status']['bCodeMessage'][0]['errorMessage'])
+      break
+    except Exception:
+      print(f"No connection or other error encountered in getEarnFcast for {symb}. Trying again...")
+      tries += 1
+      time.sleep(3)
+      continue
+  
+  #for every element in the list
+  for e in r:
+    out[e['settlementDate']] = {"interest":int(e['interest'].replace(",","")),"avgDailyShareVol":int(e['avgDailyShareVolume'].replace(",","")),"days2cover":e['daysToCover']}
+  
+  return out
+
+
+#get the company financials for the quarters of the last year
+# TODO: this is incomplete. data should be formatted as {sheetName:{date:{rows}}}
+def getFinancials(symb,maxTries=3):
+  tries=0
+  out = {}
+  while tries<maxTries:
+    try:
+      r = json.loads(requests.get(f"https://api.nasdaq.com/api/company/{symb}/financials?frequency=2",headers=HEADERS,timeout=5).content)
+      if(r['status']['bCodeMessage'] is None): #valid response
+        out['income'] = r['data']['incomeStatementTable']
+        out['balance'] = r['data']['balanceSheetTable']
+        out['cashflow'] = r['data']['cashFlowTable']
+        out['fratios'] = r['data']['financialRatiosTable']
+      else: #got a valid return, but bad data was passed
+        print(r['status']['bCodeMessage'][0]['errorMessage'])
+      break
+    except Exception:
+      print(f"No connection or other error encountered in getEarnFcast for {symb}. Trying again...")
+      tries += 1
+      time.sleep(3)
+      continue
+  
+  #for every element in the list
+  for e in out:
+    out[e] = {out[e]['headers']['value2']}
+  
+  return out
+
+
+
+#get the insider trades of a company
+#returns the data part of the request (no modifications)
+def getInsideTrades(symb, maxTries=3):
+  tries=0
+  out = {}
+  while tries<maxTries:
+    try:
+      r = json.loads(requests.get(f"https://api.nasdaq.com/api/company/{symb}/insider-trades",headers=HEADERS,timeout=5).content)
+      if(r['status']['bCodeMessage'] is None): #valid response
+        r = r['data']
+      else: #got a valid return, but bad data was passed
+        print(r['status']['bCodeMessage'][0]['errorMessage'])
+      break
+    except Exception:
+      print(f"No connection or other error encountered in getEarnFcast for {symb}. Trying again...")
+      tries += 1
+      time.sleep(3)
+      continue
+  
+  return out

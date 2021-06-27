@@ -72,7 +72,7 @@ def goodBuys(symbList):
 def goodSells(symbList):
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   buyPrices = {e['buyPrice'] for e in posList}
@@ -111,7 +111,7 @@ def getUnsortedList(verbose=False,maxTries=3):
 def sellUp(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
 
   if(symb in posList):

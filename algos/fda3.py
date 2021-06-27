@@ -63,7 +63,7 @@ def goodBuys(symbList, verbose=False): #where symbList is the output of getUnsor
 def goodSells(symbList,verbose=False): #where symbList is a list of symbols
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   if(verbose): print(f"stocks in {algo}: {list(posList)}\n")
@@ -94,7 +94,7 @@ def goodSell(symb):
   
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   if(symb in posList):
@@ -139,7 +139,7 @@ def getUnsortedList(verbose=False):
 def sellUp(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
 
   preSellUp = float(c[algo]['preSellUp']) #sell % before the catalyst date
@@ -152,7 +152,7 @@ def sellUp(symb=""):
 def sellDn(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
 
   preSellDn = float(c[algo]['preSellDn']) #sell % before the catalyst date

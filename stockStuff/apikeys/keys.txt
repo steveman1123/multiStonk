@@ -1,0 +1,9 @@
+{
+  "ALPACAKEY" : "",
+  "ALPACASECRETKEY" : "",
+  "ALPACAURL" : "https://api.alpaca.markets",
+
+  "ALPACAPAPERKEY" : "",
+  "ALPACAPAPERSECRETKEY" : "",
+  "ALPACAPAPERURL" : "https://paper-api.alpaca.markets"
+}

@@ -52,7 +52,7 @@ while True:
     #only append a number to the name if the symbol is already present and the purchDate was before today
     while d in purchList and purchList[d]['purchDate']<str(dt.date.today()):
       i += 1 #increment
-      d = e+str(i) #append number
+      d = e+"-"+str(i) #append number - #TODO: this might be not used? follow the logic about what's happening with it
     purchList[d] = { #store data
       "purchDate":str(dt.date.today()),
       "buyPrice":0,
@@ -63,7 +63,8 @@ while True:
       "lowDate":str(dt.date.today())
     }
   
-  prices = o.getPrices([e+"|stocks" for e in purchList]) #get prices for all stocks in the list
+  # print(*[e.split("-")[0] for e in purchList],sep="\n")
+  prices = o.getPrices([e.split("-")[0]+"|stocks" for e in purchList]) #get prices for all stocks in the list
   prices = {s.split("|")[0]:prices[s]['price'] for s in prices} #isolate to {symb:price}
   
   #this way we only have to call getPrices once

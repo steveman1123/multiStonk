@@ -145,6 +145,25 @@ def analSent(text):
   return {"sent":sent,"conf":conf}
   
 
+#search a list of subreddits for a given symb
+#suggested subreddits: wallstreetbets, pennystocks, stocks,
+# more info: https://www.reddit.com/dev/api#GET_search
+#TODO: figure out how to only return text posts (no images or videos)
+def scrapeReddit(symb, subList, maxTries=3):
+  subList = list(set(subList)) #remove duplicates
+  r = {} #init output
+  for sub in subList: #for every subreddit in the list
+    tries=0
+    while tries<maxTries:
+      try:
+        r[sub] = json.loads(requests.get(f"https://api.reddit.com/search?q={symb}+subreddit%3A{sub}+nsfw%3Ano+self%3Ayes&sort=relevance&t=month",headers={"user-agent":"-"},timeout=5).text) #restrict to selected subreddit, no nsfw, include text posts, relevance over the past month
+        break
+      except Exception:
+        print(f"No connection or other error encountered in scrapeReddit for {symb} in {sub}. Trying again...")
+        tries+=1
+    return r
+    
+
 
 #combine all different news sources
 def scrape(symb):

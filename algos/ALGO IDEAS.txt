@@ -10,14 +10,9 @@ perform history analysis on the daily gainers and see what various events cause 
 
 Some investors purchase shares just before the ex-dividend date and then sell them again right after the date of record—a tactic that can result in a tidy profit if it is done correctly. 
 
-how do forex react to economic events?
-https://api.nasdaq.com/api/calendar/economicevents?date=yyyy-mm-dd
-
 is there a large difference in how stocks act for ipos vs spos?
 
 how do stock prices change based on headlines?
-
-
 
 read articles from: https://stockmarketjunkie.com/
 
@@ -25,3 +20,22 @@ read articles from: https://pennystocks.com/category/top-penny-stocks-{yyyy}/top
 
 check out bloggers, etc: https://www.tipranks.com/bloggers/top
 
+
+
+
+
+how to do due diligence:
+https://www.investopedia.com/articles/stocks/08/due-diligence.asp
+https://ourthinklab.com/finance/how-to-do-due-diligence-dd-buying-stock/
+
+
+check mktcap
+check revenue, profit, margin trends for past 2 years.
+find competitors
+compare p/e ratios between the target company and its competitors
+management (founders, or new management? How long have they been in office?)
+review balance sheet (good cash balances and looking at amount of debt based on company's business model, industry, and age (r&d))
+how long have the shares been trading?
+10-Q and 10-k reports (ptions, expenctions for future prices)
+revenue/profit expectations for the next 2-3 years, trends affecting industry, company specific details (partnerships, joint ventures, IP, prudcts, etc)
+risks (legal, industry, regulatory, environmentally friendly, etc)

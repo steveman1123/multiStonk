@@ -22,7 +22,6 @@ colorinit() #allow coloring in Windows terminals
 #TODO: check on overall market trends/sentiment and adjust which algos to use based on volitility (would need to give some kind of scoring to see what volitility the algos operate the best in)
 #TODO: use this api for reddit sent analysis: https://api.pushshift.io/reddit/search/comment/?subreddit=
 # ^ https://github.com/pushshift/api
-#TODO: account for transactions in the last month when calculating maxPortVal
 
 #parse args and get the config file
 configFile="./configs/multi.config"
@@ -153,12 +152,18 @@ def main(verbose=True):
       print("Algo ROI's:")
       for algo in posList:
         curPrices = o.getPrices([e+"|stocks" for e in posList[algo]]) #get the current prices of all the stocks in a given algo
-        algoCurVal = sum([posList[algo][s]['sharesHeld']*curPrices[s+"|stocks".upper()]['price'] for s in posList[algo] if s+"|stocks".upper() in curPrices]) #get the total value of the stocks in a given algo
-        algoBuyVal = sum([posList[algo][s]['sharesHeld']*posList[algo][s]['buyPrice'] for s in posList[algo]]) #get the total amount initially invested in a given algo
-        if(algoBuyVal>0): #make sure that we don't div0 if the list is empty
-          roi = round(algoCurVal/algoBuyVal,2)
-        else:
-          roi = 1 #if the buyVal is 0, then that means either no info or no stocks held, so it's nearly impossible to make a judgement
+        
+        algoCurVal = sum([posList[algo][s]['sharesHeld']*curPrices[s+"|stocks".upper()]['price'] for s in posList[algo] if s+"|stocks".upper() in curPrices])+cashList[algo]['earned'] #get the total value of the stocks in a given algo plus the returned cash
+        
+        #update the invested amount (just in case)
+        if(cashList[algo]['invested']==0):
+          cashList[algo]['invested'] = sum([posList[algo][s]['sharesHeld']*posList[algo][s]['buyPrice'] for s in posList[algo]])
+        algoBuyVal = cashList[algo]['invested'] #set the investment amount (technically could be removed, but easier to just keep it)
+        #make sure that we don't div0 if the list is empty
+        if(algoBuyVal>0): roi = round(algoCurVal/algoBuyVal,2)
+        #if the buyVal is 0, then that means either no info or no stocks held, so it's nearly impossible to make a judgement
+        else: roi = 1
+        
         print(f"{algo} - {bcolor.FAIL if roi<1 else bcolor.OKGREEN}{roi}{bcolor.ENDC}") #display the ROI
       
       #update the max port val
@@ -184,7 +189,7 @@ def main(verbose=True):
       
       # clear all lists in algoList
       print("Clearing buyList")
-      algoList = {e:[] for e in algoList}
+      algoList = {e:{} for e in algoList}
       
       #reset ask2sell in order to ask again tomorrow
       ask2sell = True
@@ -221,7 +226,10 @@ def updateLists(verbose=False):
     if(modDate==dt.date.today()):
       try:
         if(verbose): print("Reading from file")
-        algoList = json.loads(open(c['file locations']['buyList'],'r').read())
+        f = json.loads(open(c['file locations']['buyList'],'r').read())
+        if(len([e for e in f if e not in algoList])>0 or len([e for e in algoList if e not in f])>0):
+          if(verbose): print("mismatch between saved buy list and algos being used")
+          errored = True
       except Exception:
         if(verbose): print("invalid data in file")
         errored = True
@@ -297,7 +305,7 @@ def check2sell(algo, pos):
 #TODO: check2buy should run more continuously/should be it's own thread (rather than a single loop through, it should repeat until cash is spent per algo)
 #look to buy stocks from the stocks2buy list with the available funds for the algo
 def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
-  global posList
+  global posList, cashList
 
   random.shuffle(stocks2buy) #shuffle the stocks2buy to avoid front loading
   #calculate the cash to be put towards various stocks in the algo (shouldn't be more than the cash available, but shouldn't be less than than the minDolPerStock (unless mindol > cashAvail))
@@ -403,11 +411,9 @@ def check2sells(pos):
             triggerThread.start() #start the thread
   
   
-  
-
 #basically just a market order for the stock and then record it into an order info file
 def sell(stock, algo):
-  global posList,triggeredStocks
+  global posList, cashList,triggeredStocks
   if(posList[algo][stock]['sharesHeld']>0):
     r = a.createOrder("sell",float(posList[algo][stock]['sharesHeld']),stock)
   else:
@@ -417,6 +423,7 @@ def sell(stock, algo):
   if('status' in r and r['status'] == "accepted"): #check that it actually sold
     lock = o.threading.Lock()
     lock.acquire()
+    cashList[algo]['earned'] += o.getInfo(stock)['price']*posList[algo][stock]["sharesHeld"] #update the cash earned by the sale
     posList[algo][stock] = { #update the entry in posList
         "sharesHeld":0,
         "lastTradeDate":str(dt.date.today()),
@@ -425,7 +432,7 @@ def sell(stock, algo):
         "shouldSell":False,
         "note":""
       }
-    open(c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update the posList file
+    open(c['file locations']['posList'],'w').write(json.dumps({'algos':posList,'cash':cashList},indent=2)) #update the posList file
     triggeredStocks.discard(algo+"|"+stock)
     lock.release()
     print(f"Sold {algo}'s shares of {stock}")
@@ -437,7 +444,7 @@ def sell(stock, algo):
 #basically just a market buy of this many shares of this stock for this algo
 def buy(shares, stock, algo, buyPrice):
   r = a.createOrder("buy",shares,stock) #this needs to happen first so that it can be as accurate as possible
-  global posList
+  global posList, cashList
 
   if('status' in r and r['status'] == "accepted"): #check to make sure that it actually bought - TODO: does the presence of 'status' indicate that it bought or not?
     lock = o.threading.Lock()
@@ -451,7 +458,8 @@ def buy(shares, stock, algo, buyPrice):
         "shouldSell":False,
         "note":algoList[algo][stock] if stock in algoList[algo] else ""
       }
-    open(c['file locations']['posList'],'w').write(json.dumps(posList,indent=2)) #update posList file
+    cashList[algo]['invested'] += buyPrice*shares
+    open(c['file locations']['posList'],'w').write(json.dumps({'algos':posList,'cash':cashList},indent=2)) #update posList file
     lock.release()
     return True
   else: #it didn't actually buy
@@ -462,58 +470,81 @@ def buy(shares, stock, algo, buyPrice):
 #set up the position list and do some error checking to make sure it's correct (take list of algos as arg in the event the pos list needs to be populated)
 def setPosList(algoList, verbose=True):
   posList={}
+  cashList = {}
   #if the posList file doesn't exist
   if(not os.path.isfile(c['file locations']['posList'])):
     if(verbose): print("File is missing. Creating and adding blank lists...")
     lock = o.threading.Lock()
     lock.acquire()
     with open(c['file locations']['posList'],'w') as f:
-      f.write(json.dumps({e:{} for e in algoList}))
-    posList = json.loads(open(c['file locations']['posList'],'r').read())
+      f.write(json.dumps({'algos':{e:{} for e in algoList},'cash':{e:{"earned":0,"invested":0} for e in algoList}})) #write a empty algos and 0 cash for all algos to the posList file
+    lists = json.loads(open(c['file locations']['posList'],'r').read())
+    posList = lists['algos']
+    cashList = lists['cash']
     lock.release()
   else: #if it does exist
-    try: #try reading any json data from it
-      lock = o.threading.Lock()
-      lock.acquire()
-      with open(c['file locations']['posList'],'r') as f:
-        posList = json.loads(f.read())
-      missingAlgos = [algo for algo in algoList if algo not in posList]
-      if(verbose and len(missingAlgos)>0): print(f"Adding {len(missingAlgos)} algo{'s' if len(missingAlgos)>1 else ''} to posList")
+    # try: #try reading any json data from it
+    lock = o.threading.Lock()
+    lock.acquire()
+    with open(c['file locations']['posList'],'r') as f:
+      lists = json.loads(f.read())
+      
+    #algos that are being used but not in the posList
+    missingAlgos = [algo for algo in algoList if algo not in lists['algos']]
+    
+    if(len(missingAlgos)>0):
+      if(verbose): print(f"Adding {len(missingAlgos)} algo{'s' if len(missingAlgos)>1 else ''} to posList")
       for algo in missingAlgos:
         posList[algo] = {}
-      lock.release()
-        
-      #write the missing algos to the file
-      lock = o.threading.Lock()
-      lock.acquire()
-      with open(c['file locations']['posList'],'w') as f:
-        f.write(json.dumps(posList))
-      lock.release()
-      
-    except Exception: #if it fails, then just write the empty algoList to the file
-      #TODO: this is dangerous! This could potentially overwrite all saved position data if there's any error above. Make this more robust
-      if(verbose): print("Something went wrong. Overwriting file")
-      lock = o.threading.Lock()
-      lock.acquire()
-      with open(c['file locations']['posList'],'w') as f:
-        f.write(json.dumps({e:{} for e in algoList}))
-      posList = json.loads(open(c['file locations']['posList'],'r').read())
-      lock.release()
-      
-  return posList
+    else:
+      posList = lists['algos']
 
+    missingCash = [algo for algo in algoList if algo not in lists['cash']]
+    if(len(missingCash)>0):
+      if(verbose): print(f"Adding {len(missingCash)} algo{'s' if len(missingCash)>1 else ''} to cashList")
+      for algo in missingCash:
+        cashList[algo] = {'earned':0,'invested':0}
+    else:
+      cashList = lists['cash']
+    
+    lock.release()
+
+    #write the missing algos to the file
+    lock = o.threading.Lock()
+    lock.acquire()
+    with open(c['file locations']['posList'],'w') as f:
+      f.write(json.dumps({'algos':posList,'cash':cashList}))
+    lock.release()
+    '''
+    except Exception: #if it fails, then just write the empty algoList to the file
+      #TODO: this is dangerous! This could potentially overwrite all saved position data if there's any error above. TODO Make this more robust
+      if(verbose): print("Something went wrong. Overwriting poslist file")
+      lock = o.threading.Lock()
+      lock.acquire()
+      with open(c['file locations']['posList'],'w') as f:
+        f.write(json.dumps({'algos':{e:{} for e in algoList},'cash':{e:{"earned":0,"invested":0} for e in algoList}})) #write a empty algos and 0 cash for all algos to the posList file
+      lists = json.loads(open(c['file locations']['posList'],'r').read())
+      posList = lists['algos']
+      cashList = lists['cash']
+      lock.release()
+    '''
+  return [posList,cashList]
 
 
 #sync what we have recorded and what's actually going on in the account
 def syncPosList(verbose=False):
-  global posList
+  global posList, cashList
   lock = o.threading.Lock() #locking is needed to write to the file and edit the posList var (will have to see how threads and globals work with each other)
   print("Syncing posList...")
   
   #check if an algo in the posList is removed from the algoList
   for inactiveAlgo in [algo for algo in posList if algo not in algoList]:
-    if(verbose): print(f"Looking at inactive algo {algo}")
+    if(verbose): print(f"Looking at inactive algo {inactiveAlgo}")
     #stocks that are in a removed algo should be moved to an active algo that has it, if none do, then move it to the active algo with the highest loss
+    if(inactiveAlgo in cashList):
+      if(verbose): print(f"Removing {inactiveAlgo} from cashList")
+      cashList.discard(inactiveAlgo)
+    
     for symb in posList[inactiveAlgo]: #stocks in the removed algo
       #get all active algos that contain it
       activeAlgosWithStock = [e for e in posList if(e in algoList and symb in e)]
@@ -607,9 +638,9 @@ def syncPosList(verbose=False):
       for algo in posList: #check every algo
         if(verbose): print(f"{symb} not found in actuals. Removing from {algo} records")
         lock.acquire()
-        posList[algo].pop(symb,None) #remove from posList
+        posList[algo].discard(symb) #remove from posList
         lock.release()
-      recPos.pop(symb,None) #remove from recorded
+      recPos.discard(symb) #remove from recorded
     
     #for each stock, if there are an excess of shares in the recPos than the heldPos, look for any in the algos that match the disparity, and remove them from that algo
       #if none match (i.e. heldPos and recPos both have a stock, but there's an unknown amount extra in recPos), then trim off the amount extra from the algo that has the most above the disparity
@@ -621,9 +652,9 @@ def syncPosList(verbose=False):
           if(verbose): print(f"Removing {float(posList[algo][symb]['sharesHeld'])} shares of {symb} from {algo} records")
           recPos[symb] -= float(posList[algo][symb]['sharesHeld'])
           if(recPos[symb]==0):
-            recPos.pop(symb,None)
+            recPos.discard(symb)
           lock.acquire()
-          posList[algo].pop(symb,None)
+          posList[algo].discard(symb)
           lock.release()
           
           
@@ -727,12 +758,17 @@ def syncPosList(verbose=False):
     for symb in list(posList[algo]): #must be cast as list in order to not change dict size (this makes a copy)
       if(posList[algo][symb]['sharesHeld']==0):
         lock.acquire()
-        posList[algo].pop(symb,None)
+        posList[algo].discard(symb)
         lock.release()
     if(algo not in algoList and len(posList[algo])==0): #remove any algos that aren't in the algoList and have 0 symbs in them
       lock.acquire()
-      posList.pop(algo,None)
+      posList.discard(algo)
       lock.release()
+  
+  for algo in posList:
+    if(verbose): print(f"Calculating invested amount in {algo}... ",end="")
+    cashList[algo]['invested'] = sum([posList[algo][s]['sharesHeld']*posList[algo][s]['buyPrice'] for s in posList[algo]])
+    if(verbose): print(round(cashList[algo]['invested'],2))
   
   if(verbose): print("Marking to be sold")
   revSplits = o.reverseSplitters()
@@ -748,7 +784,7 @@ def syncPosList(verbose=False):
   lock.acquire()
   with open(c['file locations']['posList'],'w') as f:
     if(verbose): print("Writing to posList file")
-    f.write(json.dumps(posList,indent=2))
+    f.write(json.dumps({'algos':posList,'cash':cashList},indent=2))
   lock.release()
   print("Done syncing posList")
 
@@ -756,7 +792,7 @@ def syncPosList(verbose=False):
 
 #run the main function
 if __name__ == '__main__':
-  global posList,triggeredStocks
+  global posList, cashList,triggeredStocks
   
   try:
     triggeredStocks = set() #should contain elements of format algo|stock
@@ -765,8 +801,7 @@ if __name__ == '__main__':
     if(len(a.getPos())==0): #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
       print(f"Will start buying {c['time params']['buyTime']} minutes before next close")
     
-    posList = setPosList(algoList) #initiate/populate the list of positions by algo
-    
+    [posList,cashList] = setPosList(algoList) #initiate/populate the list of positions by algo
     #init the algos
     for algo in algoList:
       exec(f"{algo}.init('{configFile}')")
@@ -785,20 +820,3 @@ if __name__ == '__main__':
     print("An unhandled error was encountered. Please check the log.")
     traceback.print_exc(file=open(c['file locations']['errLog'],"a"))
 
-'''
-how to do due diligence:
-https://www.investopedia.com/articles/stocks/08/due-diligence.asp
-https://ourthinklab.com/finance/how-to-do-due-diligence-dd-buying-stock/
-
-
-check mktcap
-check revenue, profit, margin trends for past 2 years.
-find competitors
-compare p/e ratios between the target company and its competitors
-management (founders, or new management? How long have they been in office?)
-review balance sheet (good cash balances and looking at amount of debt based on company's business model, industry, and age (r&d))
-how long have the shares been trading?
-10-Q and 10-k reports (ptions, expenctions for future prices)
-revenue/profit expectations for the next 2-3 years, trends affecting industry, company specific details (partnerships, joint ventures, IP, prudcts, etc)
-risks (legal, industry, regulatory, environmentally friendly, etc)
-'''

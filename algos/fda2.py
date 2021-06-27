@@ -13,7 +13,7 @@ def init(configFile):
   #stocks held by this algo according to the records
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
 
 def getList(verbose=True):
@@ -192,7 +192,7 @@ def getUnsortedList(verbose=False):
 def sellUp(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   mainSellUp = float(c[algo]['sellUp'])
@@ -207,7 +207,7 @@ def sellUp(symb=""):
 def sellDn(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())[algo]
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   mainSellDn = float(c[algo]['sellDn'])
