@@ -75,7 +75,7 @@ def goodSells(symbList):
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
-  buyPrices = {e['buyPrice'] for e in posList}
+  buyPrices = {posList[e]['buyPrice'] for e in posList}
   symbList = [e for e in symbList if e in posList] #make sure they're the ones in the posList only
   prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
   prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
