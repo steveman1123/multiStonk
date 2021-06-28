@@ -79,7 +79,7 @@ def goodSell(symb):
     print(f"{symb} buy price is 0.")
     return False
 
-#multiplex the good sell function
+#multiplex the good sell function to return dict of {symb:t/f}
 def goodSells(symbList,verbose=False):
   lock = o.threading.Lock()
   lock.acquire()
@@ -96,6 +96,8 @@ def goodSells(symbList,verbose=False):
   if(verbose): print(f"stocks in prices: {list(prices)}")
   #check that it has exceeded the stopLoss or takeProfit points
   gs = {s:(s not in prices or
+           prices[s]['price']/prices[s]['open']>=sellUp(s) or
+           prices[s]['price']/prices[s]['open']<sellDn(s) or
            prices[(s)]['price']/buyPrices[s]<sellDn(s) or
            prices[(s)]['price']/buyPrices[s]>=sellUp(s)
           ) for s in symbList}

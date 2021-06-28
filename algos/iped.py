@@ -41,26 +41,30 @@ def goodBuys(symbList):
   gb = {s:True for s in symbList}
   return gb
 
-#where symblist is a list of stocks and the function returns the same stocklist as a dict of {symb:goodsell(t/f)}
-def goodSells(symbList):
+#multiplex the good sell function to return dict of {symb:t/f}
+def goodSells(symbList,verbose=False):
   lock = o.threading.Lock()
   lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
-  buyPrices = {e['buyPrice'] for e in posList}
-  symbList = [e for e in symbList if e in posList] #make sure they're the ones in the posList only
+  if(verbose): print(f"stocks in {algo}: {list(posList)}\n")
+  symbList = [e.upper() for e in symbList if e.upper() in posList] #make sure they're the ones in the posList only
+  buyPrices = {e:float(posList[e]['buyPrice']) for e in symbList} #get the prices each stock was bought at
+  if(verbose): print(f"stocks in the buyPrices: {list(buyPrices)}")
   prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
   prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
-  gs = {e:(e not in prices or
-           prices[e]['price']/prices[e]['open']>=sellUp(e) or
-           prices[e]['price']/prices[e]['open']<sellDn(e) or
-           prices[e]['price']/buyPrices[e]>=sellUp(e) or
-           prices[e]['price']/buyPrices[e]<sellDn(e))
-        for e in symbList} #return true if the price has reached a sellUp/dn point or it's not in the prices list
+  if(verbose): print(f"stocks in prices: {list(prices)}")
+  #check that it has exceeded the stopLoss or takeProfit points
+  gs = {s:(s not in prices or
+           prices[s]['price']/prices[s]['open']>=sellUp(s) or
+           prices[s]['price']/prices[s]['open']<sellDn(s) or
+           prices[(s)]['price']/buyPrices[s]<sellDn(s) or
+           prices[(s)]['price']/buyPrices[s]>=sellUp(s)
+          ) for s in symbList}
   
-  return gs  
+  return gs
 
 #get a list of stocks to be sifted through - returns dict of {symb:"date, type"}
 

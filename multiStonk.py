@@ -22,6 +22,7 @@ colorinit() #allow coloring in Windows terminals
 #TODO: check on overall market trends/sentiment and adjust which algos to use based on volitility (would need to give some kind of scoring to see what volitility the algos operate the best in)
 #TODO: use this api for reddit sent analysis: https://api.pushshift.io/reddit/search/comment/?subreddit=
 # ^ https://github.com/pushshift/api
+#TODO: add checks to all threads to see if the main thread is running. if it isn't, then terminate the thread
 
 #parse args and get the config file
 configFile="./configs/multi.config"

@@ -109,21 +109,21 @@ def getUnsortedList(verbose=False,maxTries=3):
   
 #TODO: add comments
 def sellUp(symb=""):
-  lock = o.threading.Lock()
-  lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
-  lock.release()
-
+  mainSellUp = float(c[algo]['sellUp'])
   if(symb in posList):
-    bouncePerc = float(c[algo]['bouncePerc']) #get the amount of rebound to look for
-    lossPerc = float(posList[symb]['note']) #get the previous day's loss %
-    return 1+(bouncePerc*lossPerc)
+    sellUp = mainSellUp #TODO: account for squeeze here
   else:
-    return float(c[algo]['sellUp'])
+    sellUp = mainSellUp
+  return sellUp
 
 
 def sellDn(symb=""):
-  return float(c[algo]['sellDn'])
+  mainSellDn = float(c[algo]['sellDn'])
+  if(symb in posList):
+    sellDn = mainSellDn #TODO: account for squeeze here
+  else:
+    sellDn = mainSellDn
+  return sellDn
 
 
 #get the stop loss for a symbol after its been triggered (default to the main value)
