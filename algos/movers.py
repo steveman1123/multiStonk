@@ -69,7 +69,6 @@ def goodBuys(symbList):
   return gb
 
 #where symblist is a list of stocks and the function returns the same stocklist as a dict of {symb:goodsell(t/f)}
-def goodSells(symbList):
 def goodSells(symbList,verbose=False):
   lock = o.threading.Lock()
   lock.acquire()
