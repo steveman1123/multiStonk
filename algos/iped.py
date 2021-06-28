@@ -24,15 +24,15 @@ def init(configFile):
 
 #return a dict of good buys {symb:note}
 #the note contains the overall change %
-def getList(verbose=False):
-  if(verbose): print("getting unsorted list...")
+def getList(verbose=True):
+  if(verbose): print(f"getting unsorted list for {algo}...")
   ul = getUnsortedList()
-  if(verbose): print("checking for goodBuys...")
-  l = goodBuys(ul)
-  if(verbose): print(l)
-  out = {e:ul[e] for e in l}
-  return out
+  if(verbose): print(f"finding stocks for {algo}...")
+  arr = goodBuys(ul) #returns dict of {symb:gooduy(t/f)}
+  arr = {e:ul[e] for e in arr if(arr[e])} #only look at the ones that are true
+  if(verbose): print(f"{len(arr)} found for {algo}.")
   
+  return arr
 
 #multiplex the goodBuy fxn (symbList should be the output of getUnsortedList)
 #return dict of {symb:t/f}

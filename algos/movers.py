@@ -27,45 +27,32 @@ def init(configFile):
 # ^ https://api.nasdaq.com/api/analyst/{symb}/estimate-momentum
 
 #return a dict of good buys {symb:note}
-#the note contains the overall change %
-def getList(isAfternoon=False, verbose=True):
-  #TODO: adjust this value based on testing
+#the note contains the % seen on the date
+def getList(verbose=True):
+  if(verbose): print(f"getting unsorted list for {algo}...")
   ul = getUnsortedList()
-  out = {}
-  for e in ul:
-    for s in ul[e]:
-      if(float(c[algo]['minPrice'])<=float(s['lastSalePrice'])<=float(c[algo]['maxPrice'])):
-        out[s['symbol']] = s['change']
-  return out
+  if(verbose): print(f"finding stocks for {algo}...")
+  arr = goodBuys(ul) #returns dict of {symb:gooduy(t/f)}
+  arr = {e:ul[e] for e in arr if(arr[e])} #only look at the ones that are true
+  if(verbose): print(f"{len(arr)} found for {algo}.")
+  
+  return arr
   
   
   
-  
-#determine whether the queries symb is a good one to buy or not
-#this function is depreciated, replaced with goodBuys
-def goodBuy(symb, verbose=False):
-  #TODO: see how a stock's price changes after being on the gainer or loser list
-  #may want to look at history
-  #need to test this one over time like what we did with the original fda one
-  
-  return False
-  
-#return whether symb is a good sell or not
-#this function is depreciated, replaced with goodSells
-def goodSell(symb, verbose=False):
-  #in terms of losers - theoritcally if the loss is significant in ne day, then the next day it should bounce back a bit (dead cat)
-  #look for the significant drop (in goodbuy), then look for some amount of rebound from that drop
-  
-  inf = o.getInfo(symb,['price','open']) #get the current and open prices
-
-  return inf['price']/inf['open']>=bouncePerc*note #return true if the price has bounced back some % of the fall
-
 #multiplex the goodBuy fxn (symbList should be the output of getUnsortedList)
-def goodBuys(symbList):
+def goodBuys(symbList,verbose=False):
+  [minPrice, maxPrice] = [float(c[algo]['minPrice']),float(c[algo]['maxPrice'])]
+  [maxLoss, maxGain] = [float(c[algo]['maxLoss']),float(c[algo]['maxGain'])]
+  if(verbose): print(f"minPrice: {minPrice}, maxPrice: {maxPrice}")
+  if(verbose): print(f"maxLoss: {maxLoss}, maxGain: {maxGain}")
+
+  prices = o.getPrices([e+"|stocks" for e in symbList]) #get current prices
+  #make sure that price is within our target range and that the change amount is also within our range
+  gb = {s:((s+"|stocks").upper() in prices and
+            minPrice<=prices[(s+"|stocks").upper()]['price']<=maxPrice and
+            maxLoss<=float(symbList[s])<=maxGain) for s in symbList}
   
-  minFallPerc = float(c[algo]['minFallPerc']) #price must drop by at least this much
-  #
-  gb = {s:(abs(float(s['change'][:-1])/100)>=minFallPerc) for s in symbList['losers']}
   return gb
 
 #where symblist is a list of stocks and the function returns the same stocklist as a dict of {symb:goodsell(t/f)}

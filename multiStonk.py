@@ -22,7 +22,6 @@ colorinit() #allow coloring in Windows terminals
 #TODO: check on overall market trends/sentiment and adjust which algos to use based on volitility (would need to give some kind of scoring to see what volitility the algos operate the best in)
 #TODO: use this api for reddit sent analysis: https://api.pushshift.io/reddit/search/comment/?subreddit=
 # ^ https://github.com/pushshift/api
-#TODO: add checks to all threads to see if the main thread is running. if it isn't, then terminate the thread
 
 #parse args and get the config file
 configFile="./configs/multi.config"
@@ -253,25 +252,29 @@ def updateLists(verbose=False):
         
     #TODO: see the following because the updateList threads currently all access algoList, and the while loop is probably not the best solution for waiting
     # https://www.geeksforgeeks.org/multio.threading-in-python-set-2-synchronization/
-    while(len([t.getName() for t in o.threading.enumerate() if t.getName().startswith("update-")])>0):
+    #wait for the threads to finish updating, or the exitFlag is triggered
+    while(len([t.getName() for t in o.threading.enumerate() if t.getName().startswith("update-")])>0 and not exitFlag):
       time.sleep(2)
     
-    #save to a file
-    if(verbose): print("Writing to buyList file")
-    with open(c['file locations']['buyList'],'w') as f:
-      f.write(json.dumps(algoList,indent=2))
+    if(not exitFlag):
+      #save to a file
+      if(verbose): print("Writing to buyList file")
+      with open(c['file locations']['buyList'],'w') as f:
+        f.write(json.dumps(algoList,indent=2))
   
   listsUpdatedToday = True
 
 #update the to-buy list of the given algorithm, and exclude a list of rm stocks
 def updateList(algo,lock,rm=[],verbose=False):
   global algoList
-  if(verbose): print(f"Updating {algo} list")
-  algoBuys = eval(algo+".getList()") #this is probably not safe, but best way I can think of
-  algoBuys = {e:algoBuys[e] for e in algoBuys if e not in rm} #remove any stocks that are in the rm list
-  lock.acquire() #lock in order to write to the list
-  algoList[algo] = algoBuys
-  lock.release() #then unlock
+  if(not exitFlag): #ensure that the exit flag isn't set
+    if(verbose): print(f"Updating {algo} list")
+    #TODO: exitFlag doesn't stop individual getList()'s. Might not be a bad idea to read it somehow?
+    algoBuys = eval(algo+".getList()") #this is probably not safe, but best way I can think of
+    algoBuys = {e:algoBuys[e] for e in algoBuys if e not in rm} #remove any stocks that are in the rm list
+    lock.acquire() #lock in order to write to the list
+    algoList[algo] = algoBuys
+    lock.release() #then unlock
 
 
 #check to sell positions from a given algo (where algo is an aglo name, and pos is the output of a.getPos())
@@ -303,7 +306,7 @@ def check2sell(algo, pos):
             triggerThread.start() #start the thread
           '''
 
-#TODO: check2buy should run more continuously/should be it's own thread (rather than a single loop through, it should repeat until cash is spent per algo)
+#TODO: check2buy should run more continuously/should be it's own thread (rather than a single loop through, it should repeat until cash is spent per algo) <- this might already be addressed?
 #look to buy stocks from the stocks2buy list with the available funds for the algo
 def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
   global posList, cashList
@@ -317,31 +320,31 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
     print(f"No stocks to buy for {algo}")
   #loop through the stocks to be bought
   for stock in stocks2buy:
-    
-    #populate the information about the stock (either from the posList if it's present, else with default info)
-    stockInfo = posList[algo][stock] if stock in posList[algo] else {
-          "sharesHeld":0,
-          "lastTradeDate":"NA",
-          "lastTradeType":"NA",
-          "buyPrice":0,
-          "shouldSell":False,
-          "note":""
-        }
-    
-    #get the last date it was traded, if it isn't populated, just set it to yesterday
-    try:
-      lastTradeDate = dt.datetime.strptime(stockInfo[algo][stock]['lastTradeDate'],"%Y-%m-%d").date()
-    except Exception:
-      lastTradeDate = dt.date.today()-dt.timedelta(1)
-    
-    #to avoid day trading, make sure that it either didn't trade yet today, or if it has, that it hasn't sold yet
-    if lastTradeDate < dt.date.today() or stockInfo['lastTradeType']!="sell":
-      inf = o.getInfo(stock,['price','mktcap'])
-      [curPrice, mktCap] = [inf['price'],inf['mktcap']]
-      shares = int(min(cashPerStock/curPrice,(mktCap/curPrice)*float(c['account params']['maxVolPerc']))) #set number of shares to be at most some % of the mktcap, otherwise as many int shares as cash is available
-      if(shares>0): #cannot place an order for 0 shares
-        isBought = buy(shares,stock,algo,curPrice) #buy the stock
-        if(isBought): print(f"Bought {shares} shares of {stock} for {algo} algo at around ${curPrice}/share")
+    if(not exitFlag): #ensure that the exitFlag is not set
+      #populate the information about the stock (either from the posList if it's present, else with default info)
+      stockInfo = posList[algo][stock] if stock in posList[algo] else {
+            "sharesHeld":0,
+            "lastTradeDate":"NA",
+            "lastTradeType":"NA",
+            "buyPrice":0,
+            "shouldSell":False,
+            "note":""
+          }
+      
+      #get the last date it was traded, if it isn't populated, just set it to yesterday
+      try:
+        lastTradeDate = dt.datetime.strptime(stockInfo[algo][stock]['lastTradeDate'],"%Y-%m-%d").date()
+      except Exception:
+        lastTradeDate = dt.date.today()-dt.timedelta(1)
+      
+      #to avoid day trading, make sure that it either didn't trade yet today, or if it has, that it hasn't sold yet
+      if lastTradeDate < dt.date.today() or stockInfo['lastTradeType']!="sell":
+        inf = o.getInfo(stock,['price','mktcap'])
+        [curPrice, mktCap] = [inf['price'],inf['mktcap']]
+        shares = int(min(cashPerStock/curPrice,(mktCap/curPrice)*float(c['account params']['maxVolPerc']))) #set number of shares to be at most some % of the mktcap, otherwise as many int shares as cash is available
+        if(shares>0): #cannot place an order for 0 shares
+          isBought = buy(shares,stock,algo,curPrice) #buy the stock
+          if(isBought): print(f"Bought {shares} shares of {stock} for {algo} algo at around ${curPrice}/share")
     
 #a stock has reached a trigger point and should begin to be checked more often (it will be sold in this function)
 #this function is now depreciated - replaced by checkTriggered
@@ -350,7 +353,7 @@ def triggeredUp(symb, algo):
   curPrice = 0.01
   sellUpDn = float(eval(algo+".sellUpDn()"))
   #ensure that current price>0 (getPrice returns 0 if it can't recognize a symbol (eg if a merger happens or a stock is delisted)
-  while(curPrice>0 and curPrice>=sellUpDn*maxPrice and (closeTime-dt.datetime.now()).total_seconds()>60):
+  while(curPrice>0 and curPrice>=sellUpDn*maxPrice and (closeTime-dt.datetime.now()).total_seconds()>60 and not exitFlag):
     curPrice = o.getInfo(symb)['price']
     maxPrice = max(maxPrice,curPrice)
     print(f"{algo}\t{symb}\t{round(curPrice/maxPrice,2)} : {round(sellUpDn,2)}")
@@ -363,7 +366,7 @@ def checkTriggered(verbose=False):
   global triggeredStocks
   lock = o.threading.Lock()
   maxPrices = {}
-  while len(list(triggeredStocks))>0: #only run if there's stocks to sell
+  while(len(list(triggeredStocks))>0 and not exitFlag): #only run if there's stocks to sell
     if(verbose): print(f"{len(list(triggeredStocks))} stocks triggered for sale")
     prices = o.getPrices([e.split("|")[1]+"|stocks" for e in list(triggeredStocks)]) #get prices for all stocks to sell
     maxPrices = {e:max(maxPrices[e],prices[e]['price']) if(e in maxPrices) else prices[e]['price'] for e in prices} #get the max prices of the stocks since watching
@@ -544,7 +547,7 @@ def syncPosList(verbose=False):
     #stocks that are in a removed algo should be moved to an active algo that has it, if none do, then move it to the active algo with the highest loss
     if(inactiveAlgo in cashList):
       if(verbose): print(f"Removing {inactiveAlgo} from cashList")
-      cashList.discard(inactiveAlgo)
+      cashList.pop(inactiveAlgo,None)
     
     for symb in posList[inactiveAlgo]: #stocks in the removed algo
       #get all active algos that contain it
@@ -639,9 +642,9 @@ def syncPosList(verbose=False):
       for algo in posList: #check every algo
         if(verbose): print(f"{symb} not found in actuals. Removing from {algo} records")
         lock.acquire()
-        posList[algo].discard(symb) #remove from posList
+        posList[algo].pop(symb,None) #remove from posList
         lock.release()
-      recPos.discard(symb) #remove from recorded
+      recPos.pop(symb,None) #remove from recorded
     
     #for each stock, if there are an excess of shares in the recPos than the heldPos, look for any in the algos that match the disparity, and remove them from that algo
       #if none match (i.e. heldPos and recPos both have a stock, but there's an unknown amount extra in recPos), then trim off the amount extra from the algo that has the most above the disparity
@@ -653,9 +656,9 @@ def syncPosList(verbose=False):
           if(verbose): print(f"Removing {float(posList[algo][symb]['sharesHeld'])} shares of {symb} from {algo} records")
           recPos[symb] -= float(posList[algo][symb]['sharesHeld'])
           if(recPos[symb]==0):
-            recPos.discard(symb)
+            recPos.pop(symb,None)
           lock.acquire()
-          posList[algo].discard(symb)
+          posList[algo].pop(symb,None)
           lock.release()
           
           
@@ -759,11 +762,11 @@ def syncPosList(verbose=False):
     for symb in list(posList[algo]): #must be cast as list in order to not change dict size (this makes a copy)
       if(posList[algo][symb]['sharesHeld']==0):
         lock.acquire()
-        posList[algo].discard(symb)
+        posList[algo].pop(symb,None)
         lock.release()
     if(algo not in algoList and len(posList[algo])==0): #remove any algos that aren't in the algoList and have 0 symbs in them
       lock.acquire()
-      posList.discard(algo)
+      posList.pop(algo,None)
       lock.release()
   
   for algo in posList:
@@ -793,8 +796,10 @@ def syncPosList(verbose=False):
 
 #run the main function
 if __name__ == '__main__':
-  global posList, cashList,triggeredStocks
-  
+  global posList, cashList,triggeredStocks, exitFlag
+
+  exitFlag = False #set to true if the program stopped by ctrl+c
+
   try:
     triggeredStocks = set() #should contain elements of format algo|stock
     
@@ -817,6 +822,8 @@ if __name__ == '__main__':
     main() #start running the program
   except KeyboardInterrupt: #exit on ctrl+c
     print("Exiting")
+    exitFlag=True
+    
   except Exception: #record unhandled exceptions
     print("An unhandled error was encountered. Please check the log.")
     traceback.print_exc(file=open(c['file locations']['errLog'],"a"))

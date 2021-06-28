@@ -624,3 +624,18 @@ def getInsideTrades(symb, maxTries=3):
       continue
   
   return out
+
+
+
+#calculate the rsi based on the most recent history of lenth per (hist is output of getHistory)
+def getRSI(hist,per=14):
+  if(per<len(hist)): #ensure that there's enough info to calculate it
+    difs = [float(hist[i][1])/float(hist[i+1][1]) for i in range(per)] #get the daily changes
+    avgGain = o.mean([e for e in difs if e>1])
+    avgLoss = o.mean([e for e in difs if e<1])
+    rsi = 1-(1/(1+avgGain/avgLoss)) #value between 0 and 1
+    return rsi
+  else:
+    print("not enough info to calculate rsi")
+    return 0
+

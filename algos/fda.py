@@ -33,6 +33,7 @@ def getList(verbose=True):
   
   return arr
 
+#get the unsorted list of stocks to be narrowed down later - format of [list,of,stocks]
 def getUnsortedList(verbose=False):
   if(verbose): print(f"{algo} getting stocks from drugs.com")
   while True: #get pages of pending stocks
@@ -58,26 +59,6 @@ def getUnsortedList(verbose=False):
   arr = list(set(arr))
   # arr = list(set(arr+arr1)) #combine lists and remove duplicates  
   return arr
-
-#determine if a stock is a good sell or not
-#depreciated, replaced with goodSells
-def goodSell(symb):
-  lock = o.threading.Lock()
-  lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
-  lock.release()
-
-  #check if price<sellDn
-  buyPrice = float(stockList[symb]['buyPrice'])
-  curPrice = o.getInfo(symb)['price']
-  if(buyPrice>0):
-    if(curPrice/buyPrice<sellDn(symb) or curPrice/buyPrice>=sellUp(symb)):
-      return True #price has moved outside of the sale price
-    else:
-      return False
-  else:
-    print(f"{symb} buy price is 0.")
-    return False
 
 #multiplex the good sell function to return dict of {symb:t/f}
 def goodSells(symbList,verbose=False):
