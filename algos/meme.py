@@ -3,21 +3,26 @@
 
 # https://www.reddit.com/dev/api
 # https://github.com/reddit-archive/reddit/wiki/API
+# https://api.reddit.com/search?q={symb}+subreddit%3A{sub}+nsfw%3Ano+self%3Ayes&sort=relevance&t=month
+# https://www.reddit.com/r/wallstreetbets/new/
 
 import otherfxns as o
 
 algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
-
-def getList():
-  #perform checks to see which one ones will gain
+#get list of stocks pending FDA approvals
+def getList(verbose=True):
+  if(verbose): print(f"getting unsorted list for {algo}...")
+  ul = getUnsortedList()
+  if(verbose): print(f"finding stocks for {algo}...")
+  arr = goodBuys(ul) #returns dict of {symb:gooduy(t/f)}
+  arr = {e:"-" for e in arr if(arr[e])} #only look at the ones that are true
+  if(verbose): print(f"{len(arr)} found for {algo}.")
   
-  return goodBuys #return dict of symb:note
-  
+  return arr
 
 #get a list of stocks to be sifted through
-#type can be spo, status can be priced|upcoming|filled|withdrawn
-def getUnsortedList(status="all", type=""):
+def getUnsortedList(verbose=False):
   while True:
     try:
       r = o.requests("reddit API for various market subs",timeout=5)
@@ -28,6 +33,18 @@ def getUnsortedList(status="all", type=""):
       pass
   
   return []
+
+
+#return a dict of if they're a good buy or not {symb:t/f}
+def goodBuys(symbList,verbose=False):
+  
+  return gb
+
+#return a dict of {symb:t/f} for if they're good to sell or not
+def goodSells(symbList,verbose=False):
+  
+  
+  return gs
 
 
 #TODO: this should also account for squeezing

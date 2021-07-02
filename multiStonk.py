@@ -91,7 +91,7 @@ def main(verbose=True):
   maxPortVal=max([e for e in portHist if e is not None]) #get the max portfolio value over the last month and remove blank entries
   cashMargin = float(c['account params']['cashMargin']) #extra cash to hold above hold value
   if(cashMargin<1): #cashMargin MUST BE GREATER THAN 1 in order for it to work correctly
-    raise ValueError("Error: withdrawable funds margin is less than 1. Multiplier must be >=1")
+    raise ValueError("Error: cash margin is less than 1. Multiplier must be >=1")
   cash2hold = float(c['account params']['cash2hold'])
   isManualSellOff = not int(c['account params']['portAutoSellOff'])
   
@@ -117,12 +117,12 @@ def main(verbose=True):
     totalCash = float(acct['cash'])
     if(totalCash>=cash2hold*cashMargin): #if we have more buying power than the min plus some leeway, then reduce it to hold onto that buy pow
       # print(f"Can safely withdrawl ${round(cash2hold,2)}")
-      totalCash = totalCash-cash2hold*cashMargin #subtract the cash2hold plus the margin
-    elif(totalCash>cash2hold and totalCash<cash2hold*cashMargin):
+      totalCash -= cash2hold*cashMargin #subtract the cash2hold plus the margin
+    elif(cash2hold<=totalCash<cash2hold*cashMargin):
       totalCash = 0 #stop trading if we've started to eat into the margin, that way we don't overshoot
       
     if(o.marketIsOpen()):
-      print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, {len(posList)} algos")
+      print(f"\nPortfolio Value: ${acct['portfolio_value']}, tradable cash: ${round(totalCash,2)}, {len(posList)} algos")
       #update the lists if not updated yet and that it's not currently updating
       if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
         updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
@@ -341,7 +341,11 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
       if lastTradeDate < dt.date.today() or stockInfo['lastTradeType']!="sell":
         inf = o.getInfo(stock,['price','mktcap'])
         [curPrice, mktCap] = [inf['price'],inf['mktcap']]
-        shares = int(min(cashPerStock/curPrice,(mktCap/curPrice)*float(c['account params']['maxVolPerc']))) #set number of shares to be at most some % of the mktcap, otherwise as many int shares as cash is available
+        
+        #set number of shares to be at most some % of the mktcap, otherwise as many int shares as cash is available (or 0 if curPrice is 0)
+        if(curPrice>0): shares = int(min(cashPerStock/curPrice,(mktCap/curPrice)*float(c['account params']['maxVolPerc'])))
+        else: shares = 0
+        
         if(shares>0): #cannot place an order for 0 shares
           isBought = buy(shares,stock,algo,curPrice) #buy the stock
           if(isBought): print(f"Bought {shares} shares of {stock} for {algo} algo at around ${curPrice}/share")
