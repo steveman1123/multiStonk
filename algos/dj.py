@@ -8,7 +8,8 @@ algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the
 def init(configFile):
   global posList,c
   #set the multi config file
-  #TODO: add error if the file doesn't exist
+  #TODO: add error if the file doesn't exist.
+  #TODO: in otherfxns, from configparser import ConfigParser (since I don't think we use anthing else)
   c = o.configparser.ConfigParser()
   c.read(configFile)
   

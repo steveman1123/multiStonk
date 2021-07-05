@@ -730,11 +730,11 @@ def syncPosList(verbose=False):
         recPos[symb]=heldPos[symb] #also add the stock to the recPos temp var
         
       else: #if no algo has it, give it to the algo with the least amount of loss
-        minAlgo = ['x',0] #algo and the acceptable loss of the stock
+        minAlgo = ['x',100] #algo and the acceptable loss of the stock
         for algo in algoList: #for every algo that'll potentially gain
-          sellDn = eval(f"{algo}.sellDn('{symb}')") #get the sell dn of each algo
-          minAlgo = [algo,sellDn] if sellDn>minAlgo[1] else minAlgo #get the greater of the the two algos
-        #add to the algo with the least loss (to minimize risk)
+          sellUp = eval(f"{algo}.sellUp('{symb}')") #get the sell dn of each algo
+          minAlgo = [algo,sellUp] if sellUp<minAlgo[1] else minAlgo #get the greater of the the two algos
+        #add to the algo with the least gain (to get rid of asap)
         if(verbose): print(f"No algo found to have {symb}. Adding {heldPos[symb]} shares to {minAlgo[0]}.")
         lock.acquire()
         posList[minAlgo[0]][symb] = {'lastTradeDate':'NA',

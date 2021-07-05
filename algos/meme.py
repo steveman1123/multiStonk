@@ -22,15 +22,19 @@ def getList(verbose=True):
   return arr
 
 #get a list of stocks to be sifted through
+#return dict of format {symb:{sub:score}} where the score is the sub weight*how many mentions the symb has
 def getUnsortedList(verbose=False):
-  while True:
-    try:
-      r = o.requests("reddit API for various market subs",timeout=5)
-      break
-    except Exception:
-      print("Error getting unsorted list for reddit algo. Trying again...")
-      o.time.sleep(3)
-      pass
+  subs = {'wallstreetbets':1,'stocks':1,'pennystocks':0.95,'superstonk':0.9,'stockmarket':0.95}
+  out = {}
+  for sub in subs:
+    while True:
+      try:
+        r = o.requests("reddit API for various market subs",timeout=5)
+        break
+      except Exception:
+        print("Error getting unsorted list for reddit algo. Trying again...")
+        o.time.sleep(3)
+        pass
   
   return []
 
