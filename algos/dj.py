@@ -213,11 +213,23 @@ def goodSells(sellList, verbose=False): #sellList is a list of stocks ready to b
 
 
 #get list of stocks from stocksUnder1 and marketWatch lists
-def getUnsortedList(verbose=False):
+def getUnsortedList(verbose=False, maxTries=3):
   symbList = list()
+  url = "https://www.marketwatch.com/tools/screener/stock"
   
+  params = {
+    "exchange" : "nasdaq",
+    "visiblecolumns" : "Symbol",
+    "pricemin" : str(c[algo]['simMinPrice']),
+    "pricemax" : str(c[algo]['simMaxPrice']),
+    "volumemin" : str(c[algo]['simMinVol']),
+    "partial" : "true"
+  }
+  
+  '''
   url = 'https://www.marketwatch.com/tools/stockresearch/screener/results.asp'
   #many of the options listed are optional and can be removed from the get request
+  
   params = {
     "TradesShareEnable" : "True",
     "TradesShareMin" : str(c[algo]['simMinPrice']),
@@ -251,6 +263,7 @@ def getUnsortedList(verbose=False):
     "SortDirection" : "Ascending",
     "ResultsPerPage" : "OneHundred"
   }
+  
   params['PagingIndex'] = 0 #this will change to show us where in the list we should be - increment by 100 (see ResultsPerPage key)
   
   while True:
@@ -262,9 +275,9 @@ def getUnsortedList(verbose=False):
       print("No connection or other error encountered in getList (MW). Trying again...")
       o.time.sleep(3)
       continue
+  '''
       
-      
-  if(verbose): print("Getting MarketWatch data...")
+  '''
   for i in range(0,totalStocks,100): #loop through the pages (100 because ResultsPerPage is OneHundred)
     if(verbose): print(f"page {int(i/100)+1} of {o.ceil(totalStocks/100)}")
     params['PagingIndex'] = i
@@ -283,6 +296,33 @@ def getUnsortedList(verbose=False):
         symbList.append(e.find_all('td')[0].get_text())
     except Exception:
       print("Error in MW website.")
+  '''
+  
+  if(verbose): print("Getting MarketWatch data...")
+  skip = 0
+  resultsPerPage = 25 #new screener only returns 25 per page and can't be changed (afaict)
+  pageList = [None] #init to some value so that its not empty
+  while len(pageList)>0:
+    pageList = [] #reinit once inside of the loop
+    params['skip']=skip
+    tries = 0
+    while tries<maxTries:
+      try:
+        r = o.requests.get(url, params=params, timeout=5).text
+        pageList = r.split('j-Symbol ">')[1:]
+        pageList = [e.split(">")[1][:-3] for e in pageList]
+        symbList += pageList
+        if(verbose): print(f"MW page {int(skip/resultsPerPage)}")
+        break
+      except Exception:
+        tries+=1
+        print(f"Error getting MW data for {algo}. Trying again...")
+        o.time.sleep(3)
+        continue
+    skip+=len(pageList)
+  
+  print(len(symbList))
+  
   
   #now that we have the marketWatch list, let's get the stocksunder1 list - essentially the getPennies() fxn from other files
   if(verbose): print("Getting stocksunder1 data...")
@@ -290,25 +330,25 @@ def getUnsortedList(verbose=False):
   for e in urlList:  
     if(verbose): print(e+" stock list")
     url = f'https://stocksunder1.org/{e}-penny-stocks/'
-    while True:
+    tries=0
+    while tries<maxTries:
       try:
-        html = o.requests.post(url, params={"price":5,"volume":0,"updown":"up"}, timeout=5).content
+        r = o.requests.post(url, params={"price":5,"volume":0,"updown":"up"}, timeout=5).text
+        pageList = r.split('.php?symbol=')[1:]
+        pageList = [e.split('">')[0] for e in pageList]
+        symbList += pageList
         break
       except Exception:
         print("No connection, or other error encountered (SU1). Trying again...")
         o.time.sleep(3)
         continue
-    #TODO: possibly would be good to remove bs altogether? Seems like it might be confusing elements. Could just split string based on " predictions<"
-    table = o.bs(html,'html.parser').find_all('table')[6] #6th table in the webpage - this may change depending on the webpage
-    for e in table.find_all('tr')[1::]: #skip the first element that's the header
-      #remove non-alphanumerics from the td text (after removing " predictions")
-      #print(o.re.sub(r'\W+','',e.find_all('td')[0].get_text().replace(' predictions','')))
-      t = o.re.sub(r'\W+','',e.find_all('td')[0].get_text().replace(' predictions',''))
-      if(len(t)<=5 and t.isupper()): symbList.append(t) #sometimes there is extra data that's in the table, remove it if it's really long or if it's not all uppercase
-  
+    
+  print(len(symbList))
   
   if(verbose): print("Removing Duplicates...")
   symbList = list(dict.fromkeys(symbList)) #combine and remove duplicates
+
+  print(len(symbList))
   
   return symbList
 

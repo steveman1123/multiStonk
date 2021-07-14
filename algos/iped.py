@@ -57,7 +57,8 @@ def goodSells(symbList,verbose=False):
   
   if(verbose): print(f"stocks in prices: {list(prices)}")
   #check that it has exceeded the stopLoss or takeProfit points
-  gs = {s:(s not in prices or
+  #ensure recorded prices are >0 (avoid div0)
+  gs = {s:(s not in prices or buyPrices[s]==0 or prices[s]['price']==0 or
            prices[s]['price']/prices[s]['open']>=sellUp(s) or
            prices[s]['price']/prices[s]['open']<sellDn(s) or
            prices[(s)]['price']/buyPrices[s]<sellDn(s) or
