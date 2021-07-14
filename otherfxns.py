@@ -25,8 +25,8 @@ HEADERS = json.loads(c['net cfg']['headers']) #headers to send on each data requ
 #get the history of a stock from the nasdaq api (date format is yyyy-mm-dd)
 #default to returning the last year's worth of data
 #TODO: possibly make a blank file for those that have failed as mark to show it's been tried but failed in the past?
-#TODO: change this to a dict of format {date:{hi,lo,cl,op,vol}}? - conversely, switch over to getHistory2 completely and save as json instead of csv
-def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today().month,dt.date.today().day)), endDate=str(dt.date.today()), maxTries=3,verbose=False):
+#TODO: switch over to getHistory2 completely and save as json instead of csv - this API is depreciated
+def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today().month,dt.date.today().day)), endDate=str(dt.date.today()), maxTries=0,verbose=False):
   if(endDate<=startDate):
     raise Exception("Invalid Date Range (end<=start)")
   #try checking the modified date of the file, if it throws an error, just set it to yesterday
