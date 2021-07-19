@@ -274,7 +274,7 @@ def checkValidKeys(isPaper):
   try:
     test = test["status"]
     if(test=="ACTIVE"):
-      print(f"Valid keys - active account - {'paper' if isPaper else 'live'} trading",end="")
+      print(f"Valid keys - active account - {'paper' if isPaper else 'live'} trading")
     else:
       print("Valid keys - inactive account")
   except Exception:
@@ -282,7 +282,7 @@ def checkValidKeys(isPaper):
       test = test['message']
       print("Invalid keys")
     except Exception:
-      print("Unknown issue encountered.")
+      raise ValueError(f"Unknown issue encountered: {test}")
     o.sys.exit()
 
 #get the trades made on a specified date or date range
