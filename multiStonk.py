@@ -48,18 +48,24 @@ if(len(sys.argv)>1): #if there's an argument present
 c = o.configparser.ConfigParser()
 c.read(configFile)
 
-print(f"Config file {configFile}")
-print(f"Key file {c['file locations']['keyFile']}\n")
+#list of algorithms to be used and their corresponding stock lists to be bought (init with none)
+algoList = c['allAlgos']['algoList'].replace(" ","").split(',') #var comes in as a string, remove spaces, and turn into comma separated list
+algoList = {e:{} for e in algoList}
+
+#tell the user general setting information
+print(f"Config file\t{configFile}")
+print(f"Key file \t{c['file locations']['keyFile']}")
+print(f"posList file\t{c['file locations']['posList']}")
+print(f"buyList file\t{c['file locations']['buyList']}")
+print(f"Error log \t{c['file locations']['errLog']}")
+print("Using the algos: ",end="")
+print(*list(algoList),sep=", ",end="\n\n")
 
 #init the alpaca functions
 a.init(c['file locations']['keyFile'],int(c['account params']['isPaper']))
 
 #add the algos dir
 sys.path.append(c['file locations']['stockAlgosDir'])
-
-#list of algorithms to be used and their corresponding stock lists to be bought (init with none)
-algoList = c['allAlgos']['algoList'].replace(" ","").split(',') #var comes in as a string, remove spaces, and turn into comma separated list
-algoList = {e:{} for e in algoList}
 
 #import all algos that are in algoList (they require an up-to-date posList, so must be imported after it's updated)
 for algo in algoList:
@@ -173,8 +179,8 @@ def main(verbose=True):
       
       #display max val and date
       print(f"\nHighest portVal in the last month: ${round(maxPortVal,2)} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
-      print(f"Current portVal: ${round(portHist[max(list(portHist.keys()))],2)}, {100*round(portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of the highest")
-      print(f"Portfolio stop-loss of {round(100*float(c['account params']['portStopLoss']),2)}% of highest, or ${round(float(c['account params']['portStopLoss'])*maxPortVal,2)}\n")
+      print(f"Current portVal: ${round(portHist[max(list(portHist.keys()))],2)} ({round(100*portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of the highest)")
+      print(f"Port stop-loss: ${round(float(c['account params']['portStopLoss'])*maxPortVal,2)} ({round(100*float(c['account params']['portStopLoss']),2)}% of highest)\n")
       syncPosList() #sync up posList to live data
 
       if(o.dt.date.today().weekday()==4 and o.dt.datetime.now().time()>o.dt.time(12)): #if it's friday afternoon
@@ -815,10 +821,6 @@ if __name__ == '__main__':
     #init the algos
     for algo in algoList:
       exec(f"{algo}.init('{configFile}')")
-  
-    #tell the user what algos are being tested
-    print("\nUsing the algos: ",end="")
-    print(*list(algoList),sep=", ",end="\n\n")
     
     syncPosList() #in the event that something changed during the last run, this should catch it
     print("\n") #leave a space between startup and main sequence

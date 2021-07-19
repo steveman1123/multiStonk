@@ -321,7 +321,6 @@ def getUnsortedList(verbose=False, maxTries=3):
         continue
     skip+=len(pageList)
   
-  print(len(symbList))
   
   
   #now that we have the marketWatch list, let's get the stocksunder1 list - essentially the getPennies() fxn from other files
@@ -341,15 +340,12 @@ def getUnsortedList(verbose=False, maxTries=3):
       except Exception:
         print("No connection, or other error encountered (SU1). Trying again...")
         o.time.sleep(3)
+        tries+=1
         continue
     
-  print(len(symbList))
-  
   if(verbose): print("Removing Duplicates...")
   symbList = list(dict.fromkeys(symbList)) #combine and remove duplicates
 
-  print(len(symbList))
-  
   return symbList
 
 #determine if a stock is a good sell or not

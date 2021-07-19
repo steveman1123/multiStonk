@@ -33,7 +33,8 @@ def init(keyFile,isPaper):
 def getAcct():
   while True:
     try:
-      html = o.requests.get(ACCTURL, headers=HEADERS, timeout=5).content
+      html = o.requests.get(ACCTURL, headers=HEADERS, timeout=5).text
+      if("error" in html.lower()): raise ValueError("error returned in normal request.")
       break
     except Exception:
       print("No connection, or other error encountered in getAcct. Trying again...")
@@ -46,7 +47,8 @@ def getAcct():
 def getPos():
   while True:
     try:
-      html = o.requests.get(POSURL, headers=HEADERS, timeout=5).content
+      html = o.requests.get(POSURL, headers=HEADERS, timeout=5).text
+      if("error" in html.lower()): raise ValueError("error returned in normal request.")
       break
     except Exception:
       print("No connection, or other error encountered in getPos. Trying again...")
@@ -58,7 +60,8 @@ def getPos():
 def getOrders():
   while True:
     try:
-      html = o.requests.get(ORDERSURL, headers=HEADERS, timeout=5).content
+      html = o.requests.get(ORDERSURL, headers=HEADERS, timeout=5).text
+      if("error" in html.lower()): raise ValueError("error returned in normal request.")
       break
     except Exception:
       print("No connection, or other error encountered in getOrders. Trying again...")
@@ -88,7 +91,7 @@ def sellAll(isManual=1):
           print("No connection, or other error encountered in sellAll. Trying again...")
           o.time.sleep(3)
           continue
-      r = o.json.loads(r.content.decode("utf-8"))
+      r = o.json.loads(r.text.decode("utf-8"))
       for e in r:
         print(e["body"]["symbol"])
       print("Orders Cancelled.")
@@ -130,7 +133,7 @@ def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPri
       o.time.sleep(3)
       continue
 
-  r = o.json.loads(r.content.decode("utf-8"))
+  r = o.json.loads(r.text.decode("utf-8"))
   # print(r)
   try:
     #TODO: add trade info here?
@@ -146,19 +149,19 @@ def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPri
 def marketIsOpen():
   while True:
     try:
-      r = o.json.loads(o.requests.get(CLKURL, headers=HEADERS, timeout=5).content)
+      r = o.json.loads(o.requests.get(CLKURL, headers=HEADERS, timeout=5).text)['is_open']
       break
     except Exception:
       print("No connection, or other error encountered in marketIsOpen. Trying again...")
       o.time.sleep(3)
       continue
-  return r["is_open"]
+  return r
 
 #current market time (returns yyyy,mm,dd,sec since midnight)
 def marketTime():
   while True:
     try:
-      ts = o.json.loads(o.requests.get(CLKURL, headers=HEADERS, timeout=5).content)["timestamp"]
+      ts = o.json.loads(o.requests.get(CLKURL, headers=HEADERS, timeout=5).text)["timestamp"]
       break
     except Exception:
       print("No connection, or other error encountered in marketTime. Trying again...")
@@ -173,7 +176,7 @@ def marketTime():
 def timeTillClose():
   while True:
     try:
-      cl = o.json.loads(o.requests.get(CLKURL, headers=HEADERS, timeout=5).content)["next_close"]
+      cl = o.json.loads(o.requests.get(CLKURL, headers=HEADERS, timeout=5).text)["next_close"]
       break
     except Exception:
       print("No connection, or other error encountered in timeTillClose. Trying again...")
@@ -190,7 +193,7 @@ def timeTillClose():
 def timeTillOpen():
   while True:
     try:
-      op = o.json.loads(o.requests.get(CLKURL, headers=HEADERS, timeout=5).content)["next_open"]
+      op = o.json.loads(o.requests.get(CLKURL, headers=HEADERS, timeout=5).text)["next_open"]
       break
     except Exception:
       print("No connection, or other error encountered in timeTillOpen. Trying again...")
@@ -210,16 +213,15 @@ def openCloseTimes(checkDate): #checkdate of format yyyy-mm-dd
   calParams["end"] = checkDate
   while True:
     try:
-      d = o.json.loads(o.requests.get(CALURL, headers=HEADERS, params=calParams, timeout=5).content)[0]
+      d = o.json.loads(o.requests.get(CALURL, headers=HEADERS, params=calParams, timeout=5).text)[0]
+      #subtract 1 from hours to convert from EST (NYSE time), to CST (my time)
+      d["open"] = str(int(d["open"].split(":")[0])-1)+":"+d["open"].split(":")[1]
+      d["close"] = str(int(d["close"].split(":")[0])-1)+":"+d["close"].split(":")[1]
       break
     except Exception:
       print("No connection, or other error encountered in openCloseTimes. Trying again...")
       o.time.sleep(3)
       continue
-  
-  #subtract 1 from hours to convert from EST (NYSE time), to CST (my time)
-  d["open"] = str(int(d["open"].split(":")[0])-1)+":"+d["open"].split(":")[1]
-  d["close"] = str(int(d["close"].split(":")[0])-1)+":"+d["close"].split(":")[1]
   return [o.dt.datetime.strptime(d["date"]+d["open"],"%Y-%m-%d%H:%M"), o.dt.datetime.strptime(d["date"]+d["close"],"%Y-%m-%d%H:%M")]
 
 # return the current price of the indicated stock
@@ -228,6 +230,7 @@ def getPrice(symb):
   while True:
     try:
       r = o.requests.get(f'https://data.alpaca.markets/v1/last/stocks/{symb.upper()}',headers=HEADERS, timeout=5).text #send request and store response
+      if("error" in r.lower()): raise ValueError("error returned in normal request.")
       break
     except Exception:
       print("No connection, or other error encountered in getPrice. Trying again...")
@@ -245,7 +248,8 @@ def getPrice(symb):
 def isAlpacaTradable(symb):
   while True:
     try:
-      tradable = o.requests.get(ASSETURL+"/"+symb, headers=HEADERS, timeout=5).content
+      tradable = o.requests.get(ASSETURL+"/"+symb, headers=HEADERS, timeout=5).text
+      if("error" in tradable.lower()): raise ValueError("error returned in normal request.")
       break
     except Exception:
       print("No connection, or other error encountered in isAlpacaTradable. Trying again...")
@@ -270,11 +274,7 @@ def checkValidKeys(isPaper):
   try:
     test = test["status"]
     if(test=="ACTIVE"):
-      print("Valid keys - active account",end="")
-      if(isPaper):
-        print(" - paper trading")
-      else:
-        print(" - live trading")
+      print(f"Valid keys - active account - {'paper' if isPaper else 'live'} trading",end="")
     else:
       print("Valid keys - inactive account")
   except Exception:
@@ -290,13 +290,14 @@ def getTrades(startDate,endDate=False):
   while True:
     try:
       if(not endDate): #no end date set, just use a single day
-        d = o.json.loads(o.requests.get(ACCTURL+"/activities/FILL", headers=HEADERS, params={"date":startDate}, timeout=5).content)
+        d = o.json.loads(o.requests.get(ACCTURL+"/activities/FILL", headers=HEADERS, params={"date":startDate}, timeout=5).text)
+        if("error" in d.lower()): raise ValueError("error returned in normal request.")
       else: #end date is set, make a range
         d=[]
-        r = o.json.loads(o.requests.get(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate,"until":endDate}, timeout=5).content)
+        r = o.json.loads(o.requests.get(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate,"until":endDate}, timeout=5).text)
         d+=r
         while len(r)==100:
-          r = o.json.loads(o.requests.get(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate,"until":endDate,"page_token":d[-1]['id']}, timeout=5).content)
+          r = o.json.loads(o.requests.get(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate,"until":endDate,"page_token":d[-1]['id']}, timeout=5).text)
           d+=r
       break
     except Exception:
@@ -310,9 +311,9 @@ def getStockTrades(symb,startDate=str(o.dt.date.today())):
   r = []
   while True:
     try:
-      d = o.json.loads(o.requests.get(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate}, timeout=5).content)
+      d = o.json.loads(o.requests.get(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate}, timeout=5).text)
       while(len(d)==100 or len(r)==100):
-        r = o.json.loads(o.requests.get(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate,"page_token":d[-1]['id']}, timeout=5).content)
+        r = o.json.loads(o.requests.get(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate,"page_token":d[-1]['id']}, timeout=5).text)
         d += r
       break
     except Exception:
@@ -327,6 +328,7 @@ def getStockTrades(symb,startDate=str(o.dt.date.today())):
 
 #get the avg price a stock was bought at since the last sell
 #this may be the same as avg_entry_price in getPos, but more experimentation is needed
+#TODO: this is out of date and should be fixed
 def getBuyPrice(symb):
   '''
   average the stock's buy prices from the minimum of the jump date or when the last sell was
@@ -367,7 +369,7 @@ def getBuyPrice(symb):
 def getProfileHistory(startDate=str(o.dt.date.today()), period='1A'):
   while True:
     try:
-      html = o.requests.get(HISTURL, headers=HEADERS, params={'date_end':startDate,'period':period}, timeout=5).content
+      html = o.requests.get(HISTURL, headers=HEADERS, params={'date_end':startDate,'period':period}, timeout=5).text
       break
     except Exception:
       print("No connection, or other error encountered in getProfileHistory. Trying again...")
@@ -376,18 +378,20 @@ def getProfileHistory(startDate=str(o.dt.date.today()), period='1A'):
   return o.json.loads(html)
 
 
-#get all transactions for a given stock from a given start date to today
+#get all transactions from a given start date to today
 def getXtns(startDate=str(o.dt.date.today()),actType="TRANS"):
   r = []
   while True:
     try:
       d = o.json.loads(o.requests.get(f"{ACCTURL}/activities/{actType}", headers=HEADERS, params={"after":startDate}, timeout=5).text)
+      if("error" in d.lower()): raise ValueError("error returned in normal request.")
       while(len(d)==100 or len(r)==100):
-        r = o.json.loads(o.requests.get(f"{ACCTURL}/activities/{actType}", headers=HEADERS, params={"after":startDate,"page_token":d[-1]['id']}, timeout=5).content)
+        r = o.json.loads(o.requests.get(f"{ACCTURL}/activities/{actType}", headers=HEADERS, params={"after":startDate,"page_token":d[-1]['id']}, timeout=5).text)
+        if("error" in d.lower()): raise ValueError("error returned in normal request.")
         d += r
       break
     except Exception:
-      print("No connection, or other error encountered in getStockTrades. Trying again...")
+      print("No connection, or other error encountered in getXtns. Trying again...")
       o.time.sleep(3)
       continue
   
