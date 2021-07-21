@@ -93,7 +93,7 @@ closeTime = o.closeTime(estOffset=-1) #get the time in datetime format of when t
 #main function to run continuously
 def main(verbose=True):
   #values to be used across functions and are edited here
-  global algoList, posList, listsUpdatedToday, closeTime, cashList
+  global algoList, posList, listsUpdatedToday, closeTime, cashList, triggeredStocks
   
   ###
   #initiate settings, algorithms, variables and ensure proper configuration
@@ -861,7 +861,6 @@ def syncPosList(verbose=False):
 #run the main function
 if __name__ == '__main__':
   global posList, cashList,triggeredStocks, exitFlag
-
   exitFlag = False #set to true if the program stopped by ctrl+c
 
   try:
