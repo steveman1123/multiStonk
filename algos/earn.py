@@ -47,21 +47,14 @@ def getList(verbose=True):
   #each check will add or subtract from a score  (as lacking one or more of the indicators isn't necessarily a dealbreaker)
   if(verbose): print(f"getting unsorted list for {algo}...")
   ul = getUnsortedList() #format of {date, inf:{lastYrRpt,lastYrEPS,time,symb,name,mktcap,fiscQuartEnd,epsFrcst,numEsts}}
-  earnDate = ul['date'] #get the date before it's stripped off
-
   if(verbose): print(f"finding stocks for {algo}...")
-  prices = o.getPrices([e['symbol']+"|stocks" for e in ul['inf']])
-  prices = {s.split("|")[0]:prices[s]['price'] for s in prices} #isolate to {symb:price}
-  #TODO: this check should be in the goodBuys section, not in here
-  ul = [e for e in ul['inf'] if(e['symbol'] in prices and minPrice<=prices[e['symbol']]<=maxPrice)] #only keep elements that are in prices and within our price range
-  goodBuys = {e['symbol']:earnDate for e in ul} #during normal running, this should be empty dict
-
-  if(verbose): print(f"{len(goodBuys)} found for {algo}.")
+  gb = goodBuys(ul)
+  if(verbose): print(f"{len(gb)} found for {algo}.")
  
-  return goodBuys #return dict of {symb:note}
+  return gb #return dict of {symb:note}
 
 
-#get a list of stocks to be sifted through - format of {date, inf:[data]}
+#get a list of stocks to be sifted through - format of {date:yyyy-mm-dd, inf:[data]}
 def getUnsortedList(maxTries=3):
   tries=0
   r = []
@@ -78,8 +71,22 @@ def getUnsortedList(maxTries=3):
       pass
   return {'date':date,'inf':r}
 
+#where symbList should be the output of getUnsortedList() - dict of format {date:yyyy-mm-dd, inf:[data]}
+#return dict of format {symb:note} for all symbs that are good buys
+def goodBuys(symbList,verbose=False):
+  earnDate = symbList['date'] #get the date before it's stripped off
 
-#multiplex the good sell function to return dict of {symb:t/f}
+  prices = o.getPrices([e['symbol']+"|stocks" for e in symbList['inf']])
+  prices = {s.split("|")[0]:prices[s]['price'] for s in prices} #isolate to {symb:price}
+  #TODO: this check shosymbListd be in the goodBuys section, not in here
+  symbList = [e for e in symbList['inf'] if(e['symbol'] in prices and minPrice<=prices[e['symbol']]<=maxPrice)] #only keep elements that are in prices and within our price range
+  gb = {e['symbol']:earnDate for e in symbList} #during normal running, this shosymbListd be empty dict
+  
+  return gb
+  
+  
+
+#multiplex the good sell function to return dict of {symb:-1|0|1}
 def goodSells(symbList,verbose=False):
   lock = o.threading.Lock()
   lock.acquire()
@@ -100,16 +107,18 @@ def goodSells(symbList,verbose=False):
     if(s in prices):
       if(verbose): print(f"{s}\topen: {round(prices[s]['price']/prices[s]['open'],2)}\tbuy: {round(prices[s]['price']/buyPrices[s],2)}\tsellUp: {sellUp(s)}\tsellDn: {sellDn(s)}")
       #check if price triggered up
-      if(prices[s]['price']/prices[s]['open']>=sellUp(s) or prices[s]['price']/buyPrices[s]>=sellUp(s)):
-        gs[s] = 1
-      #check if price triggered down
-      elif(prices[s]['price']/prices[s]['open']<sellDn(s) or prices[s]['price']/buyPrices[s]<sellDn(s)):
-        gs[s] = -1
-      else: #price didn't trigger either side
+      if(prices[s]['open']>0 and buyPrices[s]>0):
+        if(prices[s]['price']/prices[s]['open']>=sellUp(s) or prices[s]['price']/buyPrices[s]>=sellUp(s)):
+          gs[s] = 1
+        #check if price triggered down
+        elif(prices[s]['price']/prices[s]['open']<sellDn(s) or prices[s]['price']/buyPrices[s]<sellDn(s)):
+          gs[s] = -1
+        else: #price didn't trigger either side
+          gs[s] = 0
+      else:
         gs[s] = 0
     else:
-      gs[s] = 0
-  
+      gs[s] = 0  
   
   return gs
 

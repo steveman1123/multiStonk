@@ -69,8 +69,7 @@ a.init(c['file locations']['keyFile'],int(c['account params']['isPaper']))
 sys.path.append(c['file locations']['stockAlgosDir'])
 
 #import all algos that are in algoList (they require an up-to-date posList, so must be imported after it's updated)
-for algo in algoList:
-  exec(f"import {algo}")
+for algo in algoList: exec(f"import {algo}")
 
 
 #change display text color
@@ -91,7 +90,7 @@ listsUpdatedToday = False #tell everyone whether the list has been updated yet t
 closeTime = o.closeTime(estOffset=-1) #get the time in datetime format of when the market closes (reference this when looking at time till close)
 
 #main function to run continuously
-def main(verbose=True):
+def main(verbose=False):
   #values to be used across functions and are edited here
   global algoList, posList, listsUpdatedToday, closeTime, cashList, triggeredStocks
   
@@ -101,17 +100,20 @@ def main(verbose=True):
   triggeredStocks = set() #should contain elements of format algo|stock
   ask2sell = True #if this is true, then the program will ask to sell all if portval drops below some % of maxPortVal
   a.checkValidKeys(int(c['account params']['isPaper'])) #check that the keys being used are valid
-  if(len(a.getPos())==0): #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
-    print(f"Will start buying {c['time params']['buyTime']} minutes before next close")
+  #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
+  if(len(a.getPos())==0): print(f"Will start buying {c['time params']['buyTime']} minutes before next close")
   
   [posList,cashList] = setPosList(algoList) #initiate/populate the list of positions by algo
   #init the algos
   for algo in algoList:
     exec(f"{algo}.init('{configFile}')")
+  updateLists()
   
   syncPosList() #in the event that something changed during the last run, this should catch it
   print("\n") #leave a space between startup and main sequence
     
+  if(verbose): print(json.dumps(algoList,indent=2))
+
   ###
   #initiate settings related to the account parameters
   ###
@@ -287,6 +289,8 @@ def updateLists(verbose=False):
         if(len([e for e in f if e not in algoList])>0 or len([e for e in algoList if e not in f])>0):
           if(verbose): print("mismatch between saved buy list and algos being used")
           errored = True
+        else:
+          algoList = f #valid file, valid data, so should just read from the file
       except Exception:
         if(verbose): print("invalid data in file")
         errored = True
@@ -367,7 +371,7 @@ def check2sell(algo, pos):
 #look to buy stocks from the stocks2buy list with the available funds for the algo
 def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
   global posList, cashList
-
+  if(verbose): print(stocks2buy)
   random.shuffle(stocks2buy) #shuffle the stocks2buy to avoid front loading
   #calculate the cash to be put towards various stocks in the algo (shouldn't be more than the cash available, but shouldn't be less than than the minDolPerStock (unless mindol > cashAvail))
   if(len(stocks2buy)>0):
@@ -860,7 +864,7 @@ def syncPosList(verbose=False):
 
 #run the main function
 if __name__ == '__main__':
-  global posList, cashList,triggeredStocks, exitFlag
+  global exitFlag
   exitFlag = False #set to true if the program stopped by ctrl+c
 
   try:
