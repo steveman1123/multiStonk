@@ -91,7 +91,7 @@ def sellAll(isManual=1):
           print("No connection, or other error encountered in sellAll. Trying again...")
           o.time.sleep(3)
           continue
-      r = o.json.loads(r.text.decode("utf-8"))
+      r = o.json.loads(r.text)
       for e in r:
         print(e["body"]["symbol"])
       print("Orders Cancelled.")
@@ -133,7 +133,7 @@ def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPri
       o.time.sleep(3)
       continue
 
-  r = o.json.loads(r.text.decode("utf-8"))
+  r = o.json.loads(r.text)
   # print(r)
   try:
     #TODO: add trade info here?

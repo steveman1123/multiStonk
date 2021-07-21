@@ -159,7 +159,7 @@ def goodBuys(symbList):
 #determine if stocks are good to sell or not
 def goodSells(symbList):
   print(f"{algo} incomplete")
-  return {s:False for s in symbList}
+  return {s:0 for s in symbList}
 
 #return whether symb is a good sell or not
 def goodSell(symb):

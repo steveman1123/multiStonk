@@ -52,11 +52,21 @@ def goodSells(sellList, verbose=False): #sellList is a list of stocks ready to b
   buyPrices = {s:float(stockList[s]['buyPrice']) for s in sellList} #get buyPrices {symb:buyPrce}
   infs = o.getPrices([s+"|stocks" for s in sellList]) #currently format of {symb|assetclass:{price,vol,open}}
   infs = {s.split("|")[0]:infs[s] for s in infs} #now format of {symb:{price,vol,open}}
-  
-  #compare prices to the opens
-  outs = {s:(s in infs and (infs[s]['price']/infs[s]['open']<sellDn(s) or infs[s]['price']/infs[s]['open']>=sellUp(s))) for s in sellList}
-  #compare prices to the buys
-  outs = {s:(s in infs and s in buyPrices and (outs[s] or buyPrices[s]>0 and (infs[s]['price']/buyPrices[s]<sellDn(s) or infs[s]['price']/buyPrices[s]>=sellUp(s)))) for s in sellList}
+
+  gs = {}
+  for s in symbList:
+    if(s in prices):
+      if(verbose): print(f"{s}\topen: {round(prices[s]['price']/prices[s]['open'],2)}\tbuy: {round(prices[s]['price']/buyPrices[s],2)}\tsellUp: {sellUp(s)}\tsellDn: {sellDn(s)}")
+      #check if price triggered up
+      if(prices[s]['price']/prices[s]['open']>=sellUp(s) or prices[s]['price']/buyPrices[s]>=sellUp(s)):
+        gs[s] = 1
+      #check if price triggered down
+      elif(prices[s]['price']/prices[s]['open']<sellDn(s) or prices[s]['price']/buyPrices[s]<sellDn(s)):
+        gs[s] = -1
+      else: #price didn't trigger either side
+        gs[s] = 0
+    else:
+      gs[s] = 0
   
   #display stocks that have an error
   for e in [e for e in sellList if e not in outs]:

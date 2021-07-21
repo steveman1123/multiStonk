@@ -16,6 +16,9 @@ def getList(verbose=True):
   
   return goodBuys #return dict of symb:note
   
+def goodSells(symbList, verbose=False):
+  print("incomplete")
+  return False
 
 
 #TODO: this should also account for squeezing

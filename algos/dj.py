@@ -190,26 +190,37 @@ def goodBuys(symbList, days2look=-1, verbose=False):
 
 #perform the same checks as goodSell but multiplexed for fewer requests
 #return dict of {symb:goodSell}
-def goodSells(sellList, verbose=False): #sellList is a list of stocks ready to be sold
+def goodSells(symbList, verbose=False): #symbList is a list of stocks ready to be sold
   lock = o.threading.Lock()
   lock.acquire()
-  stockList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo] #load up the stock data for the algo
+  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo] #load up the stock data for the algo
   lock.release()
-  sellList = [e for e in sellList if e in stockList] #only look at the stocks that are in the algo
-  buyPrices = {s:float(stockList[s]['buyPrice']) for s in sellList} #get buyPrices {symb:buyPrce}
-  infs = o.getPrices([s+"|stocks" for s in sellList]) #currently format of {symb|assetclass:{price,vol,open}}
-  infs = {s.split("|")[0]:infs[s] for s in infs} #now format of {symb:{price,vol,open}}
+  symbList = [e for e in symbList if e in posList] #only look at the stocks that are in the algo
+  buyPrices = {s:float(posList[s]['buyPrice']) for s in symbList} #get buyPrices {symb:buyPrce}
+  prices = o.getPrices([s+"|stocks" for s in symbList]) #currently format of {symb|assetclass:{price,vol,open}}
+  prices = {s.split("|")[0]:prices[s] for s in prices} #now format of {symb:{price,vol,open}}
   
-  #compare prices to the opens
-  outs = {s:(s in infs and (infs[s]['price']/infs[s]['open']<sellDn(s) or infs[s]['price']/infs[s]['open']>=sellUp(s))) for s in sellList}
-  #compare prices to the buys
-  outs = {s:(s in infs and s in buyPrices and (outs[s] or buyPrices[s]>0 and (infs[s]['price']/buyPrices[s]<sellDn(s) or infs[s]['price']/buyPrices[s]>=sellUp(s)))) for s in sellList}
+  gs = {}
+  for s in symbList:
+    if(s in prices):
+      if(verbose): print(f"{s}\topen: {round(prices[s]['price']/prices[s]['open'],2)}\tbuy: {round(prices[s]['price']/buyPrices[s],2)}\tsellUp: {sellUp(s)}\tsellDn: {sellDn(s)}")
+      #check if price triggered up
+      if(prices[s]['price']/prices[s]['open']>=sellUp(s) or prices[s]['price']/buyPrices[s]>=sellUp(s)):
+        gs[s] = 1
+      #check if price triggered down
+      elif(prices[s]['price']/prices[s]['open']<sellDn(s) or prices[s]['price']/buyPrices[s]<sellDn(s)):
+        gs[s] = -1
+      else: #price didn't trigger either side
+        gs[s] = 0
+    else:
+      gs[s] = 0
+  
   
   #display stocks that have an error
-  for e in [e for e in sellList if e not in outs]:
+  for e in [e for e in symbList if e not in gs]:
     print(f"{e} not tradable")
   
-  return outs
+  return gs
 
 
 #get list of stocks from stocksUnder1 and marketWatch lists

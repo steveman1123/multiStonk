@@ -74,17 +74,22 @@ def goodSells(symbList,verbose=False): #where symbList is a list of symbols
   prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
   prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
-  if(verbose): print(f"stocks in prices: {list(curPrices)}")
+  if(verbose): print(f"stocks in prices: {list(prices)}")
   #should return true if it doesn't show up in the price list or the price is now out of bounds
-  gs = {e:(e not in prices or
-          prices[e]['price']/prices[e]['open']>=sellUp(e) or #TODO: might be able to combine these two lines into 1 of format (not dn<=price<up)
-          prices[e]['price']/prices[e]['open']<sellDn(e) or
-          (buyPrices[e]>0 and
-           (prices[e]['price']/buyPrices[e]>=sellUp(e) or
-            prices[e]['price']/buyPrices[e]<sellDn(e)
-           )
-          )
-          ) for e in symbList}
+  gs = {}
+  for s in symbList:
+    if(s in prices):
+      if(verbose): print(f"{s}\topen: {round(prices[s]['price']/prices[s]['open'],2)}\tbuy: {round(prices[s]['price']/buyPrices[s],2)}\tsellUp: {sellUp(s)}\tsellDn: {sellDn(s)}")
+      #check if price triggered up
+      if(prices[s]['price']/prices[s]['open']>=sellUp(s) or prices[s]['price']/buyPrices[s]>=sellUp(s)):
+        gs[s] = 1
+      #check if price triggered down
+      elif(prices[s]['price']/prices[s]['open']<sellDn(s) or prices[s]['price']/buyPrices[s]<sellDn(s)):
+        gs[s] = -1
+      else: #price didn't trigger either side
+        gs[s] = 0
+    else:
+      gs[s] = 0
   
   return gs    
 

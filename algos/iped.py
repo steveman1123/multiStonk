@@ -58,12 +58,20 @@ def goodSells(symbList,verbose=False):
   if(verbose): print(f"stocks in prices: {list(prices)}")
   #check that it has exceeded the stopLoss or takeProfit points
   #ensure recorded prices are >0 (avoid div0)
-  gs = {s:(s not in prices or buyPrices[s]==0 or prices[s]['price']==0 or
-           prices[s]['price']/prices[s]['open']>=sellUp(s) or
-           prices[s]['price']/prices[s]['open']<sellDn(s) or
-           prices[(s)]['price']/buyPrices[s]<sellDn(s) or
-           prices[(s)]['price']/buyPrices[s]>=sellUp(s)
-          ) for s in symbList}
+  gs = {}
+  for s in symbList:
+    if(s in prices):
+      if(verbose): print(f"{s}\topen: {round(prices[s]['price']/prices[s]['open'],2)}\tbuy: {round(prices[s]['price']/buyPrices[s],2)}\tsellUp: {sellUp(s)}\tsellDn: {sellDn(s)}")
+      #check if price triggered up
+      if(prices[s]['price']/prices[s]['open']>=sellUp(s) or prices[s]['price']/buyPrices[s]>=sellUp(s)):
+        gs[s] = 1
+      #check if price triggered down
+      elif(prices[s]['price']/prices[s]['open']<sellDn(s) or prices[s]['price']/buyPrices[s]<sellDn(s)):
+        gs[s] = -1
+      else: #price didn't trigger either side
+        gs[s] = 0
+    else:
+      gs[s] = 0
   
   return gs
 

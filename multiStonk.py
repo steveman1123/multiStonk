@@ -22,6 +22,7 @@ colorinit() #allow coloring in Windows terminals
 #TODO: check on overall market trends/sentiment and adjust which algos to use based on volitility (would need to give some kind of scoring to see what volitility the algos operate the best in)
 #TODO: use this api for reddit sent analysis: https://api.pushshift.io/reddit/search/comment/?subreddit=
 # ^ https://github.com/pushshift/api
+#TODO: check that stocks trying to be sold are actually able to be sold (as in present) and are being popped properly
 
 #parse args and get the config file
 configFile="./configs/multi.config"
@@ -91,8 +92,29 @@ closeTime = o.closeTime(estOffset=-1) #get the time in datetime format of when t
 
 #main function to run continuously
 def main(verbose=True):
-  global algoList, posList, listsUpdatedToday, closeTime
+  #values to be used across functions and are edited here
+  global algoList, posList, listsUpdatedToday, closeTime, cashList
+  
+  ###
+  #initiate settings, algorithms, variables and ensure proper configuration
+  ###
+  triggeredStocks = set() #should contain elements of format algo|stock
   ask2sell = True #if this is true, then the program will ask to sell all if portval drops below some % of maxPortVal
+  a.checkValidKeys(int(c['account params']['isPaper'])) #check that the keys being used are valid
+  if(len(a.getPos())==0): #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
+    print(f"Will start buying {c['time params']['buyTime']} minutes before next close")
+  
+  [posList,cashList] = setPosList(algoList) #initiate/populate the list of positions by algo
+  #init the algos
+  for algo in algoList:
+    exec(f"{algo}.init('{configFile}')")
+  
+  syncPosList() #in the event that something changed during the last run, this should catch it
+  print("\n") #leave a space between startup and main sequence
+    
+  ###
+  #initiate settings related to the account parameters
+  ###
   portHist = a.getProfileHistory(str(dt.date.today()),'1M')['equity'] #get the closing prices of the portfolio over the last month
   maxPortVal=max([e for e in portHist if e is not None]) #get the max portfolio value over the last month and remove blank entries
   cashMargin = float(c['account params']['cashMargin']) #extra cash to hold above hold value
@@ -101,12 +123,21 @@ def main(verbose=True):
   cash2hold = float(c['account params']['cash2hold'])
   isManualSellOff = not int(c['account params']['portAutoSellOff'])
   
+  ###
+  #part to run forever (unless cancelled or an unexpected error occurs)
+  ###
   while True:
     
+    ###
+    #get current account statuses
+    ###
     acct = a.getAcct() #get account info
     pos = a.getPos() #get all held positions (no algo assigned)
     
-    #make sure we're still above the threshold to trade (if not, see if we should ask to sell, and if we have anything to be sold in the first place)
+    
+    ###
+    #ensure we're still above the threshold to trade (if not, see if we should ask to sell, and if we have anything to be sold in the first place)
+    ###
     if(ask2sell and float(acct['portfolio_value'])<maxPortVal*float(c['account params']['portStopLoss']) and len(pos)>0):
       print(f"Portfolio value of ${acct['portfolio_value']} is less than {c['account params']['portStopLoss']} times the max portfolio value of ${maxPortVal}.")
       if(not isManualSellOff): print("Automatically selling all...")
@@ -119,7 +150,9 @@ def main(verbose=True):
         else:
           print("Will ask to sell all again tomorrow")
       
-    
+    ###
+    #calculate tradable cash
+    ###
     totalCash = float(acct['cash'])
     if(totalCash>=cash2hold*cashMargin): #if we have more buying power than the min plus some leeway, then reduce it to hold onto that buy pow
       # print(f"Can safely withdrawl ${round(cash2hold,2)}")
@@ -127,6 +160,10 @@ def main(verbose=True):
     elif(cash2hold<=totalCash<cash2hold*cashMargin):
       totalCash = 0 #stop trading if we've started to eat into the margin, that way we don't overshoot
       
+      
+    ###
+    #execute when the market is open
+    ###
     if(o.marketIsOpen()):
       print(f"\nPortfolio Value: ${acct['portfolio_value']}, tradable cash: ${round(totalCash,2)}, {len(posList)} algos")
       #update the lists if not updated yet and that it's not currently updating
@@ -152,9 +189,18 @@ def main(verbose=True):
     
       time.sleep(60)
     
-    else: #market is closed
+    
+    
+    ###
+    #execute when the market is closed
+    ###
+    else:
+      
+      ###
+      #execute immediately after close
+      ###
+      
       #display the total p/l % of each algo
-      #TODO: should add a cash generated value to each algo that's updated when something is bought or sold (that is: how much cash ahs been invested, and how much has been returned. Then include those numbers in this calculation for better accuracy)
       print("Algo ROI's:")
       for algo in posList:
         curPrices = o.getPrices([e+"|stocks" for e in posList[algo]]) #get the current prices of all the stocks in a given algo
@@ -206,6 +252,11 @@ def main(verbose=True):
       if(tto>60*float(c['time params']['updateLists'])):
         print(f"Updating stock lists in {round((tto-60*float(c['time params']['updateLists']))/3600,2)} hours")
         time.sleep(tto-60*float(c['time params']['updateLists']))
+      
+      
+      ###
+      #execute some time before the market opens
+      ###
       #update stock lists
       print("Updating buyList") #TODO: move this into the thread or within the thread have a "done updating buylist"
       updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
@@ -282,7 +333,7 @@ def updateList(algo,lock,rm=[],verbose=False):
     algoList[algo] = algoBuys
     lock.release() #then unlock
 
-
+'''
 #check to sell positions from a given algo (where algo is an aglo name, and pos is the output of a.getPos())
 # this function is depreciated, replaced by check2sells
 def check2sell(algo, pos):
@@ -305,12 +356,12 @@ def check2sell(algo, pos):
             triggerThread.setName("triggered") #set the name to the algo and stock symb
             triggerThread.start() #start the thread
           
-          '''
           if(f"{algo}-{e['symbol']}" not in [t.getName() for t in o.threading.enumerate()]): #make sure that the thread isn't already running
             triggerThread = o.threading.Thread(target=triggeredUp, args=(e['symbol'],algo)) #init the thread - note locking is required here
             triggerThread.setName(f"{algo}-{e['symbol']}") #set the name to the algo and stock symb
             triggerThread.start() #start the thread
-          '''
+'''
+
 
 #TODO: check2buy should run more continuously/should be it's own thread (rather than a single loop through, it should repeat until cash is spent per algo) <- this might already be addressed?
 #look to buy stocks from the stocks2buy list with the available funds for the algo
@@ -386,7 +437,8 @@ def checkTriggered(verbose=False):
       triggeredStocks.discard(e)
     lock.release()
       
-    print("")
+    print()
+    
     for e in list(triggeredStocks):
       sellUpDn = eval(f"{e.split('|')[0]}.sellUpDn()") #get the sellUpDn % - TODO: this should probably be moved out of this for loop and generate a dict {algo:sellUpDn} since it doesn't depend on the individual stock (this would reduce function calls)
       curPrice = prices[(e.split("|")[1]+'|stocks').upper()]['price'] #get the current prices of the stocks
@@ -399,13 +451,12 @@ def checkTriggered(verbose=False):
       else:
         print(f"{e} current price is $0. Selling")
         sell(e.split("|")[1],e.split("|")[0])
-    print("")
+    print()
     time.sleep(max(5,len(list(triggeredStocks))/5)) #wait at least 5 seconds between checks, and if there are more, wait longer
     
 #multiplex check2sell
 def check2sells(pos):
   global triggeredStocks
-  #TODO: don't display or run anything for stocks that were bought today
   #determine if the stocks in the algo are good sells (should return as a dict of {symb:goodSell(t/f)})
   for algo in posList:
     algoSymbs = [e for e in pos if e['symbol'] in posList[algo]] #only the stocks in both posList[algo] and held positions
@@ -416,13 +467,16 @@ def check2sells(pos):
       if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'): #only display/sell if not bought today
         print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t"+str(eval(f'{algo}.sellDn("{e["symbol"]}")'))+" & "+str(eval(f'{algo}.sellUp("{e["symbol"]}")'))+f"\t{posList[algo][e['symbol']]['note']}")
       
-        if(gs[e['symbol']]): #if the stock is a good sell
+        if(gs[e['symbol']]==1): #if the stock is a good sell (sellUp)
           if(algo+"|"+e['symbol'] not in triggeredStocks): #make sure that it's not already present
             triggeredStocks.add(algo+"|"+e['symbol']) #if not, then add it to the triggered list
           if("triggered" not in [t.getName() for t in o.threading.enumerate()]): #make sure that the triggered list isn't already running
             triggerThread = o.threading.Thread(target=checkTriggered) #init the thread - note locking is required here
             triggerThread.setName("triggered") #set the name to the algo and stock symb
             triggerThread.start() #start the thread
+        elif(gs[e['symbol']]==-1): #else if it sells down (stop-loss)
+          #sell immediately
+          sell(e['symbol'],algo)
   
   
 #basically just a market order for the stock and then record it into an order info file
@@ -811,20 +865,6 @@ if __name__ == '__main__':
   exitFlag = False #set to true if the program stopped by ctrl+c
 
   try:
-    triggeredStocks = set() #should contain elements of format algo|stock
-    
-    a.checkValidKeys(int(c['account params']['isPaper'])) #check that the keys being used are valid
-    if(len(a.getPos())==0): #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
-      print(f"Will start buying {c['time params']['buyTime']} minutes before next close")
-    
-    [posList,cashList] = setPosList(algoList) #initiate/populate the list of positions by algo
-    #init the algos
-    for algo in algoList:
-      exec(f"{algo}.init('{configFile}')")
-    
-    syncPosList() #in the event that something changed during the last run, this should catch it
-    print("\n") #leave a space between startup and main sequence
-    
     main() #start running the program
   except KeyboardInterrupt: #exit on ctrl+c
     print("Exiting")
