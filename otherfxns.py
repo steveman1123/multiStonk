@@ -411,6 +411,28 @@ def getPrices(symbList,maxTries=3,verbose=False):
   return prices
   
 
+#return time till the next market open in seconds
+def timeTillOpen(estOffset=-1):
+  while True:
+    try:
+      r = json.loads(requests.get(f"{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
+      tto = r['data']['marketClosingTime'][:-3] #get the close time and strip off the timezone (" ET")
+      tto = dt.datetime.strptime(tto,"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)
+      tto = int((tto-dt.datetime.now()).total_seconds())
+      
+      break
+    except Exception:
+      print("Error encountered in nasdaq timeTillOpen. Trying again...")
+      time.sleep(3)
+      pass
+    
+  if(tto<0): #if it's the evening
+    print("Time estimate to nearest minute")
+    tto = r['data']['marketCountDown'].split(" ")[-2:]
+    tto = 3600*int(tto[0][:-1])+60*int(tto[1][:-1])
+  
+  return tto
+
 #get the time till the next market close in seconds (argument of EST offset (CST is 1 hour behind, UTC is 5 hours ahead))
 def timeTillClose(estOffset=-1):
   while True:
@@ -424,6 +446,12 @@ def timeTillClose(estOffset=-1):
       time.sleep(3)
       pass
   ttc = int((ttc-dt.datetime.now()).total_seconds())
+  
+  if(ttc<0):
+    nextMktDay = dt.datetime.strptime(r['data']['nextTradeDate'],"%b %d, %Y").date()
+    ttc = 24*3600*(nextMktDay-dt.date.today()).days+ttc #if it's the afternoon, the time doesn't automatically switch, so look for the next market day
+    #this assumes the next market day will close at the same time as the current market day, which might not always be the case if the market closes early
+  
   return ttc
 
 #return the next market close time with an EST offset (required)
