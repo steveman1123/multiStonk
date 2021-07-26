@@ -2,6 +2,7 @@
 #syntax for running should be "python3 dryrun.py {algo2test selected from algosDir}"
 
 #TODO: there are errors that cause the stocks to seem like they're delisted when they're not. Possibly only check during week days? Also make sure that there's a valid response rather than nothing to confirm that it was actually delisted
+#TODO: add % over threshold output (ie how many have reached a certain gain % or loss %). Maybe also add avg return %?
 
 import otherfxns as o
 import sys,json,time,os
@@ -89,6 +90,7 @@ while True:
         purchList[e]['low'] = round(prices[e]/purchList[e]['buyPrice'],2)
         purchList[e]['lowDate'] = str(dt.date.today())
     else: #it's not in the prices
+      #TODO: add conditional here about checking and changing note if actually delisted (should only append delisted, not change to it)
       purchList[e]['note'] = "Delisted"
     
     #display the list
@@ -100,9 +102,16 @@ while True:
           f"{bcolor.FAIL if purchList[e]['low']<1 else bcolor.OKGREEN}{purchList[e]['low']}{bcolor.ENDC}\t"
           f"{purchList[e]['lowDate']}\t"
           f"{purchList[e]['note']}"))
-      
+  
+  if(len(purchList)>0):
+    percWon = len([e for e in purchList if e['high']>=eval(f"{algo}.sellUp({e})") and e['highDate']<e['lowDate']])/len(purchList)
+    percLost = len([e for e in purchList if e['low']<eval(f"{algo}.sellDn({e})") and e['lowDate']<e['highDate']])/len(purchList)
+  else:
+    [percWon,percLost] = [0,0]
+  print(f"won:\t{round(100*percWon,2)}%")
+  print(f"lost:\t{round(100*percLost,2)}%")
   
   open(c['file locations']['purchLists']+algo+".json",'w').write(json.dumps(purchList)) #save to the file
   print(f'testing algo "{algo}"')
   
-  time.sleep(86400) #check once a day
+  time.sleep(o.timeTillClose()-5) #check once a day on market close (5 seconds before to ensure it's open)

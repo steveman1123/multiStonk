@@ -40,9 +40,7 @@ def init(configFile, verbose=False):
 #return dict of good buys of format {symb:note}
 #where the note contains the earnings date
 def getList(verbose=True):
-  #perform checks to see which one ones will gain
-  maxPrice = float(c[algo]['maxPrice']) #max price point
-  minPrice = float(c[algo]['minPrice']) #min price point
+
   
   #each check will add or subtract from a score  (as lacking one or more of the indicators isn't necessarily a dealbreaker)
   if(verbose): print(f"getting unsorted list for {algo}...")
@@ -74,14 +72,131 @@ def getUnsortedList(maxTries=3):
 #where symbList should be the output of getUnsortedList() - dict of format {date:yyyy-mm-dd, inf:[data]}
 #return dict of format {symb:note} for all symbs that are good buys
 def goodBuys(symbList,verbose=False):
+  maxPrice = float(c[algo]['maxPrice']) #max price point
+  minPrice = float(c[algo]['minPrice']) #min price point
+  
   earnDate = symbList['date'] #get the date before it's stripped off
 
   prices = o.getPrices([e['symbol']+"|stocks" for e in symbList['inf']])
   prices = {s.split("|")[0]:prices[s]['price'] for s in prices} #isolate to {symb:price}
-  #TODO: this check shosymbListd be in the goodBuys section, not in here
   symbList = [e for e in symbList['inf'] if(e['symbol'] in prices and minPrice<=prices[e['symbol']]<=maxPrice)] #only keep elements that are in prices and within our price range
-  gb = {e['symbol']:earnDate for e in symbList} #during normal running, this shosymbListd be empty dict
   
+  #check expectations (price increasing in the last month/week, sentiment of articles/blogs/comments, whisper numbers (compared to analyst))
+  histWeight = float(c[algo]['histWeight']) #weight to ascribe to the history check
+  minConf = float(c[algo]['minConf']) #minimum confidence to have to consider a good buy
+  minExpec = float(c[algo]['minExpec']) #minimum expectation to have to consider a good buy (must be high expectation)
+  gb = {}
+  for symb in symbList:
+    
+    #get the analyst target price
+    tgtPriceInf = o.getTargetPrice(symb)['consensusOverview']
+    tgtPrice = tgtPriceInf['priceTarget']
+    
+    #target price must be > than current price to continue
+    if(tgtPrice>prices[symb]):
+      
+      #check the price changes between 6wk sma, 2wk sma, and now
+      hist = o.getHistory(symb,str(o.dt.date.today()-o.dt.datetime.timedelta(30)),str(o.dt.date.today()))
+      
+      wk6 = o.mean([float(e[1]) for e in hist[5*6:5*7]]) #get the sma from 6 weeks ago
+      wk2 = o.mean([float(e[1]) for e in hist[5*2:5*3]]) #get the sma from 2 weeks ago
+      now = prices[symb] #get the most recent price
+      
+      #assign the history score according to the table based on previous values
+      if(now<=wk2<=wk6): histChangeNum = -1
+      elif(now<=wk6<=wk2): histChangeNum = -.6
+      elif(wk2<=now<=wk6): histChangeNum = .6
+      elif(wk2<=wk6<=now): histChangeNum = .3
+      elif(wk6<=now<=wk2): histChangeNum = -.3
+      elif(wk6<=wk2<=now): histChangeNum = 1
+      else: histChangeNum = 0
+      
+      #check total number of reports from the company in the last quarter (more total news is good, even better if + sent)
+      # ndaqh = ns.scrapeNDAQ(symb,headNum=25)
+      # yfh = ns.scrapeYF(symb)
+      # ddgh = ns.scrapeDDG(symb)
+      # 
+      # print(o.json.dumps(ndaqh,indent=2))
+      # print()
+      # print(o.json.dumps(yfh,indent=2))
+      # print()
+      # print(o.json.dumps(ddgh,indent=2))
+      # 
+      # #get the total number of articles between the two sources
+      # totalArts = len(ndaqh)+len(yfh)+len(ddgh)
+      
+      '''
+      include sent of articles for expec, num of articles for conf
+      
+      rating text for expec (convert to scaled # -1 to 1)
+      tgtPrice for expec
+      inst for expec
+      inside for expec
+      hist for expec (1 if today>2wk>6wk, -1 if today<2wk<6wk, )
+      
+      expec = ratingConvertedToScaledNumber +
+              (tgtBuy-tgtSell)/(tgtBuy+tgtSell) +
+              (instBuy-instSell)/(instBuy+instSell) +
+              (insideBuy-insideSell)/(insideBuy+insideSell) +
+              histChngConvertedToScaledNumber
+              
+      
+      rsi for conf
+      rating numeric for conf
+      num of tgtPrice for conf
+      num of inst for conf
+      num of inside for conf
+      hist weight for conf
+      '''
+      
+      
+      #get what the analysts are saying (if anything)
+      ratingInf = o.getRatings(symb)
+      maxRaters = 16 #maximum number of rating institutions (might be more, but this is the highest I've seen)
+      possibleRatings = ['underperform','hold','buy','strong buy'] #probably not all values, just the ones I've seen
+      if(ratingInf[0].lower() in possibleRatings):
+        ratingNum = possibleRatings.index(ratingInf[0].lower()/int(len(possibleRatings)/2)-1 #scale to be -1 to 1
+      else:
+        ratingNum = 0 #if no rating is found, default to no value
+      
+      #get buy count from ratingInf and tgtPriceInf
+      [tgtBuy,tgtSell,tgtHold] = [tgtPriceInf['consensusOverview']['buy'],tgtPriceInf['consensusOverview']['sell'],tgtPriceInf['consensusOverview']['hold']]
+      
+      #get the rsi value
+      rsi = o.getRSI(hist)
+      
+      #get the institutional activity (more recent buying is good)
+      instact = o.getInstAct(symb)
+      [instBuys,instSells] = [int(instact['data']['activePositions']['rows'][0]['holders']),int(instact['data']['activePositions']['rows'][1]['holders'])]
+      
+      #check insider trading (many recent buys is good, many recent sells is bad)
+      insider = o.getInsideTrades(symb)
+      [insideBuys,insideSells] = [int(insider['data']['numberOfSharesTraded']['rows'][0]['months3']),int(insider['data']['numberOfSharesTraded']['rows'][1]['months3'])]
+      
+      #stock should go up if expectations are high and target is reached
+      #expectation value should be based on ration of +/- sent for articles, rsi should be neither oversold or overbought, and inside and institutional should both be buy (or really even just institutional should be buy? Unless there's a lot of inside buying in the last week or two)
+      expec = [ratingNum,histChangeNum]
+      
+      #every element in confList must be between 0 and 1
+      confList = [len(ratingInf[1])/maxRaters,histWeight,.3<rsi<.7] 
+      
+      if((tgtBuy+tgtSell+tgtHold)>0):
+        expecList += [(tgtBuy-tgtSell)/(tgtBuy+tgtSell+tgtHold)]
+        confList += []
+      if((instBuy+instSell)>0):
+        expecList += [(instBuy-instSell)/(instBuy+instSell)]
+        confList += []
+      if((insideBuy+insideSell)>0):
+        expecList += [(insideBuy-insideSell)/(insideBuy+insideSell)]
+        confList += []
+      
+      expec = sum(expecList)/len(expecList) #average out the expectations to get an expecation value between -1 and 1
+      conf = sum(confList)/len(confList) #average out the confidence to get a confidence level between 0 and 1
+      
+      #sellUp/dn should be defined by the expected price/buyPrice and some % of that (so if sellDn is set to be 50% of sellUp, and the expected gain is 10%, then sellUp=1.1 and sellDn=0.95) (store predicted price in note along with earnDate in format of "note": "yyyy-mm-dd, $.$$")
+      if(conf>minConf and expec>minExpec):
+        gb[symb] = f"{earnDate}, {targetPrice}"
+    
   return gb
   
   
@@ -123,21 +238,24 @@ def goodSells(symbList,verbose=False):
   return gs
 
 
-#TODO: this should also account for squeezing
+#TODO: add comments
 def sellUp(symb=""):
-  mainSellUp = float(c[algo]['sellUp'])
   if(symb in posList):
-    sellUp = mainSellUp #TODO: account for squeeze here
+    buyPrice = posList[symb]['buyPrice']
+    tgtPrice = float(posList[symb]['note'].split(",")[1])
+    sellUpAdjustment = float(c[algo]['sellUpAdjustment'])
+    sellUp = 1+(tgtPrice/buyPrice-1)*sellUpAdjustment
   else:
-    sellUp = mainSellUp
+    sellUp = float(c[algo]['sellUp'])
   return sellUp
 
-#TODO: this should also account for squeezing
+#TODO: add comments
 def sellDn(symb=""):
-  mainSellDn = float(c[algo]['sellDn'])
   if(symb in posList):
-    sellDn = mainSellDn #TODO: account for squeeze here
+    sellDnPerc = c[algo]['sellDnPerc']
+    sellDn = 1-(sellUp(symb)-1)*sellDnPerc
   else:
+    mainSellDn = float(c[algo]['sellDn'])
     sellDn = mainSellDn
   return sellDn
 
@@ -145,6 +263,10 @@ def sellUpDn():
   return float(c[algo]['sellUpDn'])
 
 
+
+  
+  
+  
 
 
 
@@ -218,12 +340,7 @@ def sellUpDn():
    if(score/maxScore>=float(c[algo]['minScorePct'])): #must reach the cutoff score to be considered a good buy
      goodBuys[e['symbol']] = earnDate
  
- '''
-  
-  
-  
-  
-  
+'''  
   
 '''
 https://seekingalpha.com/article/1445911-a-remarkably-reliable-way-to-predict-post-earnings-price-moves
@@ -249,4 +366,25 @@ In addition, I check out recent hedge fund activity (are hedge funds buying or s
 I have found that actual hedge fund cash commitments is a much better indicator of future stock performance than anything the analysts say. For example, for the last four quarters, analysts who publish estimates for SalesForce.com (NYSE:CRM) have been off by an average of ten times earnings per share for the past four quarters (e.g., they estimated an average of $.03 and actual earnings were over $.30). It is hard to give the analysts any credence when they can consistently be this far off base.
 
 One shortcoming of the model is that it doesn't always provide predictive value. In one article I reviewed the expectation levels for eight reporting companies and concluded that none of them displayed unusually high or low expectation levels so that my model could not help in predicting the post-earnings stock price move -- Predicting The Direction Of Next Week's Earnings-Reporting Companies
+'''
+
+'''
+prediction:
+expectations  target reached  result
+high          no              down
+high          yes             up
+low           no              up?
+low           yes             down?
+
+
+
+hist change value:
+low med high  buy strength
+now 2wk 6wk   -1
+now 6wk 2wk   -.6
+2wk now 6wk   .6
+2wk 6wk now   .3
+6wk now 2wk   -.3
+6wk 2wk now   1
+
 '''

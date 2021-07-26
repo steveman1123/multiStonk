@@ -21,6 +21,8 @@ stockDir = c['file locations']['stockDataDir'] #where stock history data is stor
 HEADERS = json.loads(c['net cfg']['headers']) #headers to send on each data request
 
 
+BASEURL = "https://api.nasdaq.com/api"
+
 #returns as 2d array order of Date, Close/Last, Volume, Open, High, Low sorted by dates newest to oldest (does not include today's info)
 #get the history of a stock from the nasdaq api (date format is yyyy-mm-dd)
 #default to returning the last year's worth of data
@@ -141,7 +143,7 @@ def getHistory2(symb, startDate, endDate, maxTries=3):
   j = {}
   while tries<=maxTries: #get the first set of dates
     try:
-      j = json.loads(requests.get(f'https://api.nasdaq.com/api/quote/{symb}/historical?assetclass=stocks&fromdate={startDate}&todate={endDate}&limit={maxDays}',headers=HEADERS).text)
+      j = json.loads(requests.get(f'{BASEURL}/quote/{symb}/historical?assetclass=stocks&fromdate={startDate}&todate={endDate}&limit={maxDays}',headers=HEADERS).text)
       break
     except Exception:
       print(f"Error in getHistory2 for {symb}. Trying again ({tries}/{maxTries})...")
@@ -158,7 +160,7 @@ def getHistory2(symb, startDate, endDate, maxTries=3):
         tries=1
         while tries<=maxTries:
           try:
-            r = json.loads(requests.get(f'https://api.nasdaq.com/api/quote/{symb}/historical?assetclass=stocks&fromdate={startDate}&todate={endDate}&offset={i*(maxDays)}',headers=HEADERS).text)
+            r = json.loads(requests.get(f'{BASEURL}/quote/{symb}/historical?assetclass=stocks&fromdate={startDate}&todate={endDate}&offset={i*(maxDays)}',headers=HEADERS).text)
             j['data']['tradesTable']['rows'] += r['data']['tradesTable']['rows'] #append the sets together
             break
           except Exception:
@@ -179,7 +181,7 @@ def getHistory2(symb, startDate, endDate, maxTries=3):
 
 #return if the stock jumped today some %
 def jumpedToday(symb,jump, maxTries=3):
-  url = f'https://api.nasdaq.com/api/quote/{symb}/summary?assetclass=stocks'
+  url = f'{BASEURL}/quote/{symb}/summary?assetclass=stocks'
   tries=0
   while tries<maxTries:
     try:
@@ -270,7 +272,7 @@ def masterLives():
 def reverseSplitters():
   while True: #get page of upcoming stock splits
     try:
-      r = json.loads(requests.get("https://api.nasdaq.com/api/calendar/splits", headers=HEADERS, timeout=5).text)['data']['rows']
+      r = json.loads(requests.get("{BASEURL}/calendar/splits", headers=HEADERS, timeout=5).text)['data']['rows']
       break
     except Exception:
       print("No connection, or other error encountered in reverseSplitters. trying again...")
@@ -294,7 +296,7 @@ def reverseSplitters():
 # available data (at the moment): ['price', 'vol', 'mktcap', 'open', 'prevclose', 'istradable']
 #return dict of format {'option':value}
 def getInfo(symb,data=['price']):
-  url = f'https://api.nasdaq.com/api/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
+  url = f'{BASEURL}/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
   while True:
     try:
       r = requests.get(url,headers={"User-Agent": "-"}, timeout=5).text #nasdaq url requires a non-empty user-agent string
@@ -343,7 +345,7 @@ def getDayMins(symb, maxTries=3, verbose=False):
   tries=0
   while tries<maxTries:
     try:
-      r = json.loads(requests.get(f"https://api.nasdaq.com/api/quote/{symb}/chart?assetclass=stocks",headers=HEADERS).text)
+      r = json.loads(requests.get(f"{BASEURL}/quote/{symb}/chart?assetclass=stocks",headers=HEADERS).text)
       break
     except Exception:
       print(f"No connection or other error encountered in getDayMins. Trying again ({tries}/{maxTries})...")
@@ -361,7 +363,7 @@ def getDayMins(symb, maxTries=3, verbose=False):
 def nextTradeDate():
   while True:
     try:
-      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers={"user-agent":'-'}).text)['data']['nextTradeDate']
+      r = json.loads(requests.get("{BASEURL}/market-info",headers={"user-agent":'-'}).text)['data']['nextTradeDate']
       break
     except Exception:
       print("No connection or other error encountered in nextTradeDate. Trying again...")
@@ -382,7 +384,7 @@ def getPrices(symbList,maxTries=3,verbose=False):
     tries=0
     while tries<maxTries:
       try: #try getting the data
-        r = json.loads(requests.get("https://api.nasdaq.com/api/quote/watchlist",params={'symbol':symbList[i:min(i+maxSymbs,len(symbList))]},headers=HEADERS,timeout=5).text)
+        r = json.loads(requests.get("{BASEURL}/quote/watchlist",params={'symbol':symbList[i:min(i+maxSymbs,len(symbList))]},headers=HEADERS,timeout=5).text)
         break
       except Exception: #if it doesn't work, try again
         print("Error getting prices. Trying again...")
@@ -411,7 +413,7 @@ def getPrices(symbList,maxTries=3,verbose=False):
 def timeTillClose(estOffset=-1):
   while True:
     try:
-      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers=HEADERS,timeout=5).text)
+      r = json.loads(requests.get("{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
       ttc = r['data']['marketClosingTime'][:-3] #get the close time and strip off the timezone (" ET")
       ttc = dt.datetime.strptime(ttc,"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)
       break
@@ -426,7 +428,7 @@ def timeTillClose(estOffset=-1):
 def closeTime(estOffset):
   while True:
     try:
-      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers=HEADERS,timeout=5).text)
+      r = json.loads(requests.get("{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
       close = r['data']['marketClosingTime'][:-3] #get the close time and strip off the timezone (" ET")
       close = dt.datetime.strptime(close,"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)
       break
@@ -441,7 +443,7 @@ def closeTime(estOffset):
 def marketIsOpen():
   while True:
     try:
-      r = json.loads(requests.get("https://api.nasdaq.com/api/market-info",headers=HEADERS,timeout=5).text)
+      r = json.loads(requests.get("{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
       isOpen = "Open" in r['data']['marketIndicator']
       break
     except Exception:
@@ -456,7 +458,7 @@ def getEarnSurp(symb, maxTries=3):
   out = {}
   while tries<maxTries:
     try:
-      r = json.loads(requests.get(f"https://api.nasdaq.com/api/company/{symb}/earnings-surprise",headers=HEADERS,timeout=5).content)
+      r = json.loads(requests.get(f"{BASEURL}/company/{symb}/earnings-surprise",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
         out = {e['dateReported']:{'forecast':(float(e['consensusForecast']) if e['consensusForecast'] != "N/A" else None),'actual':e['eps']} for e in r['data']['earningsSurpriseTable']['rows']}
       else: #got a valid return, but bad data was passed
@@ -478,7 +480,7 @@ def getInstAct(symb, maxTries=3):
   while tries<maxTries:
     try:
       # could also look here for more info: https://www.holdingschannel.com/
-      r = json.loads(requests.get(f"https://api.nasdaq.com/api/company/{symb}/institutional-holdings",headers=HEADERS,timeout=5).content)
+      r = json.loads(requests.get(f"{BASEURL}/company/{symb}/institutional-holdings",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
         out = r['data']['activePositions']['rows']
         out = {e['positions'].split(" ")[0].lower():{"holders":int(e['holders'].replace(',','')),"shares":int(e['shares'].replace(',',''))} for e in out}
@@ -499,7 +501,7 @@ def getEPS(symb, maxTries=3):
   out = {}
   while tries<maxTries:
     try:
-      r = json.loads(requests.get(f"https://api.nasdaq.com/api/quote/{symb}/eps",headers=HEADERS,timeout=5).content)
+      r = json.loads(requests.get(f"{BASEURL}/quote/{symb}/eps",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
         if(r['data']['earningsPerShare'] is not None):
           r = r['data']['earningsPerShare']
@@ -527,7 +529,7 @@ def getEarnFcast(symb, maxTries=3):
   out = {}
   while tries<maxTries:
     try:
-      r = json.loads(requests.get(f"https://api.nasdaq.com/api/analyst/{symb}/earnings-forecast",headers=HEADERS,timeout=5).content)
+      r = json.loads(requests.get(f"{BASEURL}/analyst/{symb}/earnings-forecast",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
         if(r['data']['quarterlyForecast'] is not None):
           r = r['data']['quarterlyForecast']['rows']
@@ -555,7 +557,7 @@ def getShortInt(symb, maxTries=3):
   out = {}
   while tries<maxTries:
     try:
-      r = json.loads(requests.get(f"https://api.nasdaq.com/api/quote/{symb}/short-interest?assetclass=stocks",headers=HEADERS,timeout=5).content)
+      r = json.loads(requests.get(f"{BASEURL}/quote/{symb}/short-interest?assetclass=stocks",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
         r = r['data']['shortInterestTable']['rows']
       else: #got a valid return, but bad data was passed
@@ -581,17 +583,17 @@ def getFinancials(symb,maxTries=3):
   out = {}
   while tries<maxTries:
     try:
-      r = json.loads(requests.get(f"https://api.nasdaq.com/api/company/{symb}/financials?frequency=2",headers=HEADERS,timeout=5).content)
+      r = json.loads(requests.get(f"{BASEURL}/company/{symb}/financials?frequency=2",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
         out['income'] = r['data']['incomeStatementTable']
         out['balance'] = r['data']['balanceSheetTable']
         out['cashflow'] = r['data']['cashFlowTable']
-        out['fratios'] = r['data']['financialRatiosTable']
+        out['finratios'] = r['data']['financialRatiosTable']
       else: #got a valid return, but bad data was passed
         print(r['status']['bCodeMessage'][0]['errorMessage'])
       break
     except Exception:
-      print(f"No connection or other error encountered in getEarnFcast for {symb}. Trying again...")
+      print(f"No connection or other error encountered in getFinancials for {symb}. Trying again...")
       tries += 1
       time.sleep(3)
       continue
@@ -611,31 +613,66 @@ def getInsideTrades(symb, maxTries=3):
   out = {}
   while tries<maxTries:
     try:
-      r = json.loads(requests.get(f"https://api.nasdaq.com/api/company/{symb}/insider-trades",headers=HEADERS,timeout=5).content)
+      r = json.loads(requests.get(f"{BASEURL}/company/{symb}/insider-trades",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
         r = r['data']
       else: #got a valid return, but bad data was passed
         print(r['status']['bCodeMessage'][0]['errorMessage'])
       break
     except Exception:
-      print(f"No connection or other error encountered in getEarnFcast for {symb}. Trying again...")
+      print(f"No connection or other error encountered in getInsideTrades for {symb}. Trying again...")
       tries += 1
       time.sleep(3)
       continue
   
   return out
 
+#get the analyst ratings of a given stock
+def getRating(symb, maxTries=3):
+  tries=0
+  rate = []
+  while tries<maxTries:
+    try:
+      r = json.loads(requests.get(f"{BASEURL}/analyst/{symb}/ratings",headers=HEADERS,timeout=5).text)['data']
+      if(r is not None and len(r['brokerNames'])>0):
+        rate = [r['meanRatingType'],len(r['brokerNames'])]
+      break
+    except Exception:
+      tries+=1
+      print(f"No connection or other error encountered in getTargetPrice for {symb}. Trying again...")
+      time.sleep(3)
+      continue
+  
+  return rate
 
 
-#calculate the rsi based on the most recent history of lenth per (hist is output of getHistory)
+#calculate the rsi (relative strength index) based on the most recent history of lenth per (hist is output of getHistory)
 def getRSI(hist,per=14):
   if(per<len(hist)): #ensure that there's enough info to calculate it
     difs = [float(hist[i][1])/float(hist[i+1][1]) for i in range(per)] #get the daily changes
-    avgGain = o.mean([e for e in difs if e>1])
-    avgLoss = o.mean([e for e in difs if e<1])
+    avgGain = mean([e for e in difs if e>1])
+    avgLoss = mean([e for e in difs if e<1])
     rsi = 1-(1/(1+avgGain/avgLoss)) #value between 0 and 1
     return rsi
   else:
     print("not enough info to calculate rsi")
     return 0
 
+
+#get the target price of an earning analysis
+#return the data part of the request (no modifications)
+def getTargetPrice(symb, maxTries=3):
+  tries=0
+  r = {}
+  while tries<maxTries:
+    try:
+      r = json.loads(requests.get(f"{BASEURL}/analyst/{symb}/targetprice",headers=HEADERS,timeout=5).text)
+      if(r['data'] is not None): r = r['data']
+      break
+    except Exception:
+      tries+=1
+      print(f"No connection or other error encountered in getTargetPrice for {symb}. Trying again...")
+      time.sleep(3)
+      continue
+  
+  return r

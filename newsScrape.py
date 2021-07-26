@@ -64,7 +64,28 @@ def scrapeNASDAQ(symb,headNum=5,maxTries=3):
       pass
   return r
 
+
+#get news from duckduckgo
+def scrapeDDG(symb, maxTries=3):
+  out={}
+  tries=0
+  while tries<maxTries:
+    try:
+      #TODO: vqd should be changed or figure out what it means
+      #original vqd=3-27594420679728440418432461322182106813-319083102909836812520935867132683714843
+      out = o.json.loads(requests.get(f"https://duckduckgo.com/news.js?o=json&q={symb}&vqd=3-27594420679728440418432461322182106813",headers=o.HEADERS,timeout=5).text)
+      break
+    except Exception:
+      print(f"No connection or other error encountered in scrapeDDG for {symb}. Trying again...")
+      tries+=1
+      time.sleep(3)
+      continue
   
+  return out
+
+
+
+
 #TODO: check out the html from this site to see their quote api (in js near the top of the page)
 def scrapeCNBC(symb):
   # print("Getting cnbc news...")
