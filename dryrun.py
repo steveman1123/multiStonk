@@ -79,8 +79,8 @@ while True:
       else:
         purchList.pop(e)
   
-  print("symb\tcurrent\tbuyDate\t\thigh\thighDate\tlow\tlowDate\t\tnote")
-  print("----\t-------\t----------\t-----\t----------\t-----\t----------\t----------")
+  print("symb\tcurrent\tbuyDate\t\thigh\thighDate\tlow\tlowDate\t\ttriggers\tnote")
+  print("----\t-------\t----------\t-----\t----------\t-----\t----------\t-----------\t----------")
   for e in purchList:
     if(e in prices):
       if(prices[e]/purchList[e]['buyPrice']>purchList[e]['high']): #if the change is the new highest, record it
@@ -90,9 +90,11 @@ while True:
         purchList[e]['low'] = round(prices[e]/purchList[e]['buyPrice'],2)
         purchList[e]['lowDate'] = str(dt.date.today())
     else: #it's not in the prices
-      #TODO: add conditional here about checking and changing note if actually delisted (should only append delisted, not change to it)
-      purchList[e]['note'] = "Delisted"
-    
+      if("delisted" not in purchList[e]['note'].lower()):
+        purchList[e]['note'] += ", possibly delisted"
+      
+    sellUp = eval(f"{algo}.sellUp('{e}')")
+    sellDn = eval(f"{algo}.sellDn('{e}')")
     #display the list
     print((f"{e}\t"
           f"{bcolor.OKGREEN if e in prices and prices[e]/purchList[e]['buyPrice']>=1 else bcolor.FAIL}{round(prices[e]/purchList[e]['buyPrice'],2) if e in prices else 0}{bcolor.ENDC}\t"
@@ -101,11 +103,15 @@ while True:
           f"{purchList[e]['highDate']}\t"
           f"{bcolor.FAIL if purchList[e]['low']<1 else bcolor.OKGREEN}{purchList[e]['low']}{bcolor.ENDC}\t"
           f"{purchList[e]['lowDate']}\t"
+          f"{sellDn} & {sellUp}\t"
           f"{purchList[e]['note']}"))
   
   if(len(purchList)>0):
-    percWon = len([e for e in purchList if e['high']>=eval(f"{algo}.sellUp({e})") and e['highDate']<e['lowDate']])/len(purchList)
-    percLost = len([e for e in purchList if e['low']<eval(f"{algo}.sellDn({e})") and e['lowDate']<e['highDate']])/len(purchList)
+    winners = [e for e in purchList if purchList[e]['high']>=sellUp and (purchList[e]['highDate']<purchList[e]['lowDate'] or purchList[e]['low']>=sellDn)]
+    losers = [e for e in purchList if purchList[e]['low']<sellDn and (purchList[e]['lowDate']<purchList[e]['highDate'] or purchList[e]['high']<sellUp)]
+    #TODO: add avg win and loss values
+    percWon = len(winners)/len(purchList)
+    percLost = len(losers)/len(purchList)
   else:
     [percWon,percLost] = [0,0]
   print(f"won:\t{round(100*percWon,2)}%")

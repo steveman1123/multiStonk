@@ -88,6 +88,8 @@ def goodSells(symbList,verbose=False):
         gs[s] = 0
     else:
       gs[s] = 0
+  
+  return gs
 
 #get a list of stocks to be sifted through (also contains last price, and change)
 def getUnsortedList(verbose=False,maxTries=3):
