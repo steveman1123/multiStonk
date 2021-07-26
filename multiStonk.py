@@ -168,7 +168,7 @@ def main(verbose=False):
     #execute when the market is open
     ###
     if(o.marketIsOpen()):
-      print(f"\nPortfolio Value: ${acct['portfolio_value']}, tradable cash: ${round(totalCash,2)}, {len(posList)} algos")
+      print(f"\nPortfolio Value: ${acct['portfolio_value']}, tradable cash: ${round(totalCash,2)}, {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
       #update the lists if not updated yet and that it's not currently updating
       if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
         updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
@@ -204,7 +204,7 @@ def main(verbose=False):
       ###
       
       #display the total p/l % of each algo
-      print("Algo ROI's:")
+      print("Algo ROI estimates:") #TODO: these numbers are incorrect for some reason. check math
       for algo in posList:
         curPrices = o.getPrices([e+"|stocks" for e in posList[algo]]) #get the current prices of all the stocks in a given algo
         
@@ -410,7 +410,8 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
         
         if(shares>0): #cannot place an order for 0 shares
           isBought = buy(shares,stock,algo,curPrice) #buy the stock
-          if(isBought): print(f"Bought {shares} shares of {stock} for {algo} algo at around ${curPrice}/share")
+          if(isBought): print(f"buy\t{shares}\t{stock}\t{algo}\t{round(curPrice,2)}\t{round(shares*curPrice,2)}")
+          
     
 #a stock has reached a trigger point and should begin to be checked more often (it will be sold in this function)
 #this function is now depreciated - replaced by checkTriggered
