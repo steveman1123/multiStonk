@@ -272,7 +272,7 @@ def masterLives():
 def reverseSplitters():
   while True: #get page of upcoming stock splits
     try:
-      r = json.loads(requests.get("{BASEURL}/calendar/splits", headers=HEADERS, timeout=5).text)['data']['rows']
+      r = json.loads(requests.get(f"{BASEURL}/calendar/splits", headers=HEADERS, timeout=5).text)['data']['rows']
       break
     except Exception:
       print("No connection, or other error encountered in reverseSplitters. trying again...")
@@ -363,7 +363,7 @@ def getDayMins(symb, maxTries=3, verbose=False):
 def nextTradeDate():
   while True:
     try:
-      r = json.loads(requests.get("{BASEURL}/market-info",headers={"user-agent":'-'}).text)['data']['nextTradeDate']
+      r = json.loads(requests.get(f"{BASEURL}/market-info",headers={"user-agent":'-'}).text)['data']['nextTradeDate']
       break
     except Exception:
       print("No connection or other error encountered in nextTradeDate. Trying again...")
@@ -384,10 +384,12 @@ def getPrices(symbList,maxTries=3,verbose=False):
     tries=0
     while tries<maxTries:
       try: #try getting the data
-        r = json.loads(requests.get("{BASEURL}/quote/watchlist",params={'symbol':symbList[i:min(i+maxSymbs,len(symbList))]},headers=HEADERS,timeout=5).text)
+        symbQuery = symbList[i:min(i+maxSymbs,len(symbList))]
+        if(verbose): print(symbQuery)
+        r = json.loads(requests.get(f"{BASEURL}/quote/watchlist",params={'symbol':symbQuery},headers=HEADERS,timeout=5).text)
         break
       except Exception: #if it doesn't work, try again
-        print("Error getting prices. Trying again...")
+        print(f"Error getting prices. Trying again ({tries+1}/{maxTries})...")
         r['data'] = [] #if something fails, then set it to nothin in the event it completely fails out (this way it won't throw an error when trying to extend)
         tries+=1
         time.sleep(3)
@@ -413,7 +415,7 @@ def getPrices(symbList,maxTries=3,verbose=False):
 def timeTillClose(estOffset=-1):
   while True:
     try:
-      r = json.loads(requests.get("{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
+      r = json.loads(requests.get(f"{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
       ttc = r['data']['marketClosingTime'][:-3] #get the close time and strip off the timezone (" ET")
       ttc = dt.datetime.strptime(ttc,"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)
       break
@@ -428,7 +430,7 @@ def timeTillClose(estOffset=-1):
 def closeTime(estOffset):
   while True:
     try:
-      r = json.loads(requests.get("{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
+      r = json.loads(requests.get(f"{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
       close = r['data']['marketClosingTime'][:-3] #get the close time and strip off the timezone (" ET")
       close = dt.datetime.strptime(close,"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)
       break
@@ -443,7 +445,7 @@ def closeTime(estOffset):
 def marketIsOpen():
   while True:
     try:
-      r = json.loads(requests.get("{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
+      r = json.loads(requests.get(f"{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
       isOpen = "Open" in r['data']['marketIndicator']
       break
     except Exception:
@@ -473,7 +475,7 @@ def getEarnSurp(symb, maxTries=3):
 
 
 #get institutional activity for a given stock
-#returns list of increased, decreased, held, and total positions
+#returns dict of format {"increased":{"holders":#,"shares":#},"decreased":{},"held":{}}
 def getInstAct(symb, maxTries=3):
   tries=0
   out = []
@@ -482,7 +484,7 @@ def getInstAct(symb, maxTries=3):
       # could also look here for more info: https://www.holdingschannel.com/
       r = json.loads(requests.get(f"{BASEURL}/company/{symb}/institutional-holdings",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
-        out = r['data']['activePositions']['rows']
+        out = r['data']['activePositions']['rows'] #isolate to increased, decreased, held
         out = {e['positions'].split(" ")[0].lower():{"holders":int(e['holders'].replace(',','')),"shares":int(e['shares'].replace(',',''))} for e in out}
       else: #got a valid return, but bad data was passed
         print(r['status']['bCodeMessage'][0]['errorMessage'])
@@ -615,9 +617,9 @@ def getInsideTrades(symb, maxTries=3):
     try:
       r = json.loads(requests.get(f"{BASEURL}/company/{symb}/insider-trades",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
-        r = r['data']
+        out = r['data']
       else: #got a valid return, but bad data was passed
-        print(r['status']['bCodeMessage'][0]['errorMessage'])
+        print(r['status'])
       break
     except Exception:
       print(f"No connection or other error encountered in getInsideTrades for {symb}. Trying again...")
@@ -628,6 +630,7 @@ def getInsideTrades(symb, maxTries=3):
   return out
 
 #get the analyst ratings of a given stock
+# returns a list of format [meanRating(text), #ofBrokers(#)]
 def getRating(symb, maxTries=3):
   tries=0
   rate = []
@@ -639,7 +642,7 @@ def getRating(symb, maxTries=3):
       break
     except Exception:
       tries+=1
-      print(f"No connection or other error encountered in getTargetPrice for {symb}. Trying again...")
+      print(f"No connection or other error encountered in getRating for {symb}. Trying again...")
       time.sleep(3)
       continue
   

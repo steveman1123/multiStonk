@@ -77,7 +77,8 @@ def goodBuys(symbList,verbose=False):
   
   earnDate = symbList['date'] #get the date before it's stripped off
 
-  prices = o.getPrices([e['symbol']+"|stocks" for e in symbList['inf']])
+  getPriceList = [e['symbol']+"|stocks" for e in symbList['inf']]
+  prices = o.getPrices(getPriceList)
   prices = {s.split("|")[0]:prices[s]['price'] for s in prices} #isolate to {symb:price}
   symbList = [e for e in symbList['inf'] if(e['symbol'] in prices and minPrice<=prices[e['symbol']]<=maxPrice)] #only keep elements that are in prices and within our price range
   
@@ -86,17 +87,26 @@ def goodBuys(symbList,verbose=False):
   minConf = float(c[algo]['minConf']) #minimum confidence to have to consider a good buy
   minExpec = float(c[algo]['minExpec']) #minimum expectation to have to consider a good buy (must be high expectation)
   gb = {}
+  if(verbose): print(f"{len(symbList)} potential earners found")
   for symb in symbList:
+    symb = symb['symbol']
+    if(verbose): print("\n"+symb)
     
     #get the analyst target price
-    tgtPriceInf = o.getTargetPrice(symb)['consensusOverview']
+    tgtPriceInf = o.getTargetPrice(symb)
+    if('consensusOverview' in tgtPriceInf):
+      tgtPriceInf = tgtPriceInf['consensusOverview']
+    else: #sometimes there may not be any data, so init with everything as 0
+      tgtPriceInf = {"lowPriceTarget":0,"highPriceTarget":0,"priceTarget":0,"buy":0,"sell":0,"hold":0}
     tgtPrice = tgtPriceInf['priceTarget']
+    if(verbose): print(f"price:\t\t{prices[symb]}")
+    if(verbose): print(f"tgtPrice:\t{tgtPrice}")
     
     #target price must be > than current price to continue
     if(tgtPrice>prices[symb]):
       
       #check the price changes between 6wk sma, 2wk sma, and now
-      hist = o.getHistory(symb,str(o.dt.date.today()-o.dt.datetime.timedelta(30)),str(o.dt.date.today()))
+      hist = o.getHistory(symb)
       
       wk6 = o.mean([float(e[1]) for e in hist[5*6:5*7]]) #get the sma from 6 weeks ago
       wk2 = o.mean([float(e[1]) for e in hist[5*2:5*3]]) #get the sma from 2 weeks ago
@@ -110,6 +120,8 @@ def goodBuys(symbList,verbose=False):
       elif(wk6<=now<=wk2): histChangeNum = -.3
       elif(wk6<=wk2<=now): histChangeNum = 1
       else: histChangeNum = 0
+      
+      if(verbose): print(f"histChangeNum:\t{histChangeNum}")
       
       #check total number of reports from the company in the last quarter (more total news is good, even better if + sent)
       # ndaqh = ns.scrapeNDAQ(symb,headNum=25)
@@ -151,51 +163,66 @@ def goodBuys(symbList,verbose=False):
       
       
       #get what the analysts are saying (if anything)
-      ratingInf = o.getRatings(symb)
+      ratingInf = o.getRating(symb)
       maxRaters = 16 #maximum number of rating institutions (might be more, but this is the highest I've seen)
       possibleRatings = ['underperform','hold','buy','strong buy'] #probably not all values, just the ones I've seen
       if(ratingInf[0].lower() in possibleRatings):
-        ratingNum = possibleRatings.index(ratingInf[0].lower()/int(len(possibleRatings)/2)-1 #scale to be -1 to 1
+        ratingNum = possibleRatings.index(ratingInf[0].lower())/int(len(possibleRatings)/2)-1 #scale to be -1 to 1
       else:
         ratingNum = 0 #if no rating is found, default to no value
-      
-      #get buy count from ratingInf and tgtPriceInf
-      [tgtBuy,tgtSell,tgtHold] = [tgtPriceInf['consensusOverview']['buy'],tgtPriceInf['consensusOverview']['sell'],tgtPriceInf['consensusOverview']['hold']]
+  
+      if(verbose): print(f"ratingNum:\t{ratingNum}")
+
+      #get buy count from tgtPriceInf
+      [tgtBuy,tgtSell,tgtHold] = [tgtPriceInf['buy'],tgtPriceInf['sell'],tgtPriceInf['hold']]
       
       #get the rsi value
       rsi = o.getRSI(hist)
       
+      if(verbose): print(f"rsi:\t\t{round(rsi,3)}")
+
+      
       #get the institutional activity (more recent buying is good)
       instact = o.getInstAct(symb)
-      [instBuys,instSells] = [int(instact['data']['activePositions']['rows'][0]['holders']),int(instact['data']['activePositions']['rows'][1]['holders'])]
+      [instBuy,instSell,instHold] = [instact['increased']['shares'],instact['decreased']['shares'],instact['held']['shares']]
       
       #check insider trading (many recent buys is good, many recent sells is bad)
       insider = o.getInsideTrades(symb)
-      [insideBuys,insideSells] = [int(insider['data']['numberOfSharesTraded']['rows'][0]['months3']),int(insider['data']['numberOfSharesTraded']['rows'][1]['months3'])]
+      [insideBuy,insideSell] = [int(insider['numberOfSharesTraded']['rows'][0]['months3'].replace(',','')),int(insider['numberOfSharesTraded']['rows'][1]['months3'].replace(',',''))]
       
       #stock should go up if expectations are high and target is reached
       #expectation value should be based on ration of +/- sent for articles, rsi should be neither oversold or overbought, and inside and institutional should both be buy (or really even just institutional should be buy? Unless there's a lot of inside buying in the last week or two)
-      expec = [ratingNum,histChangeNum]
+      expecList = [ratingNum,histChangeNum]
       
       #every element in confList must be between 0 and 1
-      confList = [len(ratingInf[1])/maxRaters,histWeight,.3<rsi<.7] 
+      confList = [ratingInf[1]/maxRaters,histWeight,.3<rsi<.7] 
       
       if((tgtBuy+tgtSell+tgtHold)>0):
         expecList += [(tgtBuy-tgtSell)/(tgtBuy+tgtSell+tgtHold)]
-        confList += []
+        confList += [1] #[tgtBuy+tgtSell+tgtHold] #TODO: this should be a ratio
       if((instBuy+instSell)>0):
         expecList += [(instBuy-instSell)/(instBuy+instSell)]
-        confList += []
+        confList += [1] #[instBuy+instSell] #TODO: this should be a ratio
       if((insideBuy+insideSell)>0):
         expecList += [(insideBuy-insideSell)/(insideBuy+insideSell)]
-        confList += []
+        confList += [1] #[insideBuy+insideSell] #TODO: this should be a ratio
       
       expec = sum(expecList)/len(expecList) #average out the expectations to get an expecation value between -1 and 1
       conf = sum(confList)/len(confList) #average out the confidence to get a confidence level between 0 and 1
+
+      if(verbose): print(f"expec:\t\t{round(expec,3)}")
+      if(verbose): print(f"conf:\t\t{round(conf,3)}")
+
+      
       
       #sellUp/dn should be defined by the expected price/buyPrice and some % of that (so if sellDn is set to be 50% of sellUp, and the expected gain is 10%, then sellUp=1.1 and sellDn=0.95) (store predicted price in note along with earnDate in format of "note": "yyyy-mm-dd, $.$$")
       if(conf>minConf and expec>minExpec):
-        gb[symb] = f"{earnDate}, {targetPrice}"
+        gb[symb] = f"{earnDate}, {tgtPrice}"
+        if(verbose): print(f"{symb} is a good buy")
+      else:
+        if(verbose): print(f"{symb} is not a good buy")
+        
+
     
   return gb
   
