@@ -184,12 +184,16 @@ def goodBuys(symbList,verbose=False):
       
       #get the institutional activity (more recent buying is good)
       instact = o.getInstAct(symb)
+      
       [instBuy,instSell,instHold] = [instact['increased']['shares'],instact['decreased']['shares'],instact['held']['shares']]
       
       #check insider trading (many recent buys is good, many recent sells is bad)
       insider = o.getInsideTrades(symb)
-      [insideBuy,insideSell] = [int(insider['numberOfSharesTraded']['rows'][0]['months3'].replace(',','')),int(insider['numberOfSharesTraded']['rows'][1]['months3'].replace(',',''))]
-      
+      if(len(insider)>0):
+        [insideBuy,insideSell] = [int(insider['numberOfSharesTraded']['rows'][0]['months3'].replace(',','')),int(insider['numberOfSharesTraded']['rows'][1]['months3'].replace(',',''))]
+      else:
+        [insideBuy,insideSell]=[0,0]
+        
       #stock should go up if expectations are high and target is reached
       #expectation value should be based on ration of +/- sent for articles, rsi should be neither oversold or overbought, and inside and institutional should both be buy (or really even just institutional should be buy? Unless there's a lot of inside buying in the last week or two)
       expecList = [ratingNum,histChangeNum]

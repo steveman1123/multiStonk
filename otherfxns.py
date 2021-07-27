@@ -506,7 +506,7 @@ def getEarnSurp(symb, maxTries=3):
 #returns dict of format {"increased":{"holders":#,"shares":#},"decreased":{},"held":{}}
 def getInstAct(symb, maxTries=3):
   tries=0
-  out = []
+  out = {"increased":{"holders":0,"shares":0},"decreased":{"holders":0,"shares":0},"held":{"holders":0,"shares":0}} #init to 0 values
   while tries<maxTries:
     try:
       # could also look here for more info: https://www.holdingschannel.com/
@@ -515,10 +515,10 @@ def getInstAct(symb, maxTries=3):
         out = r['data']['activePositions']['rows'] #isolate to increased, decreased, held
         out = {e['positions'].split(" ")[0].lower():{"holders":int(e['holders'].replace(',','')),"shares":int(e['shares'].replace(',',''))} for e in out}
       else: #got a valid return, but bad data was passed
-        print(r['status']['bCodeMessage'][0]['errorMessage'])
+        print(f"getInstAct Error {symb}: "+r['status']['bCodeMessage'][0]['errorMessage'])
       break
     except Exception:
-      print("No connection or other error occured in getInstAct. Trying again...")
+      print(f"No connection or other error occured in getInstAct for {symb}. Trying again ({tries+1}/{maxTries})...")
       tries+=1
       time.sleep(3)
       continue
