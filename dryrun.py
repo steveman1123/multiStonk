@@ -120,4 +120,9 @@ while True:
   open(c['file locations']['purchLists']+algo+".json",'w').write(json.dumps(purchList)) #save to the file
   print(f'testing algo "{algo}"')
   
-  time.sleep(o.timeTillClose()-300) #check once a day on market close (5 minutes before to ensure it's open)
+  timeBeforeClose = 30 #check 30 seconds before close to ensure it's open
+  ttc = o.timeTillClose()
+  if(ttc<timeBeforeClose):
+    time.sleep(timeBeforeClose+5) #wait till after market closes
+  time.sleep(o.timeTillClose()-timeBeforeClose) #wait till the next close
+  
