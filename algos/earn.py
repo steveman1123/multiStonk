@@ -102,12 +102,12 @@ def goodBuys(symbList,verbose=False):
     if(verbose): print(f"price:\t\t{prices[symb]}")
     if(verbose): print(f"tgtPrice:\t{tgtPrice}")
     
-    #target price must be > than current price to continue
-    if(tgtPrice>prices[symb]):
+    hist = o.getHistory(symb)
+    
+    #history must be>7 weeks (to get the 6wk sma) and target price must be > than current price to continue
+    if(len(hist)>5*7 and tgtPrice>prices[symb]):
       
       #check the price changes between 6wk sma, 2wk sma, and now
-      hist = o.getHistory(symb)
-      
       wk6 = o.mean([float(e[1]) for e in hist[5*6:5*7]]) #get the sma from 6 weeks ago
       wk2 = o.mean([float(e[1]) for e in hist[5*2:5*3]]) #get the sma from 2 weeks ago
       now = prices[symb] #get the most recent price
@@ -166,7 +166,7 @@ def goodBuys(symbList,verbose=False):
       ratingInf = o.getRating(symb)
       maxRaters = 16 #maximum number of rating institutions (might be more, but this is the highest I've seen)
       possibleRatings = ['underperform','hold','buy','strong buy'] #probably not all values, just the ones I've seen
-      if(ratingInf[0].lower() in possibleRatings):
+      if(len(ratingInf)>0 and ratingInf[0].lower() in possibleRatings):
         ratingNum = possibleRatings.index(ratingInf[0].lower())/int(len(possibleRatings)/2)-1 #scale to be -1 to 1
       else:
         ratingNum = 0 #if no rating is found, default to no value
@@ -199,7 +199,10 @@ def goodBuys(symbList,verbose=False):
       expecList = [ratingNum,histChangeNum]
       
       #every element in confList must be between 0 and 1
-      confList = [ratingInf[1]/maxRaters,histWeight,.3<rsi<.7] 
+      confList = []
+      if(len(ratingInf)>0 and maxRaters>0): confList.append(ratingInf[1]/maxRaters)
+      confList.append(histWeight)
+      confList.append(.3<rsi<.7)
       
       if((tgtBuy+tgtSell+tgtHold)>0):
         expecList += [(tgtBuy-tgtSell)/(tgtBuy+tgtSell+tgtHold)]
