@@ -136,7 +136,7 @@ def getDivDates(symb,maxTries=3):
 
 #where symbList is the output of getUnsortedList
 #returns dict of stocks that are good to buy - format of {symb:note}
-def goodBuys(symbList, verbose=True):
+def goodBuys(symbList, verbose=False):
   if(verbose): print(f"{len(symbList)} dividends found")
 
   prices = o.getPrices([s+"|stocks" for s in symbList]) #get the current price and volume
