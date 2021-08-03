@@ -422,3 +422,23 @@ now 6wk 2wk   -.6
 6wk 2wk now   1
 
 '''
+
+'''
+possible patterns to look for:
+consistant changes after every earning report (depending on a hit or miss eps)
+consistant hit or miss of eps prediction
+consistant large swings in either direction
+price action leading up to earnings (consistant for previous reports)
+
+
+
+how to format an output:
+we want to display price history, earnings dates, eps in comparison to expected
+also "whisper" eps:
+  (q1pe * q2pe * q3pe)/ 3 = q4pe
+  q4price/q4pe = q4eps
+should compare top 10 gainers and top 10 losers and everyone else in their own plots (3 total plots)
+
+
+maybe just want to rephrase things to just look for large changes in the upcoming days/weeks, then just set stop losses and take profits? Ignore anything beyond that until later?
+'''

@@ -39,3 +39,24 @@ how long have the shares been trading?
 10-Q and 10-k reports (ptions, expenctions for future prices)
 revenue/profit expectations for the next 2-3 years, trends affecting industry, company specific details (partnerships, joint ventures, IP, prudcts, etc)
 risks (legal, industry, regulatory, environmentally friendly, etc)
+
+
+
+
+swing trading strategies:
+
+https://daytradingz.com/swing-trading-strategies/
+
+continuation trading
+look for earnings that beat expectation while in an uptrend
+
+fibonacci retracement
+given the low and the high of a period, normalize to 1 (the low being 1 if uptrending, and vise versa for a downtrend), identify the fibonacci ratios (0.618 (f(n+1)/f(n)), 0.5, 0.382 (f(n+2)/f(n), 0.236 (f(n+3)/f(n)), 0.786 (sqrt(0.618))
+
+weekly trend line break
+
+flat ema
+look for a flat area of (20 day) ema, especially after rallying, then look for support/resistance above/below the ema
+
+https://www.investopedia.com/terms/s/swingtrading.asp
+https://stockstotrade.com/swing-trading-strategies/

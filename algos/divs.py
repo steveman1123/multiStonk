@@ -5,6 +5,8 @@
 #TODO: incorporate preferential towards high yields (ag and more):
 # https://www.investopedia.com/investing/agriculture-stocks-pay-dividends/
 
+#TODO: adjust sellU/sellDn to be some function of price and dividend and date
+
 import otherfxns as o
 
 algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
@@ -31,39 +33,14 @@ def getList(verbose=True):
   #if today < ex div date, then buy
   #TODO: have a minimum div amount? Or avg price to div amt?
   if(verbose): print(f"getting unsorted list for {algo}...")
-  data = getUnsortedList(o.nextTradeDate()) #get the whole data list
+  ul = getUnsortedList(o.nextTradeDate()) #get the whole data list
   if(verbose): print(f"finding stocks for {algo}...")
-  prices = o.getPrices([s+"|stocks" for s in data]) #get the current price and volume
-  goodBuys = {s.split("|")[0]:str(o.dt.datetime.strptime(data[s.split("|")[0]]['payment_Date'],"%m/%d/%Y").date())+", "+str(data[s.split("|")[0]]['dividend_Rate']) for s in prices if float(c[algo]['minPrice'])<=prices[s]['price']<=float(c[algo]['maxPrice']) and prices[s]['vol']>=float(c[algo]['minVol'])} #vol measures volume so far today which may run into issues if run during premarket or early in the day since the stock won't have much volume
-  if(verbose): print(f"{len(goodBuys)} found for {algo}.")
-  return goodBuys
+  gb = goodBuys(ul)
+  if(verbose): print(f"{len(gb)} found for {algo}.")
+  return gb
   
 
-#return whether symb is a good sell or not
-#if div is collected and price > buyPrice+div, then sell
-#this function is now depreciated, replaced by goodSells
-def goodSell(symb):
-  lock = o.threading.Lock()
-  lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
-  lock.release()
-  
-  dates = getDivDates(symb)
-  if(symb not in posList):
-    print(f"{symb} not found in {algo}")
-    return True
-  if(len(dates)>0): #make sure that the dates were populated
-    curPrice = o.getInfo(symb)['price']
-    if(curPrice/posList[symb]['buyPrice']<sellDn(symb)): #if change since buy has dropped below condition
-      return True
-    elif(str(o.dt.date.today())>dates['payment'] and
-         curPrice/posList[symb]['buyPrice']>=sellUp(symb)): #if past the payment date and price has reached the sellUp point
-      return True
-    else:
-      return False
-  else:
-    return False
-
+#determine if a list of stocks are good to sell or not
 #where symblist is a list of stocks and the function returns the same stocklist as a dict of {symb:goodsell(t/f)}
 def goodSells(symbList, verbose=False):
   lock = o.threading.Lock()
@@ -155,6 +132,36 @@ def getDivDates(symb,maxTries=3):
     print(f"Failed to get div dates for {symb}")
     r = {}
   return r
+
+
+#where symbList is the output of getUnsortedList
+#returns dict of stocks that are good to buy - format of {symb:note}
+def goodBuys(symbList, verbose=True):
+  if(verbose): print(f"{len(symbList)} dividends found")
+
+  prices = o.getPrices([s+"|stocks" for s in symbList]) #get the current price and volume
+  if(verbose): print(f"{len(prices)} stocks available")
+  
+  [minPrice,maxPrice] = [float(c[algo]['minPrice']),float(c[algo]['maxPrice'])] #min and max prices to keep things reasonable
+  minVol = float(c[algo]['minVol']) #minimum volume to allow liquidity
+  minDiv = float(c[algo]['minDiv']) #minimum div amount (absolute dollars). TODO May want to improve in the future to include div/share ratio
+  maxTime = float(c[algo]['maxTime']) #max time to allow for divs
+  
+  gb={}
+  for s in prices:
+    if(minPrice<=prices[s]['price']<=maxPrice and prices[s]['vol']>=minVol):
+      if(verbose): print(f"{s.split('|')[0]} is in price range with decent vol; ${prices[s]['price']}; {prices[s]['vol']}")
+      pmtDate = o.dt.datetime.strptime(symbList[s.split("|")[0]]['payment_Date'],"%m/%d/%Y").date()
+      divRate = symbList[s.split("|")[0]]['dividend_Rate']
+      if((pmtDate-o.dt.date.today()).days<=maxTime and divRate>=minDiv):
+        if(verbose): print(f"{s.split('|')[0]} is a good buy; div: ${divRate}; days till pmt: {(pmtDate-o.dt.date.today()).days}")
+        gb[s.split("|")[0]] = str(pmtDate)+", "+str(divRate) #vol measures volume so far today which may run into issues if run during premarket or early in the day since the stock won't have much volume
+      else:
+        if(verbose): print(f"{s.split('|')[0]} is not a good buy; div: ${divRate}; days till pmt: {(pmtDate-o.dt.date.today()).days}")
+    else:
+      if(verbose): print(f"{s.split('|')[0]} not in price range or vol is too low; ${prices[s]['price']}; {prices[s]['vol']}")
+
+  return gb
 
 
 
