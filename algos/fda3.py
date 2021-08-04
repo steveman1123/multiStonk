@@ -51,7 +51,9 @@ def goodBuys(symbList, verbose=False): #where symbList is the output of getUnsor
     dates = [o.dt.datetime.strptime(e[0],"%m/%d/%Y") for e in hist] #convert dates to dt format
     prices = [float(e[1]) for e in hist] #isolate the closing prices
     normPrices = [p/prices[-1] for p in prices] #normalize prices based on the first value
-    if(o.mean(normPrices[0:smaDays])>twelveMgain*o.mean(normPrices[-(1+smaDays):-1]) and o.mean(normPrices[0:smaDays])>sixMgain*o.mean(normPrices[int((len(hist)-smaDays)/2):int((len(hist)+smaDays)/2)])): #make sure that it's increased in the last year and the last 6 months
+    if(len(normPrices)>smaDays and 
+       o.mean(normPrices[0:smaDays])>twelveMgain*o.mean(normPrices[-(1+smaDays):-1]) and 
+       o.mean(normPrices[0:smaDays])>sixMgain*o.mean(normPrices[int((len(hist)-smaDays)/2):int((len(hist)+smaDays)/2)])): #make sure that it's increased in the last year and the last 6 months
       out[symb] = s['catalyst_date']
   
   if(verbose): print(len(out))
