@@ -22,8 +22,14 @@ colorinit() #allow coloring in Windows terminals
 #TODO: check on overall market trends/sentiment and adjust which algos to use based on volitility (would need to give some kind of scoring to see what volitility the algos operate the best in)
 #TODO: use this api for reddit sent analysis: https://api.pushshift.io/reddit/search/comment/?subreddit=
 # ^ https://github.com/pushshift/api
+
 #TODO: add check that if the number of shares held of stock to buy is > some % of the avg # of shares held/stock, then don't buy more
 # ^ this is to prevent buying a bunch of really cheap ones when cash is low
+# TODO: use all tradable cash (or what's being displayed?) - should keep a min of 1k, and a max of 1/3 highest port val
+# TODO: stop selling/buying same day (why is it doing that?)
+# TODO: why not buying for algos with lots of stocks? should have min price per stock or min stock to buy (add logic to look at buying affordable stocks from a long list
+
+
 
 #parse args and get the config file
 configFile="./configs/multi.config"
