@@ -25,8 +25,7 @@ colorinit() #allow coloring in Windows terminals
 
 #TODO: add check that if the number of shares held of stock to buy is > some % of the avg # of shares held/stock, then don't buy more
 # ^ this is to prevent buying a bunch of really cheap ones when cash is low
-# TODO: use all tradable cash (or what's being displayed?) - should keep a min of 1k, and a max of 1/3 highest port val
-# TODO: stop selling/buying same day (why is it doing that?)
+# TODO: stop selling/buying same day (why is it doing that?) - fixed?
 # TODO: why not buying for algos with lots of stocks? should have min price per stock or min stock to buy (add logic to look at buying affordable stocks from a long list
 
 
@@ -96,6 +95,13 @@ class bcolor:
 listsUpdatedToday = False #tell everyone whether the list has been updated yet today or not
 closeTime = o.closeTime(estOffset=-1) #get the time in datetime format of when the market closes (reference this when looking at time till close)
 
+minCashMargin = float(c['account params']['minCashMargin']) #extra cash to hold above hold value
+if(minCashMargin<1): #minCashMargin MUST BE GREATER THAN 1 in order for it to work correctly
+  raise ValueError("Error: cash margin is less than 1. Multiplier must be >=1")
+minCash2hold = float(c['account params']['minCash2hold'])
+maxCash2hold = float(c['account params']['maxCash2hold'])
+
+
 #main function to run continuously
 def main(verbose=False):
   #values to be used across functions and are edited here
@@ -126,10 +132,7 @@ def main(verbose=False):
   ###
   portHist = a.getProfileHistory(str(dt.date.today()),'1M')['equity'] #get the closing prices of the portfolio over the last month
   maxPortVal=max([e for e in portHist if e is not None]) #get the max portfolio value over the last month and remove blank entries
-  cashMargin = float(c['account params']['cashMargin']) #extra cash to hold above hold value
-  if(cashMargin<1): #cashMargin MUST BE GREATER THAN 1 in order for it to work correctly
-    raise ValueError("Error: cash margin is less than 1. Multiplier must be >=1")
-  cash2hold = float(c['account params']['cash2hold'])
+  
   isManualSellOff = not int(c['account params']['portAutoSellOff'])
   
   ###
@@ -163,18 +166,13 @@ def main(verbose=False):
     #calculate tradable cash
     ###
     totalCash = float(acct['cash'])
-    if(totalCash>=cash2hold*cashMargin): #if we have more buying power than the min plus some leeway, then reduce it to hold onto that buy pow
-      # print(f"Can safely withdrawl ${round(cash2hold,2)}")
-      totalCash -= cash2hold*cashMargin #subtract the cash2hold plus the margin
-    elif(cash2hold<=totalCash<cash2hold*cashMargin):
-      totalCash = 0 #stop trading if we've started to eat into the margin, that way we don't overshoot
-      
+    tradableCash = getTradableCash(totalCash, maxPortVal)
       
     ###
     #execute when the market is open
     ###
     if(o.marketIsOpen()):
-      print(f"\nPortfolio Value: ${acct['portfolio_value']}, tradable cash: ${round(totalCash,2)}, {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+      print(f"\nPortfolio Value: ${acct['portfolio_value']}, tradable cash: ${round(tradableCash,2)}, {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
       #update the lists if not updated yet and that it's not currently updating
       if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
         updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
@@ -188,7 +186,7 @@ def main(verbose=False):
       
       #start checking to buy things if within the buy time frame and lists are not being updated
       if((closeTime-dt.datetime.now()).total_seconds()<=60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
-        tradableCash = totalCash if totalCash<float(c['account params']['cash2hold']) else max(totalCash-float(c['account params']['cash2hold'])*float(c['account params']['cashMargin']),0) #account for withholding a certain amount of cash+margin
+        tradableCash = getTradableCash(totalCash, maPortVal) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
         for algo in algoList:
@@ -275,6 +273,18 @@ def main(verbose=False):
       closeTime = o.closeTime(estOffset=-1) #get the next closing time
       time.sleep(a.timeTillOpen())
       
+
+#given the total cash and cash parameters, return the tradable cash
+def getTradableCash(totalCash, maxPortVal):
+  if(totalCash<minCash2hold):
+    return totalCash
+  elif(minCash2hold<=totalCash<=minCash2hold*minCashMargin):
+    return 0
+  elif(minCash2hold*minCashMargin<totalCash<maxPortVal*maxCash2hold):
+    return totalCash-minCash2hold*minCashMargin
+  else:
+    return totalCash-maxPortVal*maxCash2hold
+
 
 #update all lists to be bought (this should be run as it's own thread)
 def updateLists(verbose=False):
@@ -406,7 +416,7 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
         lastTradeDate = dt.date.today()-dt.timedelta(1)
       
       #to avoid day trading, make sure that it either didn't trade yet today, or if it has, that it hasn't sold yet
-      if lastTradeDate < dt.date.today() or stockInfo['lastTradeType']!="sell":
+      if lastTradeDate < dt.date.today() and stockInfo['lastTradeType']!="sell":
         inf = o.getInfo(stock,['price','mktcap'])
         [curPrice, mktCap] = [inf['price'],inf['mktcap']]
         
@@ -500,6 +510,7 @@ def sell(stock, algo):
     print(f"No shares held of {stock}")
     triggeredStocks.discard(algo+"|"+stock)
     return False
+  
   if('status' in r and r['status'] == "accepted"): #check that it actually sold
     lock = o.threading.Lock()
     lock.acquire()
@@ -512,6 +523,10 @@ def sell(stock, algo):
         "shouldSell":False,
         "note":""
       }
+    for e in posList:
+      posList[e][stock]['lastTradeType'] = 'sell'
+      posList[e][stock]['lastTradeDate'] = str(dt.date.today())
+      
     open(c['file locations']['posList'],'w').write(json.dumps({'algos':posList,'cash':cashList},indent=2)) #update the posList file
     triggeredStocks.discard(algo+"|"+stock)
     lock.release()
@@ -538,6 +553,11 @@ def buy(shares, stock, algo, buyPrice):
         "shouldSell":False,
         "note":algoList[algo][stock] if stock in algoList[algo] else ""
       }
+    
+    for e in posList:
+      posList[e][stock]['lastTradeType'] = 'buy'
+      posList[e][stock]['lastTradeDate'] = str(dt.date.today())
+      
     cashList[algo]['invested'] += buyPrice*shares
     open(c['file locations']['posList'],'w').write(json.dumps({'algos':posList,'cash':cashList},indent=2)) #update posList file
     lock.release()

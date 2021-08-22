@@ -144,8 +144,10 @@ def goodBuys(symbList, verbose=False):
   
   [minPrice,maxPrice] = [float(c[algo]['minPrice']),float(c[algo]['maxPrice'])] #min and max prices to keep things reasonable
   minVol = float(c[algo]['minVol']) #minimum volume to allow liquidity
-  minDiv = float(c[algo]['minDiv']) #minimum div amount (absolute dollars). TODO May want to improve in the future to include div/share ratio
+  minDiv = float(c[algo]['minDiv']) #minimum div amount (absolute dollars)
+  minDivYield = float(c[algo]['minDivYield']) #minimum div/buyPrice to allow
   maxTime = float(c[algo]['maxTime']) #max time to allow for divs
+  maxSymbs = int(c[algo]['maxSymbs']) #max symbols to allow to purchase per day
   
   gb={}
   for s in prices:
@@ -153,14 +155,20 @@ def goodBuys(symbList, verbose=False):
       if(verbose): print(f"{s.split('|')[0]} is in price range with decent vol; ${prices[s]['price']}; {prices[s]['vol']}")
       pmtDate = o.dt.datetime.strptime(symbList[s.split("|")[0]]['payment_Date'],"%m/%d/%Y").date()
       divRate = symbList[s.split("|")[0]]['dividend_Rate']
-      if((pmtDate-o.dt.date.today()).days<=maxTime and divRate>=minDiv):
+      divYield = divRate/prices[s]['price']
+      if((pmtDate-o.dt.date.today()).days<=maxTime and divRate>=minDiv and divYield>=minDivYield):
         if(verbose): print(f"{s.split('|')[0]} is a good buy; div: ${divRate}; days till pmt: {(pmtDate-o.dt.date.today()).days}")
-        gb[s.split("|")[0]] = str(pmtDate)+", "+str(divRate) #vol measures volume so far today which may run into issues if run during premarket or early in the day since the stock won't have much volume
+        gb[s.split("|")[0]] = str(pmtDate)+", "+str(divRate)+", "+str(round(divYield,3)) #vol measures volume so far today which may run into issues if run during premarket or early in the day since the stock won't have much volume
       else:
         if(verbose): print(f"{s.split('|')[0]} is not a good buy; div: ${divRate}; days till pmt: {(pmtDate-o.dt.date.today()).days}")
     else:
       if(verbose): print(f"{s.split('|')[0]} not in price range or vol is too low; ${prices[s]['price']}; {prices[s]['vol']}")
-
+  
+  #if the stock list is too big, pare down to the specified max num by sorting by the biggest div yields
+  if(len(gb)>maxSymbs):
+    tmp = sorted([[symbList[s]['dividend_Rate']/prices[s+"|STOCKS"]['price'],s] for s in gb])[-maxSymbs:]
+    for e in [e for e in gb if e not in [e[1] for e in tmp]]: gb.pop(e)
+  
   return gb
 
 
