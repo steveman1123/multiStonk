@@ -275,15 +275,20 @@ def main(verbose=False):
       
 
 #given the total cash and cash parameters, return the tradable cash
-def getTradableCash(totalCash, maxPortVal):
-  if(totalCash<minCash2hold):
+def getTradableCash(totalCash, maxPortVal,verbose=False):
+  if(totalCash<minCash2hold): #0-999
+    if(verbose): print(1)
     return totalCash
-  elif(minCash2hold<=totalCash<=minCash2hold*minCashMargin):
+  elif(minCash2hold<=totalCash<=minCash2hold*minCashMargin): #1000-1100
+    if(verbose): print(2)
     return 0
-  elif(minCash2hold*minCashMargin<totalCash<maxPortVal*maxCash2hold):
+  elif(minCash2hold*minCashMargin<totalCash<maxPortVal*maxCash2hold): #1101-.25*max
+    if(verbose): print(3)
     return totalCash-minCash2hold*minCashMargin
-  else:
-    return totalCash-maxPortVal*maxCash2hold
+  else: #.25*max-inf
+    if(verbose): print(4)
+    if(verbose): print(maxPortVal*maxCash2hold,minCash2hold*minCashMargin)
+    return totalCash-max(maxPortVal*maxCash2hold,minCash2hold*minCashMargin)
 
 
 #update all lists to be bought (this should be run as it's own thread)
