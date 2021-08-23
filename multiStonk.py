@@ -186,7 +186,7 @@ def main(verbose=False):
       
       #start checking to buy things if within the buy time frame and lists are not being updated
       if((closeTime-dt.datetime.now()).total_seconds()<=60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
-        tradableCash = getTradableCash(totalCash, maPortVal) #account for withholding a certain amount of cash+margin
+        tradableCash = getTradableCash(totalCash, maxPortVal) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
         for algo in algoList:
@@ -558,10 +558,6 @@ def buy(shares, stock, algo, buyPrice):
         "shouldSell":False,
         "note":algoList[algo][stock] if stock in algoList[algo] else ""
       }
-    
-    for e in posList:
-      posList[e][stock]['lastTradeType'] = 'buy'
-      posList[e][stock]['lastTradeDate'] = str(dt.date.today())
       
     cashList[algo]['invested'] += buyPrice*shares
     open(c['file locations']['posList'],'w').write(json.dumps({'algos':posList,'cash':cashList},indent=2)) #update posList file
