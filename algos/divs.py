@@ -183,9 +183,18 @@ def sellUp(symb=""):
   [preSellUp, postSellUp] = [float(c[algo]['preSellUp']), float(c[algo]['postSellUp'])]
   #TODO: account for note being blank or containing other text (just in case)
 
-  if(symb in posList and str(o.dt.date.today())>=posList[symb]['note'].split(",")[0]):
-    return postSellUp
+  if(symb in posList):
+    today = o.dt.date.today()
+    trigDate = o.dt.datetime.strptime(posList[symb]['note'].split(",")[0],"%Y-%m-%d").date()
+    
+    if(today>=trigDate):
+      #squeeze after the trigger date. Currently 1% per week, not set in the config
+      postSellUp = max(1,postSellUp-(today-trigDate).days/7/100)
+      return postSellUp
+    else:
+      return preSellUp
   else:
+    print(f"{symb} not in posList of {algo}")
     return preSellUp
 
 #determine how much the stop-loss should be for change since buy or change since close
@@ -197,9 +206,18 @@ def sellDn(symb=""):
   
   [preSellDn, postSellDn] = [float(c[algo]['preSellDn']), float(c[algo]['postSellDn'])]
   
-  if(symb in posList and str(o.dt.date.today())>=posList[symb]['note'].split(",")[0]):
-    return postSellDn
+  if(symb in posList):
+    today = o.dt.date.today()
+    trigDate = o.dt.datetime.strptime(posList[symb]['note'].split(",")[0],"%Y-%m-%d").date()
+    
+    if(today>=trigDate):
+      #squeeze after the trigger date. Currently 1% per week, not set in the config
+      postSellDn = min(1,postSellDn+(today-trigDate).days/7/100)
+      return postSellDn
+    else:
+      return preSellDn
   else:
+    print(f"{symb} not in posList of {algo}")
     return preSellDn
 
 #after triggering the take-profit, the price must fall this much before selling (rtailing stop-loss)
