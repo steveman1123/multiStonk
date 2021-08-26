@@ -528,9 +528,6 @@ def sell(stock, algo):
         "shouldSell":False,
         "note":""
       }
-    for e in posList:
-      posList[e][stock]['lastTradeType'] = 'sell'
-      posList[e][stock]['lastTradeDate'] = str(dt.date.today())
       
     open(c['file locations']['posList'],'w').write(json.dumps({'algos':posList,'cash':cashList},indent=2)) #update the posList file
     triggeredStocks.discard(algo+"|"+stock)
