@@ -31,9 +31,10 @@ def getList(verbose=True):
   #check history of the stocks. Look for pattern that denotes a gain after the initial div date (could possibly look like a buy low. Stock gains to div, div processes, dips, then gains again. Sell at that gain)
   
   #if today < ex div date, then buy
-  #TODO: have a minimum div amount? Or avg price to div amt?
   if(verbose): print(f"getting unsorted list for {algo}...")
-  ul = getUnsortedList(o.nextTradeDate()) #get the whole data list
+  ntt = o.dt.datetime.strptime(o.nextTradeDate(),"%Y-%m-%d").date() #get the next trade date as a date type
+  ul = getUnsortedList([str(ntt),str(o.wd(ntt,1))]) #get the whole data lists for the specified dates (next trade date and the following day after that
+  if(verbose): print(f"found {len(ul)} stocks to sift through")
   if(verbose): print(f"finding stocks for {algo}...")
   gb = goodBuys(ul)
   if(verbose): print(f"{len(gb)} found for {algo}.")
@@ -74,18 +75,31 @@ def goodSells(symbList, verbose=False):
   
   return gs
 
-#get the whole json data (includes symb, dates, etc) based on the ex date
-def getUnsortedList(exdate):
-  while True:
-    try:
-      #get the stocks whose exdivdate is the next trade date (buy before it drops to the dropped price)
-      r = o.json.loads(o.requests.get(f"https://api.nasdaq.com/api/calendar/dividends?date={exdate}",headers={"user-agent":"-"}, timeout=5).text)['data']['calendar']['rows']
-      break
-    except Exception:
-      print("Error in getting unsorted list for divs algo. Trying again...")
-      o.time.sleep(3)
-      pass
-  out = {e['symbol']:e for e in r if(e['payment_Date']!="N/A")} #change from a list to a dict of format {symb:data} and remove invalid dates (or ones that are N/A)
+#get the whole json data (includes symb, dates, etc) based on the ex dates specified
+def getUnsortedList(exdatelist, maxTries=3):
+  out = {}
+  
+  for exdate in exdatelist:
+    tries=0
+    while tries<maxTries:
+      try:
+        #get the stocks whose exdivdate is the next trade date (buy before it drops to the dropped price)
+        r = o.json.loads(o.requests.get(f"https://api.nasdaq.com/api/calendar/dividends?date={exdate}",headers={"user-agent":"-"}, timeout=5).text)['data']['calendar']['rows']
+        break
+      except Exception:
+        print("Error in getting unsorted list for divs algo. Trying again...")
+        tries+=1
+        o.time.sleep(3)
+        pass
+    if(r is not None):
+      #change from a list to a dict of format {symb:data} and remove invalid dates (or ones that are N/A)
+      for e in r:
+        if(e['payment_Date']!="N/A"):
+          out[e['symbol']] = e
+    else:
+      out = {}
+  
+  
   return out
 
 #get the latest div dates for a stock (announced, ex div, record, payment)
