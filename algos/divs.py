@@ -34,7 +34,7 @@ def getList(verbose=True):
   if(verbose): print(f"getting unsorted list for {algo}...")
   ntt = o.dt.datetime.strptime(o.nextTradeDate(),"%Y-%m-%d").date() #get the next trade date as a date type
   ul = getUnsortedList([str(ntt),str(o.wd(ntt,1))]) #get the whole data lists for the specified dates (next trade date and the following day after that
-  if(verbose): print(f"found {len(ul)} stocks to sift through")
+  if(verbose): print(f"found {len(ul)} stocks to sort through for {algo}.")
   if(verbose): print(f"finding stocks for {algo}...")
   gb = goodBuys(ul)
   if(verbose): print(f"{len(gb)} found for {algo}.")

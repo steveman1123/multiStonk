@@ -26,7 +26,7 @@ colorinit() #allow coloring in Windows terminals
 #TODO: add check that if the number of shares held of stock to buy is > some % of the avg # of shares held/stock, then don't buy more
 # ^ this is to prevent buying a bunch of really cheap ones when cash is low
 # TODO: stop selling/buying same day (why is it doing that?) - fixed?
-# TODO: why not buying for algos with lots of stocks? should have min price per stock or min stock to buy (add logic to look at buying affordable stocks from a long list
+# TODO: why not buying for algos with lots of stocks? should have min price per stock or min stock to buy (add logic to look at buying affordable stocks from a long list - fixed?
 
 
 
@@ -172,7 +172,7 @@ def main(verbose=False):
     #execute when the market is open
     ###
     if(o.marketIsOpen()):
-      print(f"\nPortfolio Value: ${acct['portfolio_value']}, tradable cash: ${round(tradableCash,2)}, {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+      print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
       #update the lists if not updated yet and that it's not currently updating
       if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
         updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
