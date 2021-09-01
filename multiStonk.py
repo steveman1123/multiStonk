@@ -492,7 +492,7 @@ def check2sells(pos):
     gs = eval(f"{algo}.goodSells(symbList)") #get whether the stocks are good sells or not
     for e in algoSymbs: #go through the stocks of the algo
       if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'): #only display/sell if not bought today
-        print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t"+str(eval(f'{algo}.sellDn("{e["symbol"]}")'))+" & "+str(eval(f'{algo}.sellUp("{e["symbol"]}")'))+f"\t{posList[algo][e['symbol']]['note']}")
+        print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t"+str(round(eval(f'{algo}.sellDn("{e["symbol"]}")'),2))+" & "+str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'),2))+f"\t{posList[algo][e['symbol']]['note']}")
       
         if(gs[e['symbol']]==1): #if the stock is a good sell (sellUp)
           if(algo+"|"+e['symbol'] not in triggeredStocks): #make sure that it's not already present
