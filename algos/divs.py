@@ -33,6 +33,7 @@ def getList(verbose=True):
   #if today < ex div date, then buy
   if(verbose): print(f"getting unsorted list for {algo}...")
   ntt = o.dt.datetime.strptime(o.nextTradeDate(),"%Y-%m-%d").date() #get the next trade date as a date type
+  #print([str(ntt),str(o.wd(ntt,1))])
   ul = getUnsortedList([str(ntt),str(o.wd(ntt,1))]) #get the whole data lists for the specified dates (next trade date and the following day after that
   if(verbose): print(f"found {len(ul)} stocks to sort through for {algo}.")
   if(verbose): print(f"finding stocks for {algo}...")
@@ -80,25 +81,26 @@ def getUnsortedList(exdatelist, maxTries=3):
   out = {}
   
   for exdate in exdatelist:
+    #print(exdate)
     tries=0
+    r = None
     while tries<maxTries:
       try:
         #get the stocks whose exdivdate is the next trade date (buy before it drops to the dropped price)
         r = o.json.loads(o.requests.get(f"https://api.nasdaq.com/api/calendar/dividends?date={exdate}",headers={"user-agent":"-"}, timeout=5).text)['data']['calendar']['rows']
         break
       except Exception:
-        print("Error in getting unsorted list for divs algo. Trying again...")
+        print(f"Error in getting unsorted list for divs algo. Trying again ({tries}/{maxTries})...")
         tries+=1
         o.time.sleep(3)
-        pass
+        continue
+    
     if(r is not None):
       #change from a list to a dict of format {symb:data} and remove invalid dates (or ones that are N/A)
       for e in r:
         if(e['payment_Date']!="N/A"):
           out[e['symbol']] = e
-    else:
-      out = {}
-  
+    #print(len(out))
   
   return out
 
