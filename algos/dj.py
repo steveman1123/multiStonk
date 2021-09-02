@@ -340,7 +340,8 @@ def getUnsortedList(verbose=False, maxTries=3):
   
   #now that we have the marketWatch list, let's get the stocksunder1 list - essentially the getPennies() fxn from other files
   if(verbose): print("Getting stocksunder1 data...")
-  urlList = ['nasdaq','tech','biotech','marijuana','healthcare','energy'] #the ones not labeled for nasdaq are listed on OTC which we want to avoid
+  #TODO: ensure prices and volumes work for all types
+  urlList = ['nasdaq']#,'tech','biotech','marijuana','healthcare','energy'] #the ones not labeled for nasdaq are listed on OTC which we want to avoid
   for e in urlList:  
     if(verbose): print(e+" stock list")
     url = f'https://stocksunder1.org/{e}-penny-stocks/'
