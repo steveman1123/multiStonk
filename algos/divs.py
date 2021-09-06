@@ -214,6 +214,7 @@ def sellUp(symb=""):
     return preSellUp
 
 #determine how much the stop-loss should be for change since buy or change since close
+#TODO: adjust sellDn % to be related to the yield % of the actual dividend
 def sellDn(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
