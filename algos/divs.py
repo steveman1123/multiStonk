@@ -223,7 +223,7 @@ def sellDn(symb=""):
   
   [preSellDn, postSellDn] = [float(c[algo]['preSellDn']), float(c[algo]['postSellDn'])]
   
-  if(symb in posList):
+  if(symb in posList and posList[symb]['sharesHeld']>0):
     today = o.dt.date.today()
     trigDate = o.dt.datetime.strptime(posList[symb]['note'].split(",")[0],"%Y-%m-%d").date()
     
