@@ -232,7 +232,7 @@ def main(verbose=False):
       
       #display max val and date
       print(f"\nHighest portVal in the last month: ${round(maxPortVal,2)} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
-      print(f"Current portVal: ${round(portHist[max(list(portHist.keys()))],2)} ({round(100*portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of the highest)")
+      print(f"Current portVal: ${round(portHist[max(list(portHist.keys()))],2)} ({round(100*portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of highest)")
       print(f"Port stop-loss: ${round(float(c['account params']['portStopLoss'])*maxPortVal,2)} ({round(100*float(c['account params']['portStopLoss']),2)}% of highest)\n")
       syncPosList() #sync up posList to live data
 
@@ -257,7 +257,7 @@ def main(verbose=False):
       print(f"Market opens in {round(tto/3600,2)} hours")
       #wait some time before the market opens      
       if(tto>60*float(c['time params']['updateLists'])):
-        print(f"Updating stock lists in {round((tto-60*float(c['time params']['updateLists']))/3600,2)} hours")
+        print(f"Updating stock lists in {round((tto-60*float(c['time params']['updateLists']))/3600,2)} hours\n")
         time.sleep(tto-60*float(c['time params']['updateLists']))
       
       

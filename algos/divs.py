@@ -33,7 +33,6 @@ def getList(verbose=True):
   #if today < ex div date, then buy
   if(verbose): print(f"getting unsorted list for {algo}...")
   ntt = o.dt.datetime.strptime(o.nextTradeDate(),"%Y-%m-%d").date() #get the next trade date as a date type
-  #print([str(ntt),str(o.wd(ntt,1))])
   ul = getUnsortedList([str(ntt),str(o.wd(ntt,1))]) #get the whole data lists for the specified dates (next trade date and the following day after that
   if(verbose): print(f"found {len(ul)} stocks to sort through for {algo}.")
   if(verbose): print(f"finding stocks for {algo}...")
@@ -151,7 +150,7 @@ def getDivDates(symb,maxTries=3):
 
 
 #where symbList is the output of getUnsortedList
-#returns dict of stocks that are good to buy - format of {symb:note}
+#returns dict of stocks that are good to buy - format of {symb:note} where the note is formatted as "payoutDate, divAmt, divAmt/currentPrice"
 def goodBuys(symbList, verbose=False):
   if(verbose): print(f"{len(symbList)} dividends found")
 
