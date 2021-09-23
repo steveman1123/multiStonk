@@ -285,23 +285,29 @@ def checkValidKeys(isPaper):
       raise ValueError(f"Unknown issue encountered: {test}")
     o.sys.exit()
 
-#get the trades made on a specified date or date range
-def getTrades(startDate,endDate=False):
-  while True:
+#get the trades made on a specified date or date range where the dates are formatted as "yyyy-mm-dd"
+def getTrades(startDate,endDate=False, verbose=False, maxTries=3):
+  tries=0
+  while tries<maxTries:
     try:
       if(not endDate): #no end date set, just use a single day
+        #TODO: may return an error if no trades were made in a day (or the specified date is a weekend)
         d = o.json.loads(o.requests.get(ACCTURL+"/activities/FILL", headers=HEADERS, params={"date":startDate}, timeout=5).text)
-        if("error" in d.lower()): raise ValueError("error returned in normal request.")
+        if("error" in d.lower()):
+          print(d)
+          raise ValueError("error returned in normal request.")
       else: #end date is set, make a range
         d=[]
         r = o.json.loads(o.requests.get(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate,"until":endDate}, timeout=5).text)
         d+=r
         while len(r)==100:
+          if(verbose): print(len(d))
           r = o.json.loads(o.requests.get(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate,"until":endDate,"page_token":d[-1]['id']}, timeout=5).text)
           d+=r
       break
     except Exception:
-      print("No connection, or other error encountered in getTrades. Trying again...")
+      print(f"No connection, or other error encountered in getTrades. Trying again ({tries+1}/{maxTries})...")
+      tries+=1
       o.time.sleep(3)
       continue
   return d

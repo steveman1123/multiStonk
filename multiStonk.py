@@ -24,6 +24,7 @@ colorinit() #allow coloring in Windows terminals
 # ^ https://github.com/pushshift/api
 #TODO: add check that if the number of shares held of stock to buy is > some % of the avg # of shares held/stock, then don't buy more
 # ^ this is to prevent buying a bunch of really cheap ones when cash is low
+#TODO: check that posList is correct format in set and syncPosList {"algos":{},"cash":{}}
 
 #parse args and get the config file
 configFile="./configs/multi.config"
