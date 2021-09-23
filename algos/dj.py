@@ -22,9 +22,10 @@ def init(configFile):
 #get a list of potential gainers according to this algo
 def getList(verbose=True):
   if(verbose): print(f"getting unsorted list for {algo}...")
-  symbs = getUnsortedList()
+  ul = getUnsortedList()
+  if(verbose): print(f"found {len(ul)} stocks to sort through for {algo}.")
   if(verbose): print(f"finding stocks for {algo}...")
-  gb = goodBuys(symbs) #get dict of the list of stocks if they're good buys or not
+  gb = goodBuys(ul) #get dict of the list of stocks if they're good buys or not
   gb = {e:gb[e] for e in gb if gb[e][0].isnumeric()} #the only time that the first char is a number is if it is a valid/good buy
   if(verbose): print(f"{len(gb)} found for {algo}.")
   return gb
@@ -339,7 +340,8 @@ def getUnsortedList(verbose=False, maxTries=3):
   
   #now that we have the marketWatch list, let's get the stocksunder1 list - essentially the getPennies() fxn from other files
   if(verbose): print("Getting stocksunder1 data...")
-  urlList = ['nasdaq','tech','biotech','marijuana','healthcare','energy'] #the ones not labeled for nasdaq are listed on OTC which we want to avoid
+  #TODO: ensure prices and volumes work for all types
+  urlList = ['nasdaq']#,'tech','biotech','marijuana','healthcare','energy'] #the ones not labeled for nasdaq are listed on OTC which we want to avoid
   for e in urlList:  
     if(verbose): print(e+" stock list")
     url = f'https://stocksunder1.org/{e}-penny-stocks/'

@@ -22,9 +22,17 @@ colorinit() #allow coloring in Windows terminals
 #TODO: check on overall market trends/sentiment and adjust which algos to use based on volitility (would need to give some kind of scoring to see what volitility the algos operate the best in)
 #TODO: use this api for reddit sent analysis: https://api.pushshift.io/reddit/search/comment/?subreddit=
 # ^ https://github.com/pushshift/api
+
 #TODO: add check that if the number of shares held of stock to buy is > some % of the avg # of shares held/stock, then don't buy more
 # ^ this is to prevent buying a bunch of really cheap ones when cash is low
+<<<<<<< HEAD
 #TODO: check that posList is correct format in set and syncPosList {"algos":{},"cash":{}}
+=======
+# TODO: stop selling/buying same day (why is it doing that?) - fixed?
+# TODO: why not buying for algos with lots of stocks? should have min price per stock or min stock to buy (add logic to look at buying affordable stocks from a long list - fixed?
+
+
+>>>>>>> a7b9d6a5a5090ff76164b578590d7e697e798eb8
 
 #parse args and get the config file
 configFile="./configs/multi.config"
@@ -91,6 +99,13 @@ class bcolor:
 listsUpdatedToday = False #tell everyone whether the list has been updated yet today or not
 closeTime = o.closeTime(estOffset=-1) #get the time in datetime format of when the market closes (reference this when looking at time till close)
 
+minCashMargin = float(c['account params']['minCashMargin']) #extra cash to hold above hold value
+if(minCashMargin<1): #minCashMargin MUST BE GREATER THAN 1 in order for it to work correctly
+  raise ValueError("Error: cash margin is less than 1. Multiplier must be >=1")
+minCash2hold = float(c['account params']['minCash2hold'])
+maxCash2hold = float(c['account params']['maxCash2hold'])
+
+
 #main function to run continuously
 def main(verbose=False):
   #values to be used across functions and are edited here
@@ -121,10 +136,7 @@ def main(verbose=False):
   ###
   portHist = a.getProfileHistory(str(dt.date.today()),'1M')['equity'] #get the closing prices of the portfolio over the last month
   maxPortVal=max([e for e in portHist if e is not None]) #get the max portfolio value over the last month and remove blank entries
-  cashMargin = float(c['account params']['cashMargin']) #extra cash to hold above hold value
-  if(cashMargin<1): #cashMargin MUST BE GREATER THAN 1 in order for it to work correctly
-    raise ValueError("Error: cash margin is less than 1. Multiplier must be >=1")
-  cash2hold = float(c['account params']['cash2hold'])
+  
   isManualSellOff = not int(c['account params']['portAutoSellOff'])
   
   ###
@@ -158,18 +170,13 @@ def main(verbose=False):
     #calculate tradable cash
     ###
     totalCash = float(acct['cash'])
-    if(totalCash>=cash2hold*cashMargin): #if we have more buying power than the min plus some leeway, then reduce it to hold onto that buy pow
-      # print(f"Can safely withdrawl ${round(cash2hold,2)}")
-      totalCash -= cash2hold*cashMargin #subtract the cash2hold plus the margin
-    elif(cash2hold<=totalCash<cash2hold*cashMargin):
-      totalCash = 0 #stop trading if we've started to eat into the margin, that way we don't overshoot
-      
+    tradableCash = getTradableCash(totalCash, maxPortVal)
       
     ###
     #execute when the market is open
     ###
     if(o.marketIsOpen()):
-      print(f"\nPortfolio Value: ${acct['portfolio_value']}, tradable cash: ${round(totalCash,2)}, {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+      print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
       #update the lists if not updated yet and that it's not currently updating
       if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
         updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
@@ -183,7 +190,7 @@ def main(verbose=False):
       
       #start checking to buy things if within the buy time frame and lists are not being updated
       if((closeTime-dt.datetime.now()).total_seconds()<=60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
-        tradableCash = totalCash if totalCash<float(c['account params']['cash2hold']) else max(totalCash-float(c['account params']['cash2hold'])*float(c['account params']['cashMargin']),0) #account for withholding a certain amount of cash+margin
+        tradableCash = getTradableCash(totalCash, maxPortVal) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
         for algo in algoList:
@@ -229,7 +236,7 @@ def main(verbose=False):
       
       #display max val and date
       print(f"\nHighest portVal in the last month: ${round(maxPortVal,2)} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
-      print(f"Current portVal: ${round(portHist[max(list(portHist.keys()))],2)} ({round(100*portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of the highest)")
+      print(f"Current portVal: ${round(portHist[max(list(portHist.keys()))],2)} ({round(100*portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of highest)")
       print(f"Port stop-loss: ${round(float(c['account params']['portStopLoss'])*maxPortVal,2)} ({round(100*float(c['account params']['portStopLoss']),2)}% of highest)\n")
       syncPosList() #sync up posList to live data
 
@@ -254,7 +261,7 @@ def main(verbose=False):
       print(f"Market opens in {round(tto/3600,2)} hours")
       #wait some time before the market opens      
       if(tto>60*float(c['time params']['updateLists'])):
-        print(f"Updating stock lists in {round((tto-60*float(c['time params']['updateLists']))/3600,2)} hours")
+        print(f"Updating stock lists in {round((tto-60*float(c['time params']['updateLists']))/3600,2)} hours\n")
         time.sleep(tto-60*float(c['time params']['updateLists']))
       
       
@@ -270,6 +277,23 @@ def main(verbose=False):
       closeTime = o.closeTime(estOffset=-1) #get the next closing time
       time.sleep(a.timeTillOpen())
       
+
+#given the total cash and cash parameters, return the tradable cash
+def getTradableCash(totalCash, maxPortVal,verbose=False):
+  if(totalCash<minCash2hold): #0-999
+    if(verbose): print(1)
+    return totalCash
+  elif(minCash2hold<=totalCash<=minCash2hold*minCashMargin): #1000-1100
+    if(verbose): print(2)
+    return 0
+  elif(minCash2hold*minCashMargin<totalCash<maxPortVal*maxCash2hold): #1101-.25*max
+    if(verbose): print(3)
+    return totalCash-minCash2hold*minCashMargin
+  else: #.25*max-inf
+    if(verbose): print(4)
+    if(verbose): print(maxPortVal*maxCash2hold,minCash2hold*minCashMargin)
+    return totalCash-max(maxPortVal*maxCash2hold,minCash2hold*minCashMargin)
+
 
 #update all lists to be bought (this should be run as it's own thread)
 def updateLists(verbose=False):
@@ -401,7 +425,7 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
         lastTradeDate = dt.date.today()-dt.timedelta(1)
       
       #to avoid day trading, make sure that it either didn't trade yet today, or if it has, that it hasn't sold yet
-      if lastTradeDate < dt.date.today() or stockInfo['lastTradeType']!="sell":
+      if lastTradeDate < dt.date.today() and stockInfo['lastTradeType']!="sell":
         inf = o.getInfo(stock,['price','mktcap'])
         [curPrice, mktCap] = [inf['price'],inf['mktcap']]
         
@@ -472,7 +496,7 @@ def check2sells(pos):
     gs = eval(f"{algo}.goodSells(symbList)") #get whether the stocks are good sells or not
     for e in algoSymbs: #go through the stocks of the algo
       if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'): #only display/sell if not bought today
-        print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t"+str(eval(f'{algo}.sellDn("{e["symbol"]}")'))+" & "+str(eval(f'{algo}.sellUp("{e["symbol"]}")'))+f"\t{posList[algo][e['symbol']]['note']}")
+        print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t"+str(round(eval(f'{algo}.sellDn("{e["symbol"]}")'),2))+" & "+str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'),2))+f"\t{posList[algo][e['symbol']]['note']}")
       
         if(gs[e['symbol']]==1): #if the stock is a good sell (sellUp)
           if(algo+"|"+e['symbol'] not in triggeredStocks): #make sure that it's not already present
@@ -495,6 +519,7 @@ def sell(stock, algo):
     print(f"No shares held of {stock}")
     triggeredStocks.discard(algo+"|"+stock)
     return False
+  
   if('status' in r and r['status'] == "accepted"): #check that it actually sold
     lock = o.threading.Lock()
     lock.acquire()
@@ -507,6 +532,7 @@ def sell(stock, algo):
         "shouldSell":False,
         "note":""
       }
+      
     open(c['file locations']['posList'],'w').write(json.dumps({'algos':posList,'cash':cashList},indent=2)) #update the posList file
     triggeredStocks.discard(algo+"|"+stock)
     lock.release()
@@ -533,6 +559,7 @@ def buy(shares, stock, algo, buyPrice):
         "shouldSell":False,
         "note":algoList[algo][stock] if stock in algoList[algo] else ""
       }
+      
     cashList[algo]['invested'] += buyPrice*shares
     open(c['file locations']['posList'],'w').write(json.dumps({'algos':posList,'cash':cashList},indent=2)) #update posList file
     lock.release()

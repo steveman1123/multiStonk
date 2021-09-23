@@ -45,6 +45,7 @@ def getList(verbose=True):
   #each check will add or subtract from a score  (as lacking one or more of the indicators isn't necessarily a dealbreaker)
   if(verbose): print(f"getting unsorted list for {algo}...")
   ul = getUnsortedList() #format of {date, inf:{lastYrRpt,lastYrEPS,time,symb,name,mktcap,fiscQuartEnd,epsFrcst,numEsts}}
+  if(verbose): print(f"found {len(ul)} stocks to sort through for {algo}.")
   if(verbose): print(f"finding stocks for {algo}...")
   gb = goodBuys(ul)
   if(verbose): print(f"{len(gb)} found for {algo}.")

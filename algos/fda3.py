@@ -15,6 +15,7 @@ def init(configFile):
 def getList(verbose=True):
   if(verbose): print(f"getting unsorted list for {algo}...")
   ul = getUnsortedList()
+  if(verbose): print(f"found {len(ul)} stocks to sort through for {algo}.")
   if(verbose): print(f"finding stocks for {algo}...")
   out = goodBuys(ul) #returns dict of {symb:gooduy(t/f)}
   if(verbose): print(f"{len(out)} found for {algo}.")

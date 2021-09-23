@@ -9,6 +9,7 @@ algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the
 # https://finance.yahoo.com/news/cara-therapeutics-announces-topline-results-110000707.html
 # ^ check how insider trading is, and upcoming important dates (like announcements of phase results, etc)
 # if it still falls significantly despite those, then wait at least a week and then make a decision based on the articles being posted
+#TODO: should check history to make sure that the price isn't consistently decreasing
 
 def init(configFile):
   global posList,c
@@ -26,6 +27,7 @@ def init(configFile):
 def getList(verbose=True):
   if(verbose): print(f"getting unsorted list for {algo}...")
   ul = getUnsortedList()
+  if(verbose): print(f"found {len(ul)} stocks to sort through for {algo}.")
   if(verbose): print(f"finding stocks for {algo}...")
   arr = goodBuys(ul) #returns dict of {symb:gooduy(t/f)}
   arr = {e:"-" for e in arr if(arr[e])} #only look at the ones that are true

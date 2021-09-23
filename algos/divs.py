@@ -31,9 +31,10 @@ def getList(verbose=True):
   #check history of the stocks. Look for pattern that denotes a gain after the initial div date (could possibly look like a buy low. Stock gains to div, div processes, dips, then gains again. Sell at that gain)
   
   #if today < ex div date, then buy
-  #TODO: have a minimum div amount? Or avg price to div amt?
   if(verbose): print(f"getting unsorted list for {algo}...")
-  ul = getUnsortedList(o.nextTradeDate()) #get the whole data list
+  ntt = o.dt.datetime.strptime(o.nextTradeDate(),"%Y-%m-%d").date() #get the next trade date as a date type
+  ul = getUnsortedList([str(ntt),str(o.wd(ntt,1))]) #get the whole data lists for the specified dates (next trade date and the following day after that
+  if(verbose): print(f"found {len(ul)} stocks to sort through for {algo}.")
   if(verbose): print(f"finding stocks for {algo}...")
   gb = goodBuys(ul)
   if(verbose): print(f"{len(gb)} found for {algo}.")
@@ -74,18 +75,32 @@ def goodSells(symbList, verbose=False):
   
   return gs
 
-#get the whole json data (includes symb, dates, etc) based on the ex date
-def getUnsortedList(exdate):
-  while True:
-    try:
-      #get the stocks whose exdivdate is the next trade date (buy before it drops to the dropped price)
-      r = o.json.loads(o.requests.get(f"https://api.nasdaq.com/api/calendar/dividends?date={exdate}",headers={"user-agent":"-"}, timeout=5).text)['data']['calendar']['rows']
-      break
-    except Exception:
-      print("Error in getting unsorted list for divs algo. Trying again...")
-      o.time.sleep(3)
-      pass
-  out = {e['symbol']:e for e in r if(e['payment_Date']!="N/A")} #change from a list to a dict of format {symb:data} and remove invalid dates (or ones that are N/A)
+#get the whole json data (includes symb, dates, etc) based on the ex dates specified
+def getUnsortedList(exdatelist, maxTries=3):
+  out = {}
+  
+  for exdate in exdatelist:
+    #print(exdate)
+    tries=0
+    r = None
+    while tries<maxTries:
+      try:
+        #get the stocks whose exdivdate is the next trade date (buy before it drops to the dropped price)
+        r = o.json.loads(o.requests.get(f"https://api.nasdaq.com/api/calendar/dividends?date={exdate}",headers={"user-agent":"-"}, timeout=5).text)['data']['calendar']['rows']
+        break
+      except Exception:
+        print(f"Error in getting unsorted list for divs algo. Trying again ({tries}/{maxTries})...")
+        tries+=1
+        o.time.sleep(3)
+        continue
+    
+    if(r is not None):
+      #change from a list to a dict of format {symb:data} and remove invalid dates (or ones that are N/A)
+      for e in r:
+        if(e['payment_Date']!="N/A"):
+          out[e['symbol']] = e
+    #print(len(out))
+  
   return out
 
 #get the latest div dates for a stock (announced, ex div, record, payment)
@@ -135,7 +150,7 @@ def getDivDates(symb,maxTries=3):
 
 
 #where symbList is the output of getUnsortedList
-#returns dict of stocks that are good to buy - format of {symb:note}
+#returns dict of stocks that are good to buy - format of {symb:note} where the note is formatted as "payoutDate, divAmt, divAmt/currentPrice"
 def goodBuys(symbList, verbose=False):
   if(verbose): print(f"{len(symbList)} dividends found")
 
@@ -144,8 +159,10 @@ def goodBuys(symbList, verbose=False):
   
   [minPrice,maxPrice] = [float(c[algo]['minPrice']),float(c[algo]['maxPrice'])] #min and max prices to keep things reasonable
   minVol = float(c[algo]['minVol']) #minimum volume to allow liquidity
-  minDiv = float(c[algo]['minDiv']) #minimum div amount (absolute dollars). TODO May want to improve in the future to include div/share ratio
+  minDiv = float(c[algo]['minDiv']) #minimum div amount (absolute dollars)
+  minDivYield = float(c[algo]['minDivYield']) #minimum div/buyPrice to allow
   maxTime = float(c[algo]['maxTime']) #max time to allow for divs
+  maxSymbs = int(c[algo]['maxSymbs']) #max symbols to allow to purchase per day
   
   gb={}
   for s in prices:
@@ -153,14 +170,20 @@ def goodBuys(symbList, verbose=False):
       if(verbose): print(f"{s.split('|')[0]} is in price range with decent vol; ${prices[s]['price']}; {prices[s]['vol']}")
       pmtDate = o.dt.datetime.strptime(symbList[s.split("|")[0]]['payment_Date'],"%m/%d/%Y").date()
       divRate = symbList[s.split("|")[0]]['dividend_Rate']
-      if((pmtDate-o.dt.date.today()).days<=maxTime and divRate>=minDiv):
+      divYield = divRate/prices[s]['price']
+      if((pmtDate-o.dt.date.today()).days<=maxTime and divRate>=minDiv and divYield>=minDivYield):
         if(verbose): print(f"{s.split('|')[0]} is a good buy; div: ${divRate}; days till pmt: {(pmtDate-o.dt.date.today()).days}")
-        gb[s.split("|")[0]] = str(pmtDate)+", "+str(divRate) #vol measures volume so far today which may run into issues if run during premarket or early in the day since the stock won't have much volume
+        gb[s.split("|")[0]] = str(pmtDate)+", "+str(divRate)+", "+str(round(divYield,3)) #vol measures volume so far today which may run into issues if run during premarket or early in the day since the stock won't have much volume
       else:
         if(verbose): print(f"{s.split('|')[0]} is not a good buy; div: ${divRate}; days till pmt: {(pmtDate-o.dt.date.today()).days}")
     else:
       if(verbose): print(f"{s.split('|')[0]} not in price range or vol is too low; ${prices[s]['price']}; {prices[s]['vol']}")
-
+  
+  #if the stock list is too big, pare down to the specified max num by sorting by the biggest div yields
+  if(len(gb)>maxSymbs):
+    tmp = sorted([[symbList[s]['dividend_Rate']/prices[s+"|STOCKS"]['price'],s] for s in gb])[-maxSymbs:]
+    for e in [e for e in gb if e not in [e[1] for e in tmp]]: gb.pop(e)
+  
   return gb
 
 
@@ -175,12 +198,22 @@ def sellUp(symb=""):
   [preSellUp, postSellUp] = [float(c[algo]['preSellUp']), float(c[algo]['postSellUp'])]
   #TODO: account for note being blank or containing other text (just in case)
 
-  if(symb in posList and str(o.dt.date.today())>=posList[symb]['note'].split(",")[0]):
-    return postSellUp
+  if(symb in posList):
+    today = o.dt.date.today()
+    trigDate = o.dt.datetime.strptime(posList[symb]['note'].split(",")[0],"%Y-%m-%d").date()
+    
+    if(today>=trigDate):
+      #squeeze after the trigger date. Currently 1% per week, not set in the config
+      postSellUp = max(1,postSellUp-(today-trigDate).days/7/100)
+      return postSellUp
+    else:
+      return preSellUp
   else:
+    print(f"{symb} not in posList of {algo}")
     return preSellUp
 
 #determine how much the stop-loss should be for change since buy or change since close
+#TODO: adjust sellDn % to be related to the yield % of the actual dividend
 def sellDn(symb=""):
   lock = o.threading.Lock()
   lock.acquire()
@@ -189,9 +222,18 @@ def sellDn(symb=""):
   
   [preSellDn, postSellDn] = [float(c[algo]['preSellDn']), float(c[algo]['postSellDn'])]
   
-  if(symb in posList and str(o.dt.date.today())>=posList[symb]['note'].split(",")[0]):
-    return postSellDn
+  if(symb in posList and posList[symb]['sharesHeld']>0):
+    today = o.dt.date.today()
+    trigDate = o.dt.datetime.strptime(posList[symb]['note'].split(",")[0],"%Y-%m-%d").date()
+    
+    if(today>=trigDate):
+      #squeeze after the trigger date. Currently 1% per week, not set in the config
+      postSellDn = min(1,postSellDn+(today-trigDate).days/7/100)
+      return postSellDn
+    else:
+      return preSellDn
   else:
+    print(f"{symb} not in posList of {algo}")
     return preSellDn
 
 #after triggering the take-profit, the price must fall this much before selling (rtailing stop-loss)
