@@ -25,14 +25,8 @@ colorinit() #allow coloring in Windows terminals
 
 #TODO: add check that if the number of shares held of stock to buy is > some % of the avg # of shares held/stock, then don't buy more
 # ^ this is to prevent buying a bunch of really cheap ones when cash is low
-<<<<<<< HEAD
-#TODO: check that posList is correct format in set and syncPosList {"algos":{},"cash":{}}
-=======
-# TODO: stop selling/buying same day (why is it doing that?) - fixed?
-# TODO: why not buying for algos with lots of stocks? should have min price per stock or min stock to buy (add logic to look at buying affordable stocks from a long list - fixed?
 
-
->>>>>>> a7b9d6a5a5090ff76164b578590d7e697e798eb8
+#TODO: why isn't it buying???
 
 #parse args and get the config file
 configFile="./configs/multi.config"
@@ -194,7 +188,8 @@ def main(verbose=False):
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
         for algo in algoList:
-          buyThread = o.threading.Thread(target=check2buy, args=(algo,cashPerAlgo, list(algoList[algo]))) #init the thread
+          if(verbose): print(f"starting buy thread {algo}")
+          buyThread = o.threading.Thread(target=check2buy, args=(algo,cashPerAlgo, list(algoList[algo]),verbose=verbose)) #init the thread
           buyThread.setName(algo) #set the name to the algo
           buyThread.start() #start the thread
     

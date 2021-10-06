@@ -201,17 +201,26 @@ def goodSell(symb, verbose=False):
     return False
     
   
-#where closelist has the most recent close first (and is the EMA that is being calculated)
-def getEMA(priceList,k):
-  if(len(priceList)>1):
+#where priceList is the lsit of prices to get an EMA of (with newest first)
+#k is the exponential factor
+#maxPrices is the maximum number of prices to use
+def getEMA(priceList,k,maxPrices=750):
+  if(len(priceList)>maxPrices): print("too many prices")
+  if(1<len(priceList)<=maxPrices):
     return (priceList[0]*k)+(getEMA(priceList[1:],k)*(1-k))
   else:
     return priceList[0]
   
 #get the EMAs for all prices in a given set
-# where priceList is the list that the EMAs should be gotten for, and n is the length of the ema
-# https://www.dummies.com/personal-finance/investing/stocks-trading/how-to-calculate-exponential-moving-average-in-trading/
-def getEMAs(symb,startDate,endDate,n):
+# where symb is the symbol to get data for
+#startDate is the starting date to get data for yyyy-mm-dd
+#endDate is the ending date to get data for yyyy-mm-dd
+#n is the number of periods to EMA over
+def getEMAs(symb,startDate,endDate,n, maxPrices=750):
+  if(n>maxPrices):
+    print("n is too large")
+    return []
+  # https://www.dummies.com/personal-finance/investing/stocks-trading/how-to-calculate-exponential-moving-average-in-trading/
   k = 2/(1+n)
   extraDays = 0 #add in some more days to get a better reading of the earlier EMAs
   
@@ -222,8 +231,8 @@ def getEMAs(symb,startDate,endDate,n):
   priceList = [float(e[1]) for e in hist]
   
   out = []
-  for i in range(len(priceList)):
-    out.append(getEMA(priceList[i:],k))
+  for i in range(len(priceList)-maxPrices):
+    out.append(getEMA(priceList[i:i+maxPrices],k))
   #TODO: might have to check that enough data was returned?
   return out[:totalEntries] #trim off extra days
 
