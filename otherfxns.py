@@ -295,41 +295,46 @@ def reverseSplitters():
 #get data that's in the info api call (current price returned by default)
 # available data (at the moment): ['price', 'vol', 'mktcap', 'open', 'prevclose', 'istradable']
 #return dict of format {'option':value}
-def getInfo(symb,data=['price']):
-  url = f'{BASEURL}/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
-  while True:
+#TODO: on err of something not present, set to None rather than 0
+def getInfo(symb,data=['price'], maxTries=3):
+  data = [e.lower() for e in data]
+  infurl = f'{BASEURL}/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
+  sumurl = f'{BASEURL}/quote/{symb}/summary?assetclass=stocks' #use this URL to avoid alpaca
+  tries=0
+  while tries<maxTries:
     try:
-      r = requests.get(url,headers={"User-Agent": "-"}, timeout=5).text #nasdaq url requires a non-empty user-agent string
-      j = json.loads(r)
+      infj = json.loads(requests.get(infurl,headers=HEADERS, timeout=5).text)
+      sumj = json.loads(requests.get(sumurl,headers=HEADERS, timeout=5).text)
       break
     except Exception:
       print(f"No connection, or other error encountered in getInfo of {symb}. Trying again...")
       time.sleep(3)
+      tries+=1
       continue
   out = {}
   if('price' in data):
     try:
-      out['price'] = float(j["data"]["primaryData"]["lastSalePrice"][1:])
+      out['price'] = float(infj["data"]["primaryData"]["lastSalePrice"][1:])
     except Exception:
       out['price'] = 0
   if('vol' in data):
     try:
-      out['vol'] = int(j['data']['keyStats']['Volume']['value'].replace(',',''))
+      out['vol'] = int(sumj['data']['summaryData']['ShareVolume']['value'].replace(',',''))
     except Exception:
       out['vol'] = 0
-  if('mktcap' in data):
+  if('mktcap' in data): #moved to summary
     try:
-      out['mktcap'] = int(j['data']['keyStats']['MarketCap']['value'].replace(',',''))
+      out['mktcap'] = int(sumj['data']['summaryData']['MarketCap']['value'].replace(',',''))
     except Exception:
       out['mktcap'] = 0
   if('open' in data):
     try:
-      out['open'] = float(j['data']['keyStats']['OpenPrice']['value'][1:])
+      out['open'] = float(infj['data']['primaryData']['lastSalePrice'][1:])+float(infj['data']['primartData']['netchange'])
     except Exception:
       out['open'] = 0
   if('prevclose' in data):
     try:
-      out['prevclose'] = float(j['data']['keyStats']['PreviousClose']['value'][1:])
+      out['prevclose'] = float(sumj['data']['summaryData']['PreviousClose']['value'][1:])
     except Exception:
       out['prevclose'] = 0
   if('istradable' in data):
@@ -363,7 +368,7 @@ def getDayMins(symb, maxTries=3, verbose=False):
 def nextTradeDate():
   while True:
     try:
-      r = json.loads(requests.get(f"{BASEURL}/market-info",headers={"user-agent":'-'}).text)['data']['nextTradeDate']
+      r = json.loads(requests.get(f"{BASEURL}/market-info",headersHEADERS).text)['data']['nextTradeDate']
       break
     except Exception:
       print("No connection or other error encountered in nextTradeDate. Trying again...")
