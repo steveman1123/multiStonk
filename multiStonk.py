@@ -183,13 +183,17 @@ def main(verbose=False):
       check2sells(pos)
       
       #start checking to buy things if within the buy time frame and lists are not being updated
+      #print(((closeTime-dt.datetime.now()).total_seconds())<60*float(c['time params']['buyTime']))
+      #print(sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0)
+
       if((closeTime-dt.datetime.now()).total_seconds()<=60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
         tradableCash = getTradableCash(totalCash, maxPortVal) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
+        #print(tradableCash,cashPerAlgo,algoList,sep="\n")
         for algo in algoList:
           if(verbose): print(f"starting buy thread {algo}")
-          buyThread = o.threading.Thread(target=check2buy, args=(algo,cashPerAlgo, list(algoList[algo]),verbose=verbose)) #init the thread
+          buyThread = o.threading.Thread(target=check2buy, args=(algo,cashPerAlgo, list(algoList[algo]),False)) #init the thread
           buyThread.setName(algo) #set the name to the algo
           buyThread.start() #start the thread
     
@@ -423,14 +427,22 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
       if lastTradeDate < dt.date.today() and stockInfo['lastTradeType']!="sell":
         inf = o.getInfo(stock,['price','mktcap'])
         [curPrice, mktCap] = [inf['price'],inf['mktcap']]
-        
         #set number of shares to be at most some % of the mktcap, otherwise as many int shares as cash is available (or 0 if curPrice is 0)
         if(curPrice>0): shares = int(min(cashPerStock/curPrice,(mktCap/curPrice)*float(c['account params']['maxVolPerc'])))
         else: shares = 0
         
+        #print(mktCap,curPrice)
+        #print(mktCap/curPrice,c['account params']['maxVolPerc'])
+        #print(cashPerStock/curPrice,(mktCap/curPrice)*float(c['account params']['maxVolPerc']))
+
+        if(verbose): print(f"{algo} - {stock} - {curPrice} - ok to buy {shares} shares")
         if(shares>0): #cannot place an order for 0 shares
           isBought = buy(shares,stock,algo,curPrice) #buy the stock
-          if(isBought): print(f"buy\t{shares}\t{stock}\t{algo}\t{round(curPrice,2)}\t{round(shares*curPrice,2)}")
+          if(isBought):
+            print(f"buy\t{shares}\t{stock}\t{algo}\t{round(curPrice,2)}\t{round(shares*curPrice,2)}")
+          else:
+            print(f"could not buy {stock}")
+
           
     
 #a stock has reached a trigger point and should begin to be checked more often (it will be sold in this function)
@@ -893,7 +905,7 @@ if __name__ == '__main__':
   exitFlag = False #set to true if the program stopped by ctrl+c
 
   try:
-    main() #start running the program
+    main(False) #start running the program
   except KeyboardInterrupt: #exit on ctrl+c
     print("Exiting")
     exitFlag=True
