@@ -365,17 +365,19 @@ def getDayMins(symb, maxTries=3, verbose=False):
     return out
   
 #get the next trade date in datetime date format
-def nextTradeDate():
-  while True:
+def nextTradeDate(maxTries=3):
+  tries=0
+  while tries<maxTries:
     try:
-      r = json.loads(requests.get(f"{BASEURL}/market-info",headersHEADERS).text)['data']['nextTradeDate']
+      r = json.loads(requests.get(f"{BASEURL}/market-info",headers=HEADERS).text)['data']['nextTradeDate']
+      r = dt.datetime.strptime(r,"%b %d, %Y").date()
       break
     except Exception:
       print("No connection or other error encountered in nextTradeDate. Trying again...")
       time.sleep(3)
+      tries+=1
       continue
-  
-  r = dt.datetime.strptime(r,"%b %d, %Y").date()
+  if(tries>=maxTries): return str(wd(dt.date.today(),1))
   
   return str(r)
 
