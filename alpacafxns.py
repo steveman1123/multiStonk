@@ -110,10 +110,9 @@ def sellAll(isManual=1):
 
 
 #look to buy/sell a position
-#TODO: return something else other than the string (or include other info to return beyond it)
 #TODO: need limit orders to be able to be placed
 # https://alpaca.markets/docs/api-documentation/api-v2/orders/
-def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPrice=0,verbose=False):
+def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPrice=0,maxTries=3,verbose=False):
   # if(o.getInfo(symb,['istradable'])['istradable']):
   order = {
     "symbol":symb,
@@ -124,17 +123,19 @@ def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPri
   }
   if(orderType=="limit"): #TODO: this returns an error if used. Fix
     order['take_profit'] = {'limit_price':str(limPrice)}
-  while True:
+  tries=0
+  while tries<maxTries:
     try:
       r = o.requests.post(ORDERSURL, json=order, headers=HEADERS, timeout=5)
       break
     except Exception:
-      print("No connection, or other error encountered in createOrder. Trying again...")
+      print(f"No connection, or other error encountered in createOrder. Trying again ({tries+1}/{maxTries})...")
+      tries+=1
       o.time.sleep(3)
       continue
 
   r = o.json.loads(r.text)
-  # print(r)
+  if(verbose): print(json.dumps(r,indent=2))
   try:
     #TODO: add trade info here?
     if(verbose): print(f"Order to {r['side']} {r['qty']} share(s) of {r['symbol']} - {r['status']}")

@@ -492,11 +492,12 @@ def checkTriggered(verbose=False):
     print()
     time.sleep(max(5,len(list(triggeredStocks))/5)) #wait at least 5 seconds between checks, and if there are more, wait longer
     
-#multiplex check2sell
-def check2sells(pos):
+#multiplex check2sell where pos is the output of o.getPos
+def check2sells(pos,verbose=False):
   global triggeredStocks
   #determine if the stocks in the algo are good sells (should return as a dict of {symb:goodSell(t/f)})
   for algo in posList:
+    if(verbose): print(algo)
     algoSymbs = [e for e in pos if e['symbol'] in posList[algo]] #only the stocks in both posList[algo] and held positions
     symbList = [e['symbol'] for e in algoSymbs] #isolate just the symbols
     #TODO: in each algo, add an error report if there's a stock that doesn't appear to be tradable (that is, it's in symbList but doesn't show up in getPrices)
@@ -527,6 +528,8 @@ def sell(stock, algo):
     triggeredStocks.discard(algo+"|"+stock)
     return False
   
+  #TODO: this is an incorrect check
+  #see how it looks in here: https://alpaca.markets/docs/trading-on-alpaca/orders/#order-lifecycle
   if('status' in r and r['status'] == "accepted"): #check that it actually sold
     lock = o.threading.Lock()
     lock.acquire()
@@ -641,6 +644,7 @@ def setPosList(algoList, verbose=True):
 
 
 #sync what we have recorded and what's actually going on in the account
+#TODO: if not done already, need to make sure that when the posList says there's 0 shares held, but getPos says there's shares, that the share amounts are transferred
 def syncPosList(verbose=False):
   global posList, cashList
   lock = o.threading.Lock() #locking is needed to write to the file and edit the posList var (will have to see how threads and globals work with each other)
