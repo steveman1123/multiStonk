@@ -200,7 +200,10 @@ def sellUp(symb=""):
 
   if(symb in posList):
     today = o.dt.date.today()
-    trigDate = o.dt.datetime.strptime(posList[symb]['note'].split(",")[0],"%Y-%m-%d").date()
+    try:
+      trigDate = o.dt.datetime.strptime(posList[symb]['note'].split(",")[0],"%Y-%m-%d").date()
+    except Exception:
+      trigDate = o.dt.date.today()
     
     if(today>=trigDate):
       #squeeze after the trigger date. Currently 1% per week, not set in the config
@@ -224,7 +227,10 @@ def sellDn(symb=""):
   
   if(symb in posList and posList[symb]['sharesHeld']>0):
     today = o.dt.date.today()
-    trigDate = o.dt.datetime.strptime(posList[symb]['note'].split(",")[0],"%Y-%m-%d").date()
+    try:
+      trigDate = o.dt.datetime.strptime(posList[symb]['note'].split(",")[0],"%Y-%m-%d").date()
+    except Exception:
+      trigDate = o.dt.date.today()
     
     if(today>=trigDate):
       #squeeze after the trigger date. Currently 1% per week, not set in the config
