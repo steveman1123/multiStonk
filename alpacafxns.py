@@ -108,18 +108,51 @@ def sellAll(isManual=1):
     print("No shares held")
     return 0
 
+#where the order ID is the "client_order_id" field in output of createOrder
+def getOrderInf(orderID,maxTries=3,verbose=False):
+  tries=0
+  while tries<maxTries:
+    if(verbose): print(tries)
+    r = {}
+    try:
+      if(verbose): print("attempting to get data")
+      r = o.requests.get(f"{ORDERSURL}?by_client_order_id={orderID}", headers=HEADERS, timeout=5).text
+      if(verbose): print("data obtained")
+      try:
+        if(verbose): print("loading to json")
+        r = json.loads(r)
+      except Exception:
+        if(verbose): print("failed to load to json")
+        if(verbose): print(r)
+        r = {}
+      break
+    except Exception:
+      print(f"No connection or other error encountered getting the order {orderID}. Trying again ({tries+1}/{maxTries})...")
+      tries+=1
+      o.time.sleep(3)
+      continue
+  return r
 
 #look to buy/sell a position
 #TODO: need limit orders to be able to be placed
 # https://alpaca.markets/docs/api-documentation/api-v2/orders/
-def createOrder(side, qty, symb, orderType="market", time_in_force="day", limPrice=0,maxTries=3,verbose=False):
+def createOrder(side,
+                qty,
+                symb,
+                orderType="market",
+                time_in_force="day",
+                useExtended=False,
+                limPrice=0,
+                maxTries=3,
+                verbose=False):
   # if(o.getInfo(symb,['istradable'])['istradable']):
   order = {
     "symbol":symb,
     "qty":qty,
     "type":orderType,
     "side":side,
-    "time_in_force":time_in_force
+    "time_in_force":time_in_force,
+    "extended_hours":useExtended
   }
   if(orderType=="limit"): #TODO: this returns an error if used. Fix
     order['take_profit'] = {'limit_price':str(limPrice)}
