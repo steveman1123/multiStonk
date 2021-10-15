@@ -1,8 +1,5 @@
 #Steven Williams (2021)
 #Stock trading program to use multiple algorithms/strategies as defined in the config file and present in the algos directory to perform low frequency shortterm trades
-# https://www.investopedia.com/ask/answers/042115/whats-best-investing-strategy-have-during-recession.asp
-
-
 
 print("\nStarting up...")
 
@@ -17,37 +14,36 @@ from colorama import init as colorinit
 colorinit() #allow coloring in Windows terminals
 
 #TODO: should add the ability to store a global unsorted list that multiple algos pull from (eg define a price and vol range, then pass that to every algo that requests it)
-#TODO: combine various signals into one algo, but also have each signal as its own algo?
-#TODO: add sentiment analysis to newsScrape
-#TODO: check on overall market trends/sentiment and adjust which algos to use based on volitility (would need to give some kind of scoring to see what volitility the algos operate the best in)
-#TODO: use this api for reddit sent analysis: https://api.pushshift.io/reddit/search/comment/?subreddit=
-# ^ https://github.com/pushshift/api
 
 #TODO: add check that if the number of shares held of stock to buy is > some % of the avg # of shares held/stock, then don't buy more
 # ^ this is to prevent buying a bunch of really cheap ones when cash is low
 
-#TODO: add check that buys cannot occur after market is closed (sometimes it'll hang between the two checks causing it to execute orders after market is closed)
-#TODO: 
 
 #parse args and get the config file
 configFile="./configs/multi.config"
 if(len(sys.argv)>1): #if there's an argument present
   for arg in sys.argv[1:]:
-    if(arg.lower()=='-h'): #if there's an argument regarding the config file
-      print(("\nStockbot\n"
-            "Uses multiple algorithms to trade stocks based on the functions specified in the config file and present in the algos directory.\n"
-            "\nSyntax:\n"
+    if(arg.lower() in ['-h','--help']): #if there's an argument regarding the config file
+      print(("\n"
+             "Stockbot\n"
+            "Uses multiple algorithms to trade stocks based on the functions specified in the config file and present in the algos directory.\n\n"
+            "Syntax:\n"
             "[ -h | path/to/file.config ]\n"
             "-h\t: displays this help menu\n"
-            "path\t: point to the config file containing all settings required to run the program (defaults to "+configFile+")\n"
-            "\nTODO: add documentation here where things are located, and how to use it\n"
+            "path\t: point to the config file containing all settings required to run the program (defaults to "+configFile+")\n\n"
+            "How to:\n"
+            "- specify config file (leave blank for default)\n"
+            "- ensure all packages are installed\n"
+            "- read the README and config file(s) to determine settings, adjust as desired\n"
+            "- run 24/7\n"
+            "report any errors to https://github.com/steveman1123\n"
             ))
       exit()
     elif(os.path.isfile(arg) and arg.lower().endswith(".config")): #check that the arg is a valid file and ends with .config
       configFile = arg
     #if we want to pass more arguments, we can specify them here (also make sure to include them in the help menu)
     else:
-      raise ValueError("Invalid argument. Make sure config file is present or use '-h' for help.")
+      raise ValueError("Invalid argument. Make sure config file is present or use '-h'/'--help' for help.")
 
 
 #set the multi config file
@@ -438,6 +434,8 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
 
         if(verbose): print(f"{algo} - {stock} - {curPrice} - ok to buy {shares} shares")
         if(shares>0): #cannot place an order for 0 shares
+          #market must be open in order to place the trade (this check is here in the event that the program is suspended while market open, then restarted while market closed)
+          # if(o.marketIsOpen()): #TODO: add once this is confirmed, otherwise wait for a better solution to not need queries
           isBought = buy(shares,stock,algo,curPrice) #buy the stock
           if(isBought):
             print(f"buy\t{shares}\t{stock}\t{algo}\t{round(curPrice,2)}\t{round(shares*curPrice,2)}")
@@ -506,7 +504,9 @@ def check2sells(pos,verbose=False):
     for e in algoSymbs: #go through the stocks of the algo
       if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'): #only display/sell if not bought today
         print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t"+str(round(eval(f'{algo}.sellDn("{e["symbol"]}")'),2))+" & "+str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'),2))+f"\t{posList[algo][e['symbol']]['note']}")
-      
+        #ensure that the market is open in order to actually place a trade
+        #this check is here in the event that the program is suspended while open, then restarted while closed
+        # if(o.marketIsOpen()): #TODO: confirm that this is needed first and not a setting that can be changed outside of this script
         if(gs[e['symbol']]==1): #if the stock is a good sell (sellUp)
           if(algo+"|"+e['symbol'] not in triggeredStocks): #make sure that it's not already present
             triggeredStocks.add(algo+"|"+e['symbol']) #if not, then add it to the triggered list

@@ -6,6 +6,9 @@
 # https://api.reddit.com/search?q={symb}+subreddit%3A{sub}+nsfw%3Ano+self%3Ayes&sort=relevance&t=month
 # https://www.reddit.com/r/wallstreetbets/new/
 
+#TODO: use this api for reddit sent analysis: https://api.pushshift.io/reddit/search/comment/?subreddit=
+# ^ https://github.com/pushshift/api
+
 import otherfxns as o
 
 algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name

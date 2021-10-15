@@ -2,11 +2,6 @@
 #what changes when a stock has a dividend?
 #https://www.investopedia.com/articles/stocks/11/dividend-capture-strategy.asp
 
-#TODO: incorporate preferential towards high yields (ag and more):
-# https://www.investopedia.com/investing/agriculture-stocks-pay-dividends/
-
-#TODO: adjust sellU/sellDn to be some function of price and dividend and date
-
 import otherfxns as o
 
 algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
@@ -118,7 +113,7 @@ def getDivDates(symb,maxTries=3):
       pass
   if(tries<maxTries):
     r = {}
-    #TODO: see if there can be some kind of error handling within strptim to catch, or use regex or something to ensure strings are in the right format
+    #TODO: there's probably a better way to do this than a bunch of try/excepts
     try:
       r['announcement'] = str(o.dt.datetime.strptime(r['declarationDate'],"%m/%d/%Y").date())
     except Exception:
@@ -135,14 +130,6 @@ def getDivDates(symb,maxTries=3):
       r['payment'] = str(o.dt.datetime.strptime(r['paymentDate'],"%m/%d/%Y").date())
     except Exception:
       r['payment'] = ''
-    '''
-    r = {
-          'announcement':str(o.dt.datetime.strptime(r['declarationDate'] if r['declarationDate'],"%m/%d/%Y").date()),
-          'ex':str(o.dt.datetime.strptime(r['exOrEffDate'],"%m/%d/%Y").date()),
-          'record':str(o.dt.datetime.strptime(r['recordDate'],"%m/%d/%Y").date()),
-          'payment':str(o.dt.datetime.strptime(r['paymentDate'],"%m/%d/%Y").date())
-        }
-    '''
   else:
     print(f"Failed to get div dates for {symb}")
     r = {}
@@ -169,8 +156,9 @@ def goodBuys(symbList, verbose=False):
     if(minPrice<=prices[s]['price']<=maxPrice and prices[s]['vol']>=minVol):
       if(verbose): print(f"{s.split('|')[0]} is in price range with decent vol; ${prices[s]['price']}; {prices[s]['vol']}")
       pmtDate = o.dt.datetime.strptime(symbList[s.split("|")[0]]['payment_Date'],"%m/%d/%Y").date()
-      divRate = symbList[s.split("|")[0]]['dividend_Rate']
-      divYield = divRate/prices[s]['price']
+      divRate = symbList[s.split("|")[0]]['dividend_Rate'] #actual div amount in $
+      divYield = divRate/prices[s]['price'] #div amount wrt price (approximate) in %
+      #mark as a good buy if pmt date is within a certain time, div rate is at least a certain amount, and div yield is at least a certain amount
       if((pmtDate-o.dt.date.today()).days<=maxTime and divRate>=minDiv and divYield>=minDivYield):
         if(verbose): print(f"{s.split('|')[0]} is a good buy; div: ${divRate}; days till pmt: {(pmtDate-o.dt.date.today()).days}")
         gb[s.split("|")[0]] = str(pmtDate)+", "+str(divRate)+", "+str(round(divYield,3)) #vol measures volume so far today which may run into issues if run during premarket or early in the day since the stock won't have much volume
@@ -189,14 +177,13 @@ def goodBuys(symbList, verbose=False):
 
 
 #determine how much the take-profit should be for change since buy or change since close
-def sellUp(symb=""):
+def sellUp(symb="",verbose=False):
   lock = o.threading.Lock()
   lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   [preSellUp, postSellUp] = [float(c[algo]['preSellUp']), float(c[algo]['postSellUp'])]
-  #TODO: account for note being blank or containing other text (just in case)
 
   if(symb in posList):
     today = o.dt.date.today()
@@ -212,21 +199,23 @@ def sellUp(symb=""):
     else:
       return preSellUp
   else:
-    print(f"{symb} not in posList of {algo}")
+    if(verbose): print(f"{symb} not in posList of {algo}")
     return preSellUp
 
 #determine how much the stop-loss should be for change since buy or change since close
-#TODO: adjust sellDn % to be related to the yield % of the actual dividend
-def sellDn(symb=""):
+#TODO: adjust sellDn % to be related to the yield % of the actual dividend (take bigger risks for bigger returns) - could also have it be related to volatility?
+def sellDn(symb="",verbose=False):
   lock = o.threading.Lock()
   lock.acquire()
   posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
+  #get the sellDn values (before and after the trigger date)
   [preSellDn, postSellDn] = [float(c[algo]['preSellDn']), float(c[algo]['postSellDn'])]
   
   if(symb in posList and posList[symb]['sharesHeld']>0):
     today = o.dt.date.today()
+    #attempt to grab the trigger date from the note, if it doesn't work, just set to today (better safe than sorry)
     try:
       trigDate = o.dt.datetime.strptime(posList[symb]['note'].split(",")[0],"%Y-%m-%d").date()
     except Exception:
@@ -239,9 +228,9 @@ def sellDn(symb=""):
     else:
       return preSellDn
   else:
-    print(f"{symb} not in posList of {algo}")
+    if(verbose): print(f"{symb} not in posList of {algo}")
     return preSellDn
 
-#after triggering the take-profit, the price must fall this much before selling (rtailing stop-loss)
+#after triggering the take-profit, the price must fall this much before selling (trailing stop-loss % relative to max price since buy)
 def sellUpDn():
   return float(c[algo]['sellUpDn'])
