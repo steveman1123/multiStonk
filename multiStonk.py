@@ -26,7 +26,8 @@ colorinit() #allow coloring in Windows terminals
 #TODO: add check that if the number of shares held of stock to buy is > some % of the avg # of shares held/stock, then don't buy more
 # ^ this is to prevent buying a bunch of really cheap ones when cash is low
 
-#TODO: why isn't it buying???
+#TODO: add check that buys cannot occur after market is closed (sometimes it'll hang between the two checks causing it to execute orders after market is closed)
+#TODO: 
 
 #parse args and get the config file
 configFile="./configs/multi.config"
@@ -590,8 +591,11 @@ def setPosList(algoList, verbose=True):
     lock.acquire()
     with open(c['file locations']['posList'],'w') as f:
       f.write(json.dumps({'algos':{e:{} for e in algoList},'cash':{e:{"earned":0,"invested":0} for e in algoList}})) #write a empty algos and 0 cash for all algos to the posList file
+    #lists is the data directly from the posList file
     lists = json.loads(open(c['file locations']['posList'],'r').read())
+    #posList contains only the positions
     posList = lists['algos']
+    #cashList contains only the cash
     cashList = lists['cash']
     lock.release()
   else: #if it does exist
@@ -600,24 +604,20 @@ def setPosList(algoList, verbose=True):
     lock.acquire()
     with open(c['file locations']['posList'],'r') as f:
       lists = json.loads(f.read())
+    
+    posList = lists['algos']
+    cashList = lists['cash']
       
     #algos that are being used but not in the posList
-    missingAlgos = [algo for algo in algoList if algo not in lists['algos']]
-    
-    if(len(missingAlgos)>0):
-      if(verbose): print(f"Adding {len(missingAlgos)} algo{'s' if len(missingAlgos)>1 else ''} to posList")
-      for algo in missingAlgos:
-        posList[algo] = {}
-    else:
-      posList = lists['algos']
+    missingAlgos = [algo for algo in algoList if algo not in posList]
+    for algo in missingAlgos:
+      if(verbose): print(f"Adding {algo} to posList")
+      posList[algo] = {}
 
-    missingCash = [algo for algo in algoList if algo not in lists['cash']]
-    if(len(missingCash)>0):
-      if(verbose): print(f"Adding {len(missingCash)} algo{'s' if len(missingCash)>1 else ''} to cashList")
-      for algo in missingCash:
-        cashList[algo] = {'earned':0,'invested':0}
-    else:
-      cashList = lists['cash']
+    missingCash = [algo for algo in algoList if algo not in cashList]
+    for algo in missingCash:
+      if(verbose): print(f"Adding {algo} to cashList")
+      cashList[algo] = {'earned':0,'invested':0}
     
     lock.release()
 
@@ -658,6 +658,7 @@ def syncPosList(verbose=False):
       if(verbose): print(f"Removing {inactiveAlgo} from cashList")
       cashList.pop(inactiveAlgo,None)
     
+    #move the stocks from the inactive algo to active ones
     for symb in posList[inactiveAlgo]: #stocks in the removed algo
       #get all active algos that contain it
       activeAlgosWithStock = [e for e in posList if(e in algoList and symb in e)]
@@ -690,7 +691,7 @@ def syncPosList(verbose=False):
       posList[inactiveAlgo][symb]['sharesHeld'] = 0 #remove the shares fromt he inactive algo
       lock.release()
         
-  
+    del posList[inactiveAlgo] #remove the inactive algo from the 
   
   if(verbose): print("getting actually held positions")
   p = a.getPos()
@@ -855,7 +856,7 @@ def syncPosList(verbose=False):
     #find symbols that have more actual shares than recorded shares
     #add the shares to the algo with the highest gain
     for symb in [s for s in heldPos if heldPos[s]>recPos[s]]: #for all stocks where the actual is greater than the recorded
-      algosWithStock = [e for e in posList if symb in posList[e]] #get all algos holding the stock
+      algosWithStock = [e for e in posList if symb in posList[e] and e in algoList] #get all currently used algos holding the stock
       
       maxAlgo = algosWithStock[0] #init maxAlgo to the first algo in the list
       for algo in algosWithStock[1:]: #get the algo with the max gain potential and ensure that the symb is in the algo (skip the first one since it's the init value - save a loop)
