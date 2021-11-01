@@ -228,6 +228,7 @@ def goodSells(symbList, verbose=False): #symbList is a list of stocks ready to b
 
 
 #get list of stocks from stocksUnder1 and marketWatch lists
+#TODO: should make this an otherfxns fxn with params so multiple algos can pull from the same code
 def getUnsortedList(verbose=False, maxTries=3):
   symbList = list()
   url = "https://www.marketwatch.com/tools/screener/stock"
@@ -241,82 +242,10 @@ def getUnsortedList(verbose=False, maxTries=3):
     "partial" : "true"
   }
   
-  '''
-  url = 'https://www.marketwatch.com/tools/stockresearch/screener/results.asp'
-  #many of the options listed are optional and can be removed from the get request
-  
-  params = {
-    "TradesShareEnable" : "True",
-    "TradesShareMin" : str(c[algo]['simMinPrice']),
-    "TradesShareMax" : str(c[algo]['simMaxPrice']),
-    "PriceDirEnable" : "False",
-    "PriceDir" : "Up",
-    "LastYearEnable" : "False",
-    "TradeVolEnable" : "true",
-    "TradeVolMin" : str(c[algo]['simMinVol']),
-    "TradeVolMax" : "",
-    "BlockEnable" : "False",
-    "PERatioEnable" : "False",
-    "MktCapEnable" : "False",
-    "MovAvgEnable" : "False",
-    "MktIdxEnable" : "False",
-    "Exchange" : "NASDAQ",
-    "IndustryEnable" : "False",
-    "Symbol" : "True",
-    "CompanyName" : "False",
-    "Price" : "False",
-    "Change" : "False",
-    "ChangePct" : "False",
-    "Volume" : "False",
-    "LastTradeTime" : "False",
-    "FiftyTwoWeekHigh" : "False",
-    "FiftyTwoWeekLow" : "False",
-    "PERatio" : "False",
-    "MarketCap" : "False",
-    "MoreInfo" : "False",
-    "SortyBy" : "Symbol",
-    "SortDirection" : "Ascending",
-    "ResultsPerPage" : "OneHundred"
-  }
-  
-  params['PagingIndex'] = 0 #this will change to show us where in the list we should be - increment by 100 (see ResultsPerPage key)
-  
-  while True:
-    try:
-      r = o.requests.get(url, params=params, timeout=5).text
-      totalStocks = int(r.split("matches")[0].split("floatleft results")[1].split("of ")[1]) #get the total number of stocks in the list - important because they're spread over multiple pages
-      break
-    except Exception:
-      print("No connection or other error encountered in getList (MW). Trying again...")
-      o.time.sleep(3)
-      continue
-  '''
-      
-  '''
-  for i in range(0,totalStocks,100): #loop through the pages (100 because ResultsPerPage is OneHundred)
-    if(verbose): print(f"page {int(i/100)+1} of {o.ceil(totalStocks/100)}")
-    params['PagingIndex'] = i
-    while True:
-      try:
-        r = o.requests.get(url, params=params, timeout=5).text
-        break
-      except Exception:
-        print("No connection or other error encountered in getList (MW). Trying again...")
-        o.time.sleep(3)
-        continue
-
-    try:
-      table = o.bs(r,'html.parser').find_all('table')[0]
-      for e in table.find_all('tr')[1::]:
-        symbList.append(e.find_all('td')[0].get_text())
-    except Exception:
-      print("Error in MW website.")
-  '''
-  
   if(verbose): print("Getting MarketWatch data...")
   skip = 0
   resultsPerPage = 25 #new screener only returns 25 per page and can't be changed (afaict)
-  pageList = [None] #init to some value so that its not empty
+  pageList = [None] #init to some value so that its not empty for the loop comparison
   while len(pageList)>0:
     pageList = [] #reinit once inside of the loop
     params['skip']=skip
@@ -363,6 +292,7 @@ def getUnsortedList(verbose=False, maxTries=3):
   symbList = list(dict.fromkeys(symbList)) #combine and remove duplicates
 
   return symbList
+
 
 #determine if a stock is a good sell or not
 #depreciated, replaced with goodSells

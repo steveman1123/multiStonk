@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup as bs
 from math import ceil
 from statistics import mean
 from workdays import workday as wd
+from workdays import networkdays as nwd
 
 otherCfgFile = "./configs/other.config"
 
@@ -28,6 +29,7 @@ BASEURL = "https://api.nasdaq.com/api"
 #default to returning the last year's worth of data
 #TODO: possibly make a blank file for those that have failed as mark to show it's been tried but failed in the past?
 #TODO: switch over to getHistory2 completely and save as json instead of csv - this API is depreciated
+#TODO: data should be returned in the proper data type (date, float, int) rather than all as strings
 def getHistory(symb, startDate=str(dt.date(dt.date.today().year-1,dt.date.today().month,dt.date.today().day)), endDate=str(dt.date.today()), maxTries=0,verbose=False):
   if(endDate<=startDate):
     raise Exception("Invalid Date Range (end<=start)")
@@ -695,6 +697,29 @@ def getRSI(hist,per=14):
   else:
     print("not enough info to calculate rsi")
     return 0
+
+#where priceList is the lsit of prices to get an EMA of (with newest first)
+#k is the exponential factor
+#maxPrices is the maximum number of prices to use
+def getEMA(priceList,k,maxPrices=750):
+  if(len(priceList)>maxPrices): print("too many prices")
+  if(1<len(priceList)<=maxPrices):
+    return (priceList[0]*k)+(getEMA(priceList[1:],k)*(1-k))
+  else:
+    return priceList[0]
+  
+#get the EMAs for all prices in a given set
+def getEMAs(priceList,n):
+  #assume newest last
+  if(len(priceList)>=n):
+    out = [None for _ in range(n-1)]+[sum(priceList[:n])/n]
+    k = 2/(1+n)
+    for p in priceList[n:]:
+      out += [k*(p-out[-1])+out[-1]]
+    return out
+  else:
+    print("Not enough data for that window")
+    return []
 
 
 #get the target price of an earning analysis
