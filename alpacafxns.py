@@ -146,6 +146,7 @@ def createOrder(side,
                 maxTries=3,
                 verbose=False):
   # if(o.getInfo(symb,['istradable'])['istradable']):
+  r = {}
   order = {
     "symbol":symb,
     "qty":qty,
