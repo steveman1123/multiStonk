@@ -271,16 +271,23 @@ def masterLives():
   return True
 
 #return stocks going through a reverse split (this list also includes ETFs)
-def reverseSplitters():
-  while True: #get page of upcoming stock splits
+def reverseSplitters(maxTries=3):
+  tries=0
+  r=[]
+  while tries<maxTries: #get page of upcoming stock splits
     try:
-      r = json.loads(requests.get(f"{BASEURL}/calendar/splits", headers=HEADERS, timeout=5).text)['data']['rows']
+      r = json.loads(requests.get(f"{BASEURL}/calendar/splits", headers=HEADERS, timeout=5).text)
       break
     except Exception:
-      print("No connection, or other error encountered in reverseSplitters. trying again...")
+      print(f"No connection, or other error encountered in reverseSplitters. trying again ({tries+1}/{maxTries})...")
       time.sleep(3)
+      tries+=1
       continue
   out = []
+  if('data' in r and r['data'] is not None and 'rows' in r['data']):
+    r = r['data']['rows']
+  else:
+    return out
   for e in r:
     try: #normally the data is formatted as # : # as the ratio, but sometimes it's a %
       ratio = e['ratio'].split(" : ")
