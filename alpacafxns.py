@@ -34,7 +34,7 @@ def getAcct():
   while True:
     try:
       html = o.requests.get(ACCTURL, headers=HEADERS, timeout=5).text
-      if("error" in html.lower()): raise ValueError("error returned in normal request.")
+      if("portfolio_value" not in html.lower()): raise ValueError("error returned in normal request.")
       break
     except Exception:
       print("No connection, or other error encountered in getAcct. Trying again...")

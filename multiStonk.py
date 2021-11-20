@@ -17,6 +17,7 @@ colorinit() #allow coloring in Windows terminals
 
 #TODO: add check that if the number of shares held of stock to buy is > some % of the avg # of shares held/stock, then don't buy more
 # ^ this is to prevent buying a bunch of really cheap ones when cash is low
+#TODO: when removing an algo, have the cash from that algo moved proportionally to where the stocks are moved to (so if there's 25 stocks and $100 that need to be moved, then for each stock that moved $4 should also be moved to the new algo (proportionally for invested and returned amounts)
 
 
 #parse args and get the config file
