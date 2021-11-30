@@ -146,6 +146,7 @@ def main(verbose=False):
     ###
     #ensure we're still above the threshold to trade (if not, see if we should ask to sell, and if we have anything to be sold in the first place)
     ###
+    
     if(ask2sell and float(acct['portfolio_value'])<maxPortVal*float(c['account params']['portStopLoss']) and len(pos)>0):
       print(f"Portfolio value of ${acct['portfolio_value']} is less than {c['account params']['portStopLoss']} times the max portfolio value of ${maxPortVal}.")
       if(not isManualSellOff): print("Automatically selling all...")
@@ -168,7 +169,7 @@ def main(verbose=False):
     #execute when the market is open
     ###
     if(o.marketIsOpen()):
-      print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+      print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, port stop loss: {maxPortVal*float(c['account params']['portStopLoss'])},  {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
       #update the lists if not updated yet and that it's not currently updating
       if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
         updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
