@@ -9,7 +9,7 @@ Gasty = false
 
 [robinhood_login]
 # ROBINHOOD LOGIN:
-username = "test"
+username = ""
 password = ""
 mfa_code = ""
 TOTPS = ""
