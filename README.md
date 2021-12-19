@@ -77,5 +77,4 @@ Each stock algo file must contain at least the following functions (as these are
 <!-- Trusting git will not push my auth to the public lol -->
 <!-- git update-index --assume-unchanged robinhood_config.toml -->
 <!-- git ls-files -v|grep '^h' -->
-
 <!-- http://git-scm.com/docs/git-update-index -->
