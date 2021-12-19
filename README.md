@@ -17,17 +17,16 @@ You will need to enable TOTPS(mfa_code) in your robinhood account or type in you
 
 [need more algos](https://github.com/steveman1123/multiStonk/tree/main/algos) put your algos in ```./user_algorithms/``` 
 
+## Testing: Dec/18-Monday/2021
 TODO: 
 - [x] get sell and buy function working on robinhood:
-- [ ] fix cng frm cls
+- [x] fix cng frm cls
 - [ ] Fix sell all function
 - [ ] unrealized_intraday_plpc needs to fix 
   - Testing: Total percent change:
-  - Testing: Today's Return 
-  - 
+  - Testing: Today's Return  
 - [ ] catch all errors when robinhood random stops working during trading hours.
 - 
-## Testing is required: Monday/12/2021
 
 
 ##

@@ -73,7 +73,7 @@ def main(verbose=False):
 	print("\n") 
 	if(verbose):
 		print(json.dumps(algoList,indent=2))
-	portHist = multistonk_alpacafxns.getProfileHistory(str(dt.date.today()),'1M')['equity'] #get the closing prices of the portfolio over the last month
+	# portHist = multistonk_alpacafxns.getProfileHistory(str(dt.date.today()),'1M')['equity'] #get the closing prices of the portfolio over the last month
 	Robinhood_portfolio_history = account_details.getRobinbood_ProfileHistory()
 	float_maxPort =max([e for e in Robinhood_portfolio_history if e is not None]) #get the max portfolio value over the last month and remove blank entries
 	maxPortVal = float(float_maxPort)
