@@ -5,3 +5,4 @@ workdays
 colorama
 toml
 pandas
+pymongo

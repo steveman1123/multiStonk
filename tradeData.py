@@ -105,18 +105,27 @@
 
 
 
-from math import e
-import pprint
-import robin_stocks as r
-from extendBrokers.utilities import robinhoodConfig
-from extendBrokers.robinhood import account_details
-import pprint
-try:
-	loging = account_details.loginRohinhood()
+# from math import e
+# import pprint
+# import robin_stocks as r
+# from extendBrokers.utilities import robinhoodConfig
+# from extendBrokers.robinhood import account_details
+# import pprint
+# from caduceus.herald import *
 
-except:
-	print("Error: Login failed")
-	exit()
+# # from caduceus.herald as h
+# try:
+# 	loging = account_details.loginRohinhood()
+
+# except:
+# 	print("Error: Login failed")
+# 	exit()
+
+
+
+
+
+
 
 
 

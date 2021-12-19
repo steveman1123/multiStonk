@@ -28,6 +28,12 @@ TODO:
 - [ ] catch all errors when robinhood random stops working during trading hours.
 - 
 
+```Caduceus```
+To review all the stocks before buying: 
+  - herald.py has all the news links.
+  - 
+
+
 
 ##
 A stock trading program that uses multiple algorithms/strategies to trade.
