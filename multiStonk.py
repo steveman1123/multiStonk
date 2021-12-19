@@ -3,6 +3,7 @@
 
 print("\nStarting up...")
 
+
 import otherfxns as o
 import alpacafxns as a
 import random, time, json, sys, os, traceback
@@ -10,6 +11,16 @@ from glob import glob
 from operator import eq
 import datetime as dt
 from colorama import init as colorinit
+import extendBrokers.utilities as change_broker
+import routeBroker 
+disable_multiStonk = change_broker.load_config().prefered_config
+if disable_multiStonk['disable_multistonk'] == True:
+  routeBroker.route_brokers()
+  sys.exit(0)
+else:
+  print("using multiStonk: main: ")
+  pass
+
 
 colorinit() #allow coloring in Windows terminals
 
@@ -223,7 +234,8 @@ def main(verbose=False):
         #make sure that we don't div0 if the list is empty
         if(algoBuyVal>0): roi = round(algoCurVal/algoBuyVal,2)
         #if the buyVal is 0, then that means either no info or no stocks held, so it's nearly impossible to make a judgement
-        else: roi = 1
+        else:
+          roi = 1
         
         print(f"{algo} - {bcolor.FAIL if roi<1 else bcolor.OKGREEN}{roi}{bcolor.ENDC}") #display the ROI
       
@@ -613,7 +625,8 @@ def setPosList(algoList, verbose=True):
     #algos that are being used but not in the posList
     missingAlgos = [algo for algo in algoList if algo not in posList]
     for algo in missingAlgos:
-      if(verbose): print(f"Adding {algo} to posList")
+      if(verbose): 
+        print(f"Adding {algo} to posList")
       posList[algo] = {}
 
     missingCash = [algo for algo in algoList if algo not in cashList]

@@ -1,5 +1,36 @@
-# MultiStonk
+# MultiStonk Extended for Robinhood:
+### Disclimer: robinhood doesn't support continuous multiple calls to its endpoints.
 
+
+This is a mirror implementation of the [main repo](https://github.com/steveman1123/multiStonk)
+    clone the branch: 
+
+    git clone -b robinhood https://github.com/Nllii/multiStonk.git
+
+
+install required packages from requirements.txt ```pip install -r requirements.txt```
+
+Enter account information in ```robinhood_config.toml``` 
+
+All preferences are in ```robinhood_config.toml```
+You will need to enable TOTPS(mfa_code) in your robinhood account or type in your username and password in the console each time.
+
+[need more algos](https://github.com/steveman1123/multiStonk/tree/main/algos) put your algos in ```./user_algorithms/``` 
+
+TODO: 
+- [x] get sell and buy function working on robinhood:
+- [ ] fix cng frm cls
+- [ ] Fix sell all function
+- [ ] unrealized_intraday_plpc needs to fix 
+  - Testing: Total percent change:
+  - Testing: Today's Return 
+  - 
+- [ ] catch all errors when robinhood random stops working during trading hours.
+- 
+## Testing is required: Monday/12/2021
+
+
+##
 A stock trading program that uses multiple algorithms/strategies to trade.
 
 Designed to use the the Alpaca API
@@ -38,3 +69,13 @@ Each stock algo file must contain at least the following functions (as these are
  - ```sellUp``` - high end trigger point (trigger point % relative to price bought)
  - ```sellUpDn``` - return the value for the stock price to drop by after triggering as a goodSell (trailing stop loss % relative to max price since bought)
 
+
+
+
+<!-- git update-index --no-assume-unchanged robinhood_config.toml -->
+<!-- git commands -->
+<!-- Trusting git will not push my auth to the public lol -->
+<!-- git update-index --assume-unchanged robinhood_config.toml -->
+<!-- git ls-files -v|grep '^h' -->
+
+<!-- http://git-scm.com/docs/git-update-index -->
