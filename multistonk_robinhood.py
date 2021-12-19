@@ -89,23 +89,19 @@ def main(verbose=False):
 			print(f"Portfolio value of ${robinhood_account['equity']} is less than {configFile['account_params']['portStopLoss']} times the max portfolio value of ${float(maxPortVal)}.")
 			if(not isManualSellOff):
 				print("Automatically selling all...")
-
-			#TODO: this can be a machine learning Agent to determine when to boot up the program again... When the dip is done:???
-			# soldAll = a.sellAll(isManual=isManualSellOff) #if the portfolio value falls below our stop loss, automatically sell everything
-			# soldAll = 
-			# if(soldAll):
-
-			# 	break #stop the program if the selling occured
-			# if(isManualSellOff): #if the selling is set to manual, then ask if the user wants to keep being asked to sell all or not
-			# 	ask2sell = (input("Ask to sell all again today (y/n)? ").lower())!="n"
-			# 	if(ask2sell):
-
-			# 		print("Will continue asking to sell all today")
-			# 	else:
-			# 		print("Will ask to sell all again tomorrow")
+			soldAll = account_details.sellAll(isManual=isManualSellOff) #if the portfolio value falls below our stop loss, automatically sell everything
+			if(soldAll):
+				#TODO: this can be a machine learning Agent to determine when to boot up the program again... When the dip is done:???
+				break #stop the program if the selling occured
+			if(isManualSellOff): #if the selling is set to manual, then ask if the user wants to keep being asked to sell all or not
+				ask2sell = (input("Ask to sell all again today (y/n)? ").lower())!="n"
+				if(ask2sell):
+					print("Will continue asking to sell all today")
+				else:
+					print("Will ask to sell all again tomorrow")
 			
-		else:
-			pass
+		# else:
+		# 	pass
 		# print(robinhood_account)
 		totalCash = float(robinhood_account['withdrawable_amount'])
 		tradableCash = getTradableCash(totalCash, maxPortVal)

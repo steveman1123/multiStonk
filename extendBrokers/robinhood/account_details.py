@@ -154,7 +154,7 @@ def unrealized_():
 			"unrealized_plpc": unrealized_plpc,
 			"unrealized_intraday_plpc": equity_change[position]['equity_change'],
 			# "unrealized_plpc": position["equity_change"][position],
-			# "quantity": position["quantity"][position]
+			"quantity": equity_change[position]["quantity"],
 
 		}
 		unrealized_returns.append(_positions)
@@ -205,3 +205,28 @@ def createOrder(side,symbol,shares):
 	else:
 		print("Error: Order failed... use_order_limit is required")
 		pass
+
+
+
+def sellAll(isManual=1):
+	pos = unrealized_()
+	# orders = getOrders()
+	if(len(pos)>0):
+		if(isManual):
+			doit = input('Sell and cancel all positions and orders (y/n)? ')
+		else:
+			doit="y"
+		if(doit=="y"):
+			print("Removing Orders...")
+		while True:
+			for p in pos:
+				print("Selling "+p["quantity"]+" share(s) of "+p["symbol"])
+				print("TODO: machine learning to verfiy before selling alll:")
+			print("Done Selling.")
+			return 1
+		else:
+			print("Selling cancelled.")
+		return 0
+	else:
+		print("No shares held")
+		return 0

@@ -182,66 +182,66 @@ except:
 # r.robinhood.cancel_all_stock_orders()
 
 
-import robin_stocks.robinhood as r 
+# import robin_stocks.robinhood as r 
 
-'''
-This is an example script that will show you how to check the performance of your open positions.
-        "asset_class": "us_equity",
-        "asset_id": "c15f433e-3c3c-4457-973d-ff61e98a8dda",
-        "asset_marginable": "True",
-        "avg_entry_price": "4.56",
-        "change_today": "0",
-        "cost_basis": "9.12",
-        "current_price": "4.12",
-        "exchange": "NASDAQ",
-        "lastday_price": "4.12",
-        "market_value": "8.24",
-        "qty": "2",
-        "side": "long",
-        "symbol": "EVAX",
-        "unrealized_intraday_pl": "0",
-        "unrealized_intraday_plpc": "0",
-        "unrealized_pl": "-0.88",
-        "unrealized_plpc": "-0.0964912280701754"
-'''
+# '''
+# This is an example script that will show you how to check the performance of your open positions.
+#         "asset_class": "us_equity",
+#         "asset_id": "c15f433e-3c3c-4457-973d-ff61e98a8dda",
+#         "asset_marginable": "True",
+#         "avg_entry_price": "4.56",
+#         "change_today": "0",
+#         "cost_basis": "9.12",
+#         "current_price": "4.12",
+#         "exchange": "NASDAQ",
+#         "lastday_price": "4.12",
+#         "market_value": "8.24",
+#         "qty": "2",
+#         "side": "long",
+#         "symbol": "EVAX",
+#         "unrealized_intraday_pl": "0",
+#         "unrealized_intraday_plpc": "0",
+#         "unrealized_pl": "-0.88",
+#         "unrealized_plpc": "-0.0964912280701754"
+# '''
 
-# #!!! Fill out username and password
-# username = ''
-# password = ''
-# #!!!
+# # #!!! Fill out username and password
+# # username = ''
+# # password = ''
+# # #!!!
 
-# login = r.login(username, password)
+# # login = r.login(username, password)
 
-# Query your positions
-
-
-
-def unrealized_():
-
-	"""
-	get the unrealized gain/loss of a user
-
-	"""
-	unrealized_returns = []
-	equity_change = r.robinhood.build_holdings()
-	# pprint.pprint(equity_change)
-	for position in equity_change:
-		last_trade_ = r.robinhood.get_quotes(position, "last_trade_price")
-		last_trade_price = last_trade_.pop()
-		unrealized_plpc = float(last_trade_price)- float(equity_change[position]["average_buy_price"])/float(equity_change[position]["average_buy_price"])
-
-		_positions = {
-			"symbol":position,
-			"unrealized_plpc": unrealized_plpc,
-			"unrealized_intraday_plpc": equity_change[position]['equity_change'],
-			# "unrealized_plpc": position["equity_change"][position],
-			# "quantity": position["quantity"][position]
-
-		}
+# # Query your positions
 
 
-		unrealized_returns.append(_positions)
-	return unrealized_returns
+
+# def unrealized_():
+
+# 	"""
+# 	get the unrealized gain/loss of a user
+
+# 	"""
+# 	unrealized_returns = []
+# 	equity_change = r.robinhood.build_holdings()
+# 	# pprint.pprint(equity_change)
+# 	for position in equity_change:
+# 		last_trade_ = r.robinhood.get_quotes(position, "last_trade_price")
+# 		last_trade_price = last_trade_.pop()
+# 		unrealized_plpc = float(last_trade_price)- float(equity_change[position]["average_buy_price"])/float(equity_change[position]["average_buy_price"])
+
+# 		_positions = {
+# 			"symbol":position,
+# 			"unrealized_plpc": unrealized_plpc,
+# 			"unrealized_intraday_plpc": equity_change[position]['equity_change'],
+# 			# "unrealized_plpc": position["equity_change"][position],
+# 			# "quantity": position["quantity"][position]
+
+# 		}
+
+
+# 		unrealized_returns.append(_positions)
+# 	return unrealized_returns
 
 
 
@@ -289,3 +289,6 @@ def unrealized_():
 # print ("Net Gain:", sum(profit))
 
 # r.logout()
+# r.robinhood.cancel_all_stock_orders()
+
+# Caduceus
