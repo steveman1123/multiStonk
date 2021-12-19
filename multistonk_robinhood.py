@@ -109,11 +109,10 @@ def main(verbose=False):
 		# print(robinhood_account)
 		totalCash = float(robinhood_account['withdrawable_amount'])
 		tradableCash = getTradableCash(totalCash, maxPortVal)
-		if(o.marketIsOpen() == False):
+		if(o.marketIsOpen()):
 			print(f"\nPortfolio Value: ${robinhood_account['equity']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, port stop loss: {maxPortVal*float(configFile['account_params']['portStopLoss'])},  {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 			#update the lists if not updated yet and that it's not currently updating
 			if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
-
 				updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
 				updateListsThread.setName('updateLists') #set the name to the stock symb
 				updateListsThread.start() #start the thread
