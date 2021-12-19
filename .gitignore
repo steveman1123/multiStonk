@@ -2,10 +2,6 @@
 gitignore
 __pycache__
 __init__.pyc
-dev_alpaca.txt
-dev_robinhood.txt
-dev_config.toml
-robinhood_config.toml
 /stockStuff/buyListMulti.json
 /stockStuff/posListMulti.json
 /stockStuff/stockData/*csv
