@@ -20,9 +20,10 @@ database_url = load_config().mongodb_url
 client = MongoClient(database_url)
 todays_date = datetime.datetime.now().strftime("%Y_%m_%d")
 NEWS_DATABASE  = client.MultiStock
-NEWS_COLLECTION = NEWS_DATABASE.todays_news[todays_date]
-BING_NEWS = NEWS_COLLECTION.bing_headlines
-BLOOMBERG_CDN = NEWS_COLLECTION.bloomberg_cdn
+buy_list = NEWS_DATABASE[todays_date].MultiStock.buying_list
+# NEWS_COLLECTION = NEWS_DATABASE.todays_news[todays_date]
+# BING_NEWS = NEWS_COLLECTION.bing_headlines
+# BLOOMBERG_CDN = NEWS_COLLECTION.bloomberg_cdn
 
 
 
@@ -32,10 +33,6 @@ BLOOMBERG_CDN = NEWS_COLLECTION.bloomberg_cdn
 # except:
 # 	print("Error: Login failed")
 # 	exit()
-
-
-news_file = load_config().news_file
-
 
 
 buying_list = load_config().buy_list
@@ -65,73 +62,70 @@ def bing_search(tickers):
                         'link': article_link,
                         'time': time
                     }
-                    # create a unqiue key for each article
                     # print(entry)
-
+                    bing_list.append(entry)
                 except:
                     pass
-    # print("Bing Search Complete",bing_list)
-    # return bing_searches, bing_list
-
-                    # NEWS_COLLECTION.insert_many(entry)
-
-                    # insert_data = database_()
-                    # insert_data.insert_one(entry)
-                    # data.insert_one(entry)
-                    # return entry
-
-                    
-                    # with open(news_file, 'a') as f:
-                    #     json.dump(entry, f)
-                    # bing_list.append(entry)
-          
+            return bing_list
 
 
+def first_update(ticker):
+
+    for data_ticker in buy_list.find({"_id":ticker}):
+        stock  = data_ticker["_id"]
+        bing = bing_search(stock)
+        for get_bing in bing:
+            if ticker == get_bing['ticker']:
+                try:
+                    buy_list.update_one(
+                        {'_id': get_bing['ticker']},
+                        {'$push': {'bing_news': get_bing}}
+                    )
+                except Exception as e:
+                    print(e)
+                    pass
+                
+
+def check_buying_list():
+
+    for ticker in tickers["dj"]:
+        check_id = ({"_id":ticker, "last_updated":todays_date})
+        filter_dict = ({'_id':ticker,'added_on':todays_date,'ticker': ticker, 'last_updated':todays_date})
+        if buy_list.count_documents({
+            '_id':ticker,
+            'added_on':todays_date,
+            'ticker': ticker}):
+            buy_list.update_one(check_id, {'$set': {'last_updated':todays_date}})
+            #TODO only update if last_updated is not today and time has passed
+            print("Bing Search Complete")
+            # pass
+        else:
+            print("new ticker found")
+            try:
+                buy_list.insert_one(filter_dict)
+                first_update(ticker)
+                # first_update()
+            except Exception as e:
+                print(e)
+                pass
 
 
 
+check_buying_list()
 
-news_file = load_config().news_file
-for ticker in tickers['dj']:
-    try:
-        NEWS_COLLECTION.insert_one({"_id":tickers})
-    except Exception as e:
-        pass
-
-    for i in NEWS_COLLECTION.find({"_id":ticker}):
-        if i['_id'] == ticker:
-            NEWS_COLLECTION.update_one({"_id":ticker}, {"$set": {"symbol":ticker}})
-
+def routine_update(ticker):
+    for data_ticker in buy_list.find({"_id":ticker}):
+        stock  = data_ticker["_id"]
+        bing = bing_search(stock)
+        for get_bing in bing:
+            if ticker == get_bing['ticker']:
+                try:
+                    buy_list.update_one(
+                        {'_id': get_bing['ticker']},
+                        {'$push': {'bing_news': get_bing}}
+                    )
+                except Exception as e:
+                    print(e)
+                    pass
 
             
-            # print("\n")
-            # bing_search(ticker)
-            # print("breakkkkk"
-            # )
-        # if i == ticker:
-        #     print("Already in database")
-        #     break
-
-    # if ticker in NEWS_COLLECTION.find({"_id":ticker}):
-    #     print("Already in database")
-
-    # if  NEWS_COLLECTION.find({"_id":ticker}) 
-    # a.insert_one({"hellow":ticker})
-
-
-
-#     article_list = bing_search(tickers = ticker) 
-#     print(article_list)
-    # with open(news_file, 'w') as f:
-    #     json.dump(article_list, f, indent=4)
-    # pprint.pprint(article_list)
-    # print(article_list)
-
-
-
-    #     print(save_urls)
-    #     urls.append(save_urls)
-    # return save_urls
-
-
-
