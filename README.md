@@ -17,7 +17,6 @@ You will need to enable TOTPS(mfa_code) in your robinhood account or type in you
 
 [need more algos](https://github.com/steveman1123/multiStonk/tree/main/algos) put your algos in ```./user_algorithms/``` 
 
-## Testing: Dec/18-Monday/2021
 TODO: 
 - [x] get sell and buy function working on robinhood:
 - [x] fix cng frm cls
@@ -27,13 +26,6 @@ TODO:
   - Testing: Today's Return  
 - [ ] catch all errors when robinhood random stops working during trading hours.
 - 
-
-```Caduceus```
-To review all the stocks before buying: 
-  - herald.py has all the news links.
-  - 
-
-
 
 ##
 A stock trading program that uses multiple algorithms/strategies to trade.
