@@ -25,10 +25,10 @@ class load_config:
 		self.robinhood_account = self.broker_file['robinhood_login']
 		self._broker_config = self.broker_file['use_broker']
 		self.limit_order = self.broker_file['order_limit']
-		self.news_source = self.broker_file['news_sources']
-		self.buy_list = self.broker_file['file_locations']['buyList']
-		self.news_file = self.broker_file['file_locations']['news_file']
-		self.mongodb_url = self.broker_file['database_settings']['mongodb_url']
+		# self.news_source = self.broker_file['news_sources']
+		# self.buy_list = self.broker_file['file_locations']['buyList']
+		# self.news_file = self.broker_file['file_locations']['news_file']
+		# self.mongodb_url = self.broker_file['database_settings']['mongodb_url']
 		
 
 

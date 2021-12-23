@@ -69,6 +69,11 @@ Each stock algo file must contain at least the following functions (as these are
 
 
 
+So when the getList function is called before market opens (during updateLists()), 
+it could perform a check looking for the selloff,
+and adjust the take-profits and stop-losses accordingly?
+
+
 <!-- git update-index --no-assume-unchanged robinhood_config.toml -->
 <!-- git commands -->
 <!-- Trusting git will not push my auth to the public lol -->

@@ -174,6 +174,9 @@ def main(verbose=False):
 			if(tto>60*float(configFile['time_params']['updateLists'])):
 				print(f"Updating stock lists in {round((tto-60*float(configFile['time_params']['updateLists']))/3600,2)} hours\n")
 				time.sleep(tto-60*float(configFile['time_params']['updateLists']))
+
+
+
 			print("Updating buyList") #TODO: move this into the thread or within the thread have a "done updating buylist"
 			updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
 			updateListsThread.setName('updateLists') #set the name to the stock symb
@@ -445,7 +448,7 @@ def sell(stock, algo):
 	#TODO: this is an incorrect check
 	#see how it looks in here: https://alpaca.markets/docs/trading-on-alpaca/orders/#order-lifecycle
 	# if('status' in r and r['status'] == "accepted"): #check that it actually sold
-	if('state' in r and r['state'] == "filled"): #check that it actually sold
+	if('state' in r and r['state'] == "unconfirmed"): #check that it actually sold
 
 		lock = o.threading.Lock()
 		lock.acquire()
@@ -477,7 +480,7 @@ def buy(shares, stock, algo, buyPrice):
 
 	global posList, cashList
 	# if('status' in r and r['status'] == "accepted"):
-	if('state' in r and r['state'] == "filled"):
+	if('state' in r and r['state'] == "unconfirmed"):
 		lock = o.threading.Lock()
 		lock.acquire()
 		posList[algo][stock] = { #update the entry in posList

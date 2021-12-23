@@ -169,7 +169,7 @@ def createOrder(side,symbol,shares):
 	create an order for the given side of the trade	(buy or sell)
 	"""
 	#such as the order id, the state of order (queued, confired, filled, failed, canceled, etc.), \
-
+	show_orders_details = True
 	limit_parameters = robinhoodConfig().limit_order
 	if limit_parameters['use_order_limit'] == True:
 		if side == 'buy':
@@ -181,12 +181,16 @@ def createOrder(side,symbol,shares):
 				exclude_fees = last_quote - fees
 				buy_limit = float(exclude_fees-limit_parameters['buy_limit'])
 				limt_buy_market = r.robinhood.order_buy_limit(symbol, quantity= shares, limitPrice= buy_limit, timeInForce='gtc')
+				if show_orders_details == True:
+					pprint.pprint(limt_buy_market)
 				return limt_buy_market
 			else:
 				buy_market = r.robinhood.order_buy_market(symbol, quantity= shares, timeInForce='gtc')
+				if show_orders_details == True:
+					pprint.pprint(buy_market)
 				return buy_market
 		elif side == 'sell':
-			try:		
+			try:
 				if limit_parameters['place_limitOders'] == True:
 					if limit_parameters['remove_fees']:
 						fees = float(limit_parameters['remove_fee']*100)
@@ -195,9 +199,13 @@ def createOrder(side,symbol,shares):
 					exclude_fees = last_quote + fees
 					sell_limit = float(exclude_fees+limit_parameters['sell_limit'])
 					limit_marketsell = r.robinhood.order_sell_limit(symbol, quantity= shares, limitPrice= sell_limit, timeInForce='gtc')
+					if show_orders_details == True:
+						pprint.pprint(limit_marketsell)
 					return limit_marketsell
 				else:
 					sell_market = r.robinhood.order_sell_market(symbol, quantity= shares, timeInForce='gtc')
+					if show_orders_details == True:
+						pprint.pprint(sell_market)
 					return sell_market
 			except:
 				print("Error: Order failed... ")
