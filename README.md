@@ -1,6 +1,7 @@
 # MultiStonk Extended for Robinhood:
-### Disclimer: robinhood doesn't support continuous multiple calls to its endpoints.
-
+### 1. Disclimer: robinhood doesn't support continuous multiple calls to its endpoints.
+### 2. Disclimer: https://robinhood.com/us/en/about-us/our-execution-quality/
+### 3. Disclimer: At the time of writing this, robinhood will sometimes stop working during the day without no warning. You may loose, during those offline sessions. Be careful about that. Keep record from the program logs to get your difference back when the program resumes selling, at the time robinhood magically, timesout?  
 
 This is a mirror implementation of the [main repo](https://github.com/steveman1123/multiStonk)
     clone the branch: 
@@ -15,17 +16,17 @@ Enter account information in ```robinhood_config.toml```
 All preferences are in ```robinhood_config.toml```
 You will need to enable TOTPS(mfa_code) in your robinhood account or type in your username and password in the console each time.
 
-[need more algos](https://github.com/steveman1123/multiStonk/tree/main/algos) put your algos in ```./user_algorithms/``` 
+[you can find more algos in the main repo](https://github.com/steveman1123/multiStonk/tree/main/algos) put your algos in ```./user_algorithms/``` 
 
 TODO: 
 - [x] get sell and buy function working on robinhood:
-- [x] fix cng frm cls
-- [ ] Fix sell all function
-- [ ] unrealized_intraday_plpc needs to fix 
+- [ ] fix cng frm cls.
+- [ ] ~~Fix sell all function~~ at market sell of function to call SellAll
+- [x] unrealized_intraday_plpc needs to fix 
   - Testing: Total percent change:
   - Testing: Today's Return  
 - [ ] catch all errors when robinhood random stops working during trading hours.
-- 
+
 
 ##
 A stock trading program that uses multiple algorithms/strategies to trade.
@@ -68,10 +69,10 @@ Each stock algo file must contain at least the following functions (as these are
 
 
 
-
+<!-- 
 So when the getList function is called before market opens (during updateLists()), 
 it could perform a check looking for the selloff,
-and adjust the take-profits and stop-losses accordingly?
+and adjust the take-profits and stop-losses accordingly? -->
 
 
 <!-- git update-index --no-assume-unchanged robinhood_config.toml -->
