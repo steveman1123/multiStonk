@@ -1,27 +1,30 @@
 # MultiStonk Extended for Robinhood:
-### 1. Disclimer: robinhood doesn't support continuous multiple calls to its endpoints.
-### 2. Disclimer: https://robinhood.com/us/en/about-us/our-execution-quality/
-### 3. Disclimer: At the time of writing this, robinhood will sometimes stop working during the day without no warning. You may loose, during those offline sessions. Be careful about that. Keep record from the program logs to get your difference back when the program resumes selling, at the time robinhood magically, timesout?  
-
-This is a mirror implementation of the [main repo](https://github.com/steveman1123/multiStonk)
-    clone the branch: 
-
-    git clone -b robinhood https://github.com/Nllii/multiStonk.git
+## Disclimers: 
+### 1. Alpaca is required for this to work. 
+### 2. Robinhood brokage doesn't support continuous multiple calls to its endpoints.
+### 3. Cancel all pending orders before starting this program, so the program can sync with your account. 
 
 
-install required packages from requirements.txt ```pip install -r requirements.txt```
+###  This is a mirror implementation of the [main repo](https://github.com/steveman1123/multiStonk)
+      clone one of the branch: 
+
+      git clone -b robinhood https://github.com/Nllii/multiStonk.git
+      git clone -b robinhood https://github.com/steveman1123/multiStonk
+
+Install required packages from requirements.txt ```pip install -r requirements.txt```
 
 Enter account information in ```robinhood_config.toml``` 
 
 All preferences are in ```robinhood_config.toml```
 You will need to enable TOTPS(mfa_code) in your robinhood account or type in your username and password in the console each time.
 
-[you can find more algos in the main repo](https://github.com/steveman1123/multiStonk/tree/main/algos) put your algos in ```./user_algorithms/``` 
+[find more algos in the main repo](https://github.com/steveman1123/multiStonk/tree/main/algos) put your algos in ```./user_algorithms/``` 
+and fix the errors, following the ```dj.py``` format and enable it in the ```robinhood_config.toml```
 
 TODO: 
 - [x] get sell and buy function working on robinhood:
 - [ ] fix cng frm cls.
-- [ ] ~~Fix sell all function~~ at market sell of function to call SellAll
+- [ ] ~~Fix sell all function for robinhood~~ add market sell off to call sell off
 - [x] unrealized_intraday_plpc needs to fix 
   - Testing: Total percent change:
   - Testing: Today's Return  
@@ -41,7 +44,7 @@ The majority of settings are located in ```configs/multi.config```. The default 
 
 To Run:
 
- - requires python 3, alpaca api account
+ - requires python 3.9, alpaca api account
  - API keys must be populated in the API key file (located in ```./stockStuff/apikeys/keys.txt```)
  - move the ```stockStuff/``` folder up 1 directory (so it is a sibling rather than a child of ```multistonk/```)
  - run ```python3 multistonk.py``` and let it go 24/7 (recommend using a raspberry pi)  
@@ -70,6 +73,7 @@ Each stock algo file must contain at least the following functions (as these are
 
 
 <!-- 
+TODO: 
 So when the getList function is called before market opens (during updateLists()), 
 it could perform a check looking for the selloff,
 and adjust the take-profits and stop-losses accordingly? -->
@@ -81,3 +85,10 @@ and adjust the take-profits and stop-losses accordingly? -->
 <!-- git update-index --assume-unchanged robinhood_config.toml -->
 <!-- git ls-files -v|grep '^h' -->
 <!-- http://git-scm.com/docs/git-update-index -->
+
+
+
+
+
+
+

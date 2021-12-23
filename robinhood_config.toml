@@ -11,21 +11,20 @@ Gasty = false
 # ROBINHOOD LOGIN:
 username = ""
 password = ""
-mfa_code = ""
+mfa_code = "totp"
 TOTPS = ""
 
 
-
-
 [alpaca_login]
-
 # ALPACA LOGIN REQUIRED:
 "ALPACAPAPERKEY" = ""
 "ALPACAPAPERSECRETKEY" = ""
 "ALPACAPAPERURL"= "https://paper-api.alpaca.markets"
 
 
+
 [order_limit]
+# ORDER LIMIT is required for the following don't change the values. 
 # ORDER LIMIT:
 use_order_limit = true
 place_limitOders = true
@@ -34,6 +33,15 @@ market_order = true
 remove_fee = 0.0000051
 buy_limit = 0.00021
 sell_limit = 0.00021
+
+
+[database_settings]
+# DATABASE SETTINGS:
+mongodb_url = "mongodb://127.0.0.1:27017/?readPreference=primary&serverSelectionTimeoutMS=2000&appname=MongoDB%20Compass&directConnection=true&ssl=false"
+
+[news_sources]
+# NEWS SOURCES:
+BING_SEARCH = "https://www.bing.com/news/search?q="
 
 
 
@@ -45,6 +53,8 @@ sell_limit = 0.00021
 # stockDataDir = './stockStuff/stockData/robinhood_cvs/'
 
 #location of the algorithm files for stocks
+
+news_file = './Users/admin/multiStonk/stockStuff/market_sentiment/stock_news.json'
 stockAlgosDir = './algos/'
 user_stockAlgosDir = './user_algorithms/'
 stockDataDir = './stockStuff/stockData/'
@@ -79,7 +89,7 @@ portAutoSellOff = 1
 
 #cash withholding params:
 #minimum cash (in $) to hang on to and not trade (if total cash is ever > than this)
-minCash2hold = 500
+minCash2hold = 15000
 
 #extra cash to hold onto beyond the minimum. THIS MUST BE >=1
 minCashMargin = 1.1
