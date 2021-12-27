@@ -125,7 +125,7 @@ except:
 
 
 
-r.robinhood.orders.cancel_all_stock_orders()
+# r.robinhood.orders.cancel_all_stock_orders()
 
 
 
@@ -194,6 +194,7 @@ r.robinhood.orders.cancel_all_stock_orders()
 # import robin_stocks.robinhood as r 
 
 # '''
+
 # This is an example script that will show you how to check the performance of your open positions.
 #         "asset_class": "us_equity",
 #         "asset_id": "c15f433e-3c3c-4457-973d-ff61e98a8dda",
