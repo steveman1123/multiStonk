@@ -6,3 +6,4 @@ colorama
 toml
 pandas
 pymongo
+feedparser

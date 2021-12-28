@@ -147,17 +147,20 @@ def unrealized_():
 	for position in equity_change:
 		last_trade_ = r.robinhood.get_quotes(position, "last_trade_price")
 		last_trade_price = last_trade_.pop()
-		unrealized_plpc = float(last_trade_price)- float(equity_change[position]["average_buy_price"])/float(equity_change[position]["average_buy_price"])
+		try:	
+			unrealized_plpc = float(last_trade_price)- float(equity_change[position]["average_buy_price"])/float(equity_change[position]["average_buy_price"])
+			_positions = {
+				"symbol":position,
+				"unrealized_plpc": unrealized_plpc,
+				"unrealized_intraday_plpc": equity_change[position]['equity_change'],
+				# "unrealized_plpc": position["equity_change"][position],
+				"quantity": equity_change[position]["quantity"],
 
-		_positions = {
-			"symbol":position,
-			"unrealized_plpc": unrealized_plpc,
-			"unrealized_intraday_plpc": equity_change[position]['equity_change'],
-			# "unrealized_plpc": position["equity_change"][position],
-			"quantity": equity_change[position]["quantity"],
-
-		}
-		unrealized_returns.append(_positions)
+			}
+			unrealized_returns.append(_positions)
+		except ZeroDivisionError as e:
+			print("ZeroDivisionError: \n",e)
+			continue
 	return unrealized_returns
 
 
@@ -215,7 +218,7 @@ def createOrder(side,symbol,shares):
 		pass
 
 
-
+# TODO: Sell all for robinhood
 def sellAll(isManual=1):
 	pos = unrealized_()
 	# orders = getOrders()
