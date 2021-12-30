@@ -4,8 +4,12 @@ import pyotp
 import time
 import pprint
 import datetime
-bot_token = {}
 
+
+
+
+
+bot_token = {}
 def loginRohinhood():
 	login_file  = robinhoodConfig().robinhood_credentials()
 	ROBINHOOD_USERNAME = login_file['username']
@@ -147,17 +151,19 @@ def unrealized_():
 	for position in equity_change:
 		last_trade_ = r.robinhood.get_quotes(position, "last_trade_price")
 		last_trade_price = last_trade_.pop()
-		unrealized_plpc = float(last_trade_price)- float(equity_change[position]["average_buy_price"])/float(equity_change[position]["average_buy_price"])
+		try:
+			unrealized_plpc = float(last_trade_price)- float(equity_change[position]["average_buy_price"])/float(equity_change[position]["average_buy_price"])
+			_positions = {
+				"symbol":position,
+				"unrealized_plpc": unrealized_plpc,
+				"unrealized_intraday_plpc": equity_change[position]['equity_change'],
+				# "unrealized_plpc": position["equity_change"][position],
+				"quantity": equity_change[position]["quantity"],
 
-		_positions = {
-			"symbol":position,
-			"unrealized_plpc": unrealized_plpc,
-			"unrealized_intraday_plpc": equity_change[position]['equity_change'],
-			# "unrealized_plpc": position["equity_change"][position],
-			"quantity": equity_change[position]["quantity"],
-
-		}
-		unrealized_returns.append(_positions)
+			}
+			unrealized_returns.append(_positions)
+		except ZeroDivisionError as e:
+			continue
 	return unrealized_returns
 
 
@@ -215,8 +221,8 @@ def createOrder(side,symbol,shares):
 		pass
 
 
-
 def sellAll(isManual=1):
+	# TODO: this function will be replaced with the liquidate_all_assets function
 	pos = unrealized_()
 	# orders = getOrders()
 	if(len(pos)>0):
@@ -238,3 +244,45 @@ def sellAll(isManual=1):
 	else:
 		print("No shares held")
 		return 0
+
+# get last month profit
+def liquidate_all_assets():
+	# get all the stocks
+
+    holdings_data = r.robinhood.get_open_stock_positions()
+    for item in holdings_data:
+        if not item:
+            continue
+		# pprint.pprint(item)
+        instrument_data = r.robinhood.get_instrument_by_url(item.get('instrument'))
+        last_trade_price = r.robinhood.get_quotes(instrument_data['symbol'], "last_trade_price")
+        portfolio = {
+			"symbol": instrument_data['symbol'],
+			"quantity": item.get('quantity'),
+        }
+        trading_price  = float(last_trade_price.pop())
+        limit_sell = trading_price + float(0.0000051)
+        # order_sell_limit(symbol, quantity, limitPrice, timeInForce='gtc', extendedHours=False, jsonify=True):
+        responds = r.robinhood.orders.order_sell_limit(portfolio['symbol'], portfolio['quantity'], limitPrice= limit_sell, timeInForce='gtc')
+        pprint.pprint(responds)
+
+
+
+        
+
+
+
+# liquidate_all_assets() 
+
+# r.robinhood.orders.cancel_all_stock_orders()
+
+		# unrealized_pl = float(last_trade_price.pop())- float(item.get('average_buy_price')),
+
+		# print(float(item.get('average_buy_price')))
+		# print(float(last_trade_price.pop()))
+		# unrealized_plpc =  float(last_trade_price.pop())- float(item.get('average_buy_price'))/float(item.get('average_buy_price'))
+
+		# print(unrealized_plpc)
+		# 	"average_buy_price": item.get('average_buy_price'),
+		# 	"market_value": last_trade_price,
+		# 	"cost_basis": item.get('average_buy_price'),

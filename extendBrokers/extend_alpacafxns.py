@@ -68,18 +68,18 @@ def getPos():
 	return o.json.loads(html)
 
 # # return orders for positions/stocks/whatever
-# def getOrders():
-# 	while True:
-# 		try:
-# 			html = o.requests.get(ORDERSURL, headers=HEADERS, timeout=5).text
-# 			if("error" in html.lower()): raise ValueError("error returned in normal request.")
-# 			break
-# 		except Exception:
-# 			print("No connection, or other error encountered in getOrders. Trying again...")
-# 			o.time.sleep(3)
-# 			continue
+def getOrders():
+	while True:
+		try:
+			html = o.requests.get(ORDERSURL, headers=HEADERS, timeout=5).text
+			if("error" in html.lower()): raise ValueError("error returned in normal request.")
+			break
+		except Exception:
+			print("No connection, or other error encountered in getOrders. Trying again...")
+			o.time.sleep(3)
+			continue
 
-# 	return o.json.loads(html)
+	return o.json.loads(html)
 
 # #can prompt the user to consent to removing all orders and positions (starting over from scratch)
 # #returns 1 if trades were made, 0 if no trades made
@@ -192,16 +192,16 @@ def getPos():
 # 		# return {'symbol':symb,'status':'error'}
 
 # #check if the market is open
-# def marketIsOpen():
-# 	while True:
-# 		try:
-# 			r = o.json.loads(o.requests.get(CLKURL, headers=HEADERS, timeout=5).text)['is_open']
-# 			break
-# 		except Exception:
-# 			print("No connection, or other error encountered in marketIsOpen. Trying again...")
-# 			o.time.sleep(3)
-# 			continue
-# 	return r
+def marketIsOpen():
+	while True:
+		try:
+			r = o.json.loads(o.requests.get(CLKURL, headers=HEADERS, timeout=5).text)['is_open']
+			break
+		except Exception:
+			print("No connection, or other error encountered in marketIsOpen. Trying again...")
+			o.time.sleep(3)
+			continue
+	return r
 
 # #current market time (returns yyyy,mm,dd,sec since midnight)
 def marketTime():
@@ -219,21 +219,21 @@ def marketTime():
 	return ts
 
 # #time until next market close - in seconds
-# def timeTillClose():
-# 	while True:
-# 		try:
-# 			cl = o.json.loads(o.requests.get(CLKURL, headers=HEADERS, timeout=5).text)["next_close"]
-# 			break
-# 		except Exception:
-# 			print("No connection, or other error encountered in timeTillClose. Trying again...")
-# 			o.time.sleep(3)
-# 			continue
+def timeTillClose():
+	while True:
+		try:
+			cl = o.json.loads(o.requests.get(CLKURL, headers=HEADERS, timeout=5).text)["next_close"]
+			break
+		except Exception:
+			print("No connection, or other error encountered in timeTillClose. Trying again...")
+			o.time.sleep(3)
+			continue
 
-# 	cl = o.re.split('[-:T.]',cl[:-2])
-# 	cl = o.dt.datetime(int(cl[0]),int(cl[1]),int(cl[2]),int(cl[3]),int(cl[4]))
-# 	now = marketTime()
-# 	now = o.dt.datetime(int(now[0]),int(now[1]),int(now[2]),int(now[3]/3600),int(now[3]%3600/60),int(now[3]%60))
-# 	return (cl - now).total_seconds()
+	cl = o.re.split('[-:T.]',cl[:-2])
+	cl = o.dt.datetime(int(cl[0]),int(cl[1]),int(cl[2]),int(cl[3]),int(cl[4]))
+	now = marketTime()
+	now = o.dt.datetime(int(now[0]),int(now[1]),int(now[2]),int(now[3]/3600),int(now[3]%3600/60),int(now[3]%60))
+	return (cl - now).total_seconds()
 
 #time until next market open - in seconds
 def timeTillOpen():
@@ -253,22 +253,22 @@ def timeTillOpen():
 	return (op - now).total_seconds()
 
 # #return the open and close times of a given day (EST)
-# def openCloseTimes(checkDate): #checkdate of format yyyy-mm-dd
-# 	calParams = {}
-# 	calParams["start"] = checkDate
-# 	calParams["end"] = checkDate
-# 	while True:
-# 		try:
-# 			d = o.json.loads(o.requests.get(CALURL, headers=HEADERS, params=calParams, timeout=5).text)[0]
-# 			#subtract 1 from hours to convert from EST (NYSE time), to CST (my time)
-# 			d["open"] = str(int(d["open"].split(":")[0])-1)+":"+d["open"].split(":")[1]
-# 			d["close"] = str(int(d["close"].split(":")[0])-1)+":"+d["close"].split(":")[1]
-# 			break
-# 		except Exception:
-# 			print("No connection, or other error encountered in openCloseTimes. Trying again...")
-# 			o.time.sleep(3)
-# 			continue
-# 	return [o.dt.datetime.strptime(d["date"]+d["open"],"%Y-%m-%d%H:%M"), o.dt.datetime.strptime(d["date"]+d["close"],"%Y-%m-%d%H:%M")]
+def openCloseTimes(checkDate): #checkdate of format yyyy-mm-dd
+	calParams = {}
+	calParams["start"] = checkDate
+	calParams["end"] = checkDate
+	while True:
+		try:
+			d = o.json.loads(o.requests.get(CALURL, headers=HEADERS, params=calParams, timeout=5).text)[0]
+			#subtract 1 from hours to convert from EST (NYSE time), to CST (my time)
+			d["open"] = str(int(d["open"].split(":")[0])-1)+":"+d["open"].split(":")[1]
+			d["close"] = str(int(d["close"].split(":")[0])-1)+":"+d["close"].split(":")[1]
+			break
+		except Exception:
+			print("No connection, or other error encountered in openCloseTimes. Trying again...")
+			o.time.sleep(3)
+			continue
+	return [o.dt.datetime.strptime(d["date"]+d["open"],"%Y-%m-%d%H:%M"), o.dt.datetime.strptime(d["date"]+d["close"],"%Y-%m-%d%H:%M")]
 
 # # return the current price of the indicated stock
 # #optinal params can be used to have it use alpaca or non-alpaca apis, or if the function should also return the market cap (related because it's also included in the same api request on the nasdaq api)

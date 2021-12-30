@@ -5,6 +5,10 @@ __init__.pyc
 /stockStuff/buyListMulti.json
 /stockStuff/posListMulti.json
 /stockStuff/stockData/*csv
+tradeData.py
+sentimenttest.py
+
+
 
 
 

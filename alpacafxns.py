@@ -231,7 +231,7 @@ def timeTillOpen():
       op = o.json.loads(o.requests.get(CLKURL, headers=HEADERS, timeout=5).text)["next_open"]
       break
     except Exception:
-      print("No connection, or other error encountered in timeTillOpen. Trying again...")
+      print("No connection, as or other error encountered in timeTillOpen. Trying again...")
       o.time.sleep(3)
       continue
 
