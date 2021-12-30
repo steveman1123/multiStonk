@@ -6,4 +6,4 @@ colorama
 toml
 pandas
 pymongo
-fastai # fastai is a fast, easy-to-use library for deep learning
+feedparser

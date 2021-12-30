@@ -23,12 +23,20 @@ and fix the errors, following the ```dj.py``` format and enable it in the ```rob
 
 TODO: 
 - [x] get sell and buy function working on robinhood:
-- [ ] fix cng frm cls.
+- [x] fix cng frm cls.
 - [ ] ~~Fix sell all function for robinhood~~ add market sell off to call sell off
 - [x] unrealized_intraday_plpc needs to fix 
   - Testing: Total percent change:
   - Testing: Today's Return  
-- [ ] catch all errors when robinhood random stops working during trading hours.
+- ~~[ ] catch all errors when robinhood random stops working during trading hours.~~
+
+
+#### Market Analysis
+# a database is required... I plan to train that data in the future.
+1. [ ] Add a script to scan the market for a sell off in the news, calculate the likelihood of it happening and then suspension trading for a period of days. 
+2. [ ] Add a market sector trends to rotate during the year
+
+
 
 
 ##
@@ -73,7 +81,7 @@ Each stock algo file must contain at least the following functions (as these are
 
 
 <!-- 
-TODO: 
+TODO: HIGH! LEVEL:
 So when the getList function is called before market opens (during updateLists()), 
 it could perform a check looking for the selloff,
 and adjust the take-profits and stop-losses accordingly? -->

@@ -163,6 +163,7 @@ def unrealized_():
 			}
 			unrealized_returns.append(_positions)
 		except ZeroDivisionError as e:
+			print("ZeroDivisionError: \n",e)
 			continue
 	return unrealized_returns
 
@@ -221,6 +222,7 @@ def createOrder(side,symbol,shares):
 		pass
 
 
+# TODO: Sell all for robinhood
 def sellAll(isManual=1):
 	# TODO: this function will be replaced with the liquidate_all_assets function
 	pos = unrealized_()
