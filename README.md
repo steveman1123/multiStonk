@@ -30,12 +30,12 @@ TODO:
   - Testing: Today's Return  
 - ~~[ ] catch all errors when robinhood random stops working during trading hours.~~
 
-
+<!-- 
 #### Market Analysis
 # a database is required... I plan to train that data in the future.
 1. [ ] Add a script to scan the market for a sell off in the news, calculate the likelihood of it happening and then suspension trading for a period of days. 
 2. [ ] Add a market sector trends to rotate during the year
-
+ -->
 
 
 
