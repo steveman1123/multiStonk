@@ -1,6 +1,7 @@
 #This module should be any function that doesn't require alpaca or keys to use
 
 #TODO: https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
+#TODO: point all url tries/catches as a robreq() fxn like in multiforex
 
 import json,requests,os,time,re,csv,sys,configparser,threading
 import datetime as dt
@@ -204,47 +205,17 @@ def jumpedToday(symb,jump, maxTries=3):
 
 #get the ticker symbol and exchange of a company or return "-" if not found
 def getSymb(company,maxTries=3):
+  symb = ""
+  exch = ""
+  #idk where a good spot to find this info may be
   '''
-  url = "https://www.nasdaq.com/search_api_autocomplete/search"
-  tries=0
-  while tries<maxTries:
-    try:
-      r = json.loads(requests.get(url,params={'q':company},headers=HEADERS,timeout=5).text)
-      if(len(r[0]['value'].split(" "))>1): #this api also returns headlines which shouldn't count
-        raise ValueError("Returned a hadline, not a symbol")
-      [symb,exch] = [r[0]['value'],"NAS"]
-      break
-    except Exception:
-      print(f"Error in getSymb of nasdaq api for '{company}'. Trying again...")
-      tries+=1
-      time.sleep(3)
-      continue
+  https://www.nasdaq.com/search_api_autocomplete/search?q=facebook
+  https://stockmarketmba.com/symbollookupusingidentifier.php
+  https://sec.report/CIK/0001652044
+  https://stocks.tradingcharts.com/stocks/symbols/s/all/alphab
+  https://quotes.fidelity.com/mmnet/SymLookup.phtml?reqforlookup=REQUESTFORLOOKUP&productid=mmnet&isLoggedIn=mmnet&rows=50&for=stock&by=D&criteria=amazon&submit=Search
+  and more I'm sure
   '''
-  tries = maxTries+1 #bypassing the nasdaq one temporarily as it seems to not be as complete as the marketwatch one (it doesn't have as big of a database or is not as flexible at understanding what is being passed to it)
-  
-  #if the nasdaq api fails, then try falling back to the marketwatch one
-  if(tries>=maxTries):
-    # print(f"Failed nasdaq query for '{company}'. Trying marketwatch")
-    url = "https://www.marketwatch.com/tools/quotes/lookup.asp" #this one is a bit slower than the nasdaq one, but may have more results. Use as a backup in case ythe nasdaq one fails
-    tries=0
-    while tries<maxTries: #get the html page with the symbol
-      try:
-        r = requests.get(url, params={"Lookup":company}, timeout=5).text
-        break
-      except Exception:
-        print("No connection, or other error encountered in getSymb. Trying again...")
-        tries+=1
-        time.sleep(3)
-        continue
-    
-    try: #parse throgh html to find the table, symbol data, symbol, and exchange for it
-      table = bs(r,'html.parser').find_all('table')[0]
-      symbData = table.find_all('tr')[1].find_all('td')
-      symb = str(symbData[0]).split('">')[2].split("<")[0]
-      exch = str(symbData[2]).split('">')[1].split("<")[0]
-    except Exception: #return blanks if invalid
-      [symb, exch] = ["-","-"]
-  
   
   return [symb, exch]
 
@@ -432,9 +403,12 @@ def timeTillOpen(estOffset=-1):
   while True:
     try:
       r = json.loads(requests.get(f"{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
-      tto = r['data']['marketClosingTime'][:-3] #get the close time and strip off the timezone (" ET")
+      tto = r['data']['marketOpeningTime'][:-3] #get the close time and strip off the timezone (" ET")
+      print(tto)
       tto = dt.datetime.strptime(tto,"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)
+      print(tto)
       tto = int((tto-dt.datetime.now()).total_seconds())
+      print(tto)
       
       break
     except Exception:
@@ -444,9 +418,11 @@ def timeTillOpen(estOffset=-1):
     
   if(tto<0): #if it's the evening
     print("Time estimate to nearest minute")
-    tto = r['data']['marketCountDown'].split(" ")[-2:]
-    tto = 3600*int(tto[0][:-1])+60*int(tto[1][:-1])
-  
+    nextTradeDate = dt.datetime.strptime(r['data']['nextTradeDate'],"%b %d, %Y")
+    thisOpenTime = (dt.datetime.strptime(r['data']['marketOpeningTime'][:-3],"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)).time()
+    nextOpen = dt.datetime.combine(nextTradeDate,thisOpenTime)
+    tto = int((nextOpen-dt.datetime.now()).total_seconds())
+    
   return tto
 
 #get the time till the next market close in seconds (argument of EST offset (CST is 1 hour behind, UTC is 5 hours ahead))
@@ -464,14 +440,16 @@ def timeTillClose(estOffset=-1):
   ttc = int((ttc-dt.datetime.now()).total_seconds())
   
   if(ttc<0):
-    nextMktDay = dt.datetime.strptime(r['data']['nextTradeDate'],"%b %d, %Y").date()
-    ttc = 24*3600*(nextMktDay-dt.date.today()).days+ttc #if it's the afternoon, the time doesn't automatically switch, so look for the next market day
-    #this assumes the next market day will close at the same time as the current market day, which might not always be the case if the market closes early
+    print("Time estimate to nearest minute")
+    nextTradeDate = dt.datetime.strptime(r['data']['nextTradeDate'],"%b %d, %Y")
+    thisOpenTime = (dt.datetime.strptime(r['data']['marketClosingTime'][:-3],"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)).time()
+    nextClose = dt.datetime.combine(nextTradeDate,thisOpenTime)
+    ttc = int((nextClose-dt.datetime.now()).total_seconds())
   
   return ttc
 
 #return the next market close time with an EST offset (required)
-def closeTime(estOffset):
+def closeTime(estOffset=-1):
   while True:
     try:
       r = json.loads(requests.get(f"{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
@@ -705,7 +683,7 @@ def getRSI(hist,per=14):
     print("not enough info to calculate rsi")
     return 0
 
-#where priceList is the lsit of prices to get an EMA of (with newest first)
+#where priceList is the list of prices to get an EMA of (with newest first)
 #k is the exponential factor
 #maxPrices is the maximum number of prices to use
 def getEMA(priceList,k,maxPrices=750):
