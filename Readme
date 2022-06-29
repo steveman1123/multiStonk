@@ -1,41 +1,6 @@
 # MultiStonk Extended for Robinhood:
-## Disclimers: 
-### 1. Alpaca is required for this to work. 
-### 2. Robinhood brokage doesn't support continuous multiple calls to its endpoints.
-### 3. Cancel all pending orders before starting this program, so the program can sync with your account. 
+###  This is a mirror implementation of the [main repo](https://github.com/steveman1123/multiStonk) to be used with robinhood. It is not a complete implementation of the main repo.
 
-
-###  This is a mirror implementation of the [main repo](https://github.com/steveman1123/multiStonk)
-      clone one of the branch: 
-
-      git clone -b robinhood https://github.com/Nllii/multiStonk.git
-      git clone -b robinhood https://github.com/steveman1123/multiStonk
-
-Install required packages from requirements.txt ```pip install -r requirements.txt```
-
-Enter account information in ```robinhood_config.toml``` 
-
-All preferences are in ```robinhood_config.toml```
-You will need to enable TOTPS(mfa_code) in your robinhood account or type in your username and password in the console each time.
-
-[find more algos in the main repo](https://github.com/steveman1123/multiStonk/tree/main/algos) put your algos in ```./user_algorithms/``` 
-and fix the errors, following the ```dj.py``` format and enable it in the ```robinhood_config.toml```
-
-TODO: 
-- [x] get sell and buy function working on robinhood:
-- [x] fix cng frm cls.
-- [ ] ~~Fix sell all function for robinhood~~ add market sell off to call sell off
-- [x] unrealized_intraday_plpc needs to fix 
-  - Testing: Total percent change:
-  - Testing: Today's Return  
-- ~~[ ] catch all errors when robinhood random stops working during trading hours.~~
-
-<!-- 
-#### Market Analysis
-# a database is required... I plan to train that data in the future.
-1. [ ] Add a script to scan the market for a sell off in the news, calculate the likelihood of it happening and then suspension trading for a period of days. 
-2. [ ] Add a market sector trends to rotate during the year
- -->
 
 
 

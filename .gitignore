@@ -1,13 +1,5 @@
 #fixing the .gitignore file
-gitignore
-__pycache__
-__init__.pyc
-/stockStuff/buyListMulti.json
-/stockStuff/posListMulti.json
-/stockStuff/stockData/*csv
-tradeData.py
-sentimenttest.py
-
+.gitignore
 
 
 
