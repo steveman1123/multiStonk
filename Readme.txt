@@ -1,1 +1,0 @@
-this is a quick reference and a 

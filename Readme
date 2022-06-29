@@ -3,15 +3,14 @@ This is a mirror implementation of the [main repo](https://github.com/steveman11
 
 It is not a complete implementation of the main repo. Experimental features are implemented.
 
-Goal:
-- Implement all features of the main repo without breaking the main repo.
-
 
 
 
 TODO:
-
 - Add support for multiple accounts
-
+- Implement all features of the main repo without re-writing code.
+- create functions in the main repo and call them instead of writing code.
+- Add support for Docker.
+- Getting stocks data from apis instead support.
 
 
