@@ -19,3 +19,7 @@ TODO:
 - Add support emailing alerts and news.
 
 
+
+
+notes:
+autopep8 -i script.py
