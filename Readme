@@ -4,10 +4,6 @@ This is a mirror implementation of the [main repo](https://github.com/steveman11
 It is not a complete implementation of the main repo. Experimental features are implemented.
 
 
-
-
-
-
 TODO:
 - Add trading time from main repo.
 - Add support accounts robinhood and alpaca
@@ -17,7 +13,6 @@ TODO:
 - Getting stocks data from apis instead support.
 - Add support for watchlist
 - Add support emailing alerts and news.
-
 
 
 
