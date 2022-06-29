@@ -1,13 +1,17 @@
-MultiStonk Extended for Robinhood:
-[]: # Language: markdown
-[]: # Path: Readme
+
+This is a mirror implementation of the [main repo](https://github.com/steveman1123/multiStonk) to be used with robinhood. 
+
+It is not a complete implementation of the main repo. Experimental features are implemented.
+
+Goal:
+- Implement all features of the main repo without breaking the main repo.
 
 
-This is a mirror implementation of the [main repo](https://github.com/steveman1123/multiStonk) to be used with robinhood. It is not a complete implementation of the main repo.
 
 
-## Install
+TODO:
 
-```bash
-#TODO: 
-```
+- Add support for multiple accounts
+
+
+
