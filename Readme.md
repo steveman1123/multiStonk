@@ -10,11 +10,11 @@ TODO:
 - Implement all features of the main repo without re-writing code.
 - create functions in the main repo and call them instead of writing code.
 - Add support for Docker.
-- Getting stocks data from apis instead support.
+- Add support for getting stocks from apis.
 - Add support for watchlist
 - Add support emailing alerts and news.
 
 
 
 notes:
-autopep8 -i script.py
+autopep8 -i convert-spaces-to-tabs.py

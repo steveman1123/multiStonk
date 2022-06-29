@@ -1,7 +1,7 @@
 #this file contains functions specifically for the double jump (aka dead cat bounce) algo
 #when a penny stock gains a significant amount with a large volume then falls with a small volume, then it generally gains a second time
 
-import otherfxns as o
+import _multistonks.otherfxns as o
 
 algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
@@ -23,6 +23,7 @@ def init(configFile):
 def getList(verbose=True):
   if(verbose): print(f"getting unsorted list for {algo}...")
   ul = getUnsortedList()
+  # print(ul)
   if(verbose): print(f"found {len(ul)} stocks to sort through for {algo}.")
   if(verbose): print(f"finding stocks for {algo}...")
   gb = goodBuys(ul) #get dict of the list of stocks if they're good buys or not
