@@ -1,9 +1,0 @@
-pytz
-robin_stocks
-bs4
-workdays
-colorama
-toml
-pandas
-pymongo
-feedparser
