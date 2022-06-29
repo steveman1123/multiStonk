@@ -1,5 +1,3 @@
 #fixing the .gitignore file
-Readme
-requirements.txt
-
-
+fix_spaces.py
+_multistonks/__pycache__

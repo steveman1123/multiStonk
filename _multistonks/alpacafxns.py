@@ -1,4 +1,5 @@
-import otherfxns as o
+# import otherfxns as o
+import _multistonks.otherfxns as o
 
 
 #required parameters are where the keyfile is stored, and whether it's paper trading or not

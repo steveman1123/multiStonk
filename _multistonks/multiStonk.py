@@ -906,18 +906,18 @@ def syncPosList(verbose=False):
 
 
 
-#run the main function
-if __name__ == '__main__':
-  global exitFlag
-  exitFlag = False #set to true if the program stopped by ctrl+c
+# #run the main function
+# if __name__ == '__main__':
+#   global exitFlag
+#   exitFlag = False #set to true if the program stopped by ctrl+c
 
-  try:
-    main(False) #start running the program
-  except KeyboardInterrupt: #exit on ctrl+c
-    print("Exiting")
-    exitFlag=True
+#   try:
+#     main(False) #start running the program
+#   except KeyboardInterrupt: #exit on ctrl+c
+#     print("Exiting")
+#     exitFlag=True
     
-  except Exception: #record unhandled exceptions
-    print("An unhandled error was encountered. Please check the log.")
-    traceback.print_exc(file=open(c['file locations']['errLog'],"a"))
+#   except Exception: #record unhandled exceptions
+#     print("An unhandled error was encountered. Please check the log.")
+#     traceback.print_exc(file=open(c['file locations']['errLog'],"a"))
 
