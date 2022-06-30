@@ -4,7 +4,10 @@ import pyotp
 import time
 import pprint
 import datetime as dt
-from datetime import timezone
+import socket
+import requests
+import json 
+
 
 def init_robinhood(keyFile):
     global ROBINHOOD_USERNAME, ROBINHOOD_PASSWORD, ROBINHOOD_TOTPS
@@ -160,3 +163,10 @@ def createOrder(side,
         )
         print(response_)
         return response_
+    
+    
+def multistock_server():
+    get_ip = socket.gethostbyname(socket.gethostname())
+    trending_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-trending/')
+    suggestion_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-suggested/')
+    return trending_.json(),suggestion_.json()

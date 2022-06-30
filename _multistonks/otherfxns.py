@@ -184,6 +184,7 @@ def getHistory2(symb, startDate, endDate, maxTries=3):
 
 #return if the stock jumped today some %
 def jumpedToday(symb,jump, maxTries=3):
+  # print(symb)
   url = f'{BASEURL}/quote/{symb}/summary?assetclass=stocks'
   tries=0
   while tries<maxTries:
@@ -194,7 +195,8 @@ def jumpedToday(symb,jump, maxTries=3):
       #check that close & high are not "N/A" - sometimes the api returns no data, then check for the jump
       out = (close!="N/A" and high!="N/A") and (float(high)/float(close)>=jump)
       break
-    except Exception:
+    except Exception as e:
+      print(e)
       print(f"Error in jumpedToday. Trying again ({tries+1}/{maxTries} - {symb})...")
       time.sleep(3)
       out=False

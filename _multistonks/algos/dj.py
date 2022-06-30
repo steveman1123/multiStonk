@@ -20,13 +20,14 @@ def init(configFile):
   lock.release()
 
 #get a list of potential gainers according to this algo
-def getList(verbose=True):
+def getList(verbose=True,server=list()):
   if(verbose): print(f"getting unsorted list for {algo}...")
-  ul = getUnsortedList()
+  ul = getUnsortedList(server_= server)
   # print(ul)
   if(verbose): print(f"found {len(ul)} stocks to sort through for {algo}.")
   if(verbose): print(f"finding stocks for {algo}...")
   gb = goodBuys(ul) #get dict of the list of stocks if they're good buys or not
+  print(gb)
   gb = {e:gb[e] for e in gb if gb[e][0].isnumeric()} #the only time that the first char is a number is if it is a valid/good buy
   if(verbose): print(f"{len(gb)} found for {algo}.")
   return gb
@@ -230,69 +231,75 @@ def goodSells(symbList, verbose=False): #symbList is a list of stocks ready to b
 
 #get list of stocks from stocksUnder1 and marketWatch lists
 #TODO: should make this an otherfxns fxn with params so multiple algos can pull from the same code
-def getUnsortedList(verbose=True, maxTries=3):
+def getUnsortedList(verbose=True, maxTries=3,server_=None):
   symbList = list()
-  url = "https://www.marketwatch.com/tools/screener/stock"
-  
-  params = {
-    "exchange" : "nasdaq",
-    "visiblecolumns" : "Symbol",
-    "pricemin" : str(c[algo]['simMinPrice']),
-    "pricemax" : str(c[algo]['simMaxPrice']),
-    "volumemin" : str(c[algo]['simMinVol']),
-    "partial" : "true"
-  }
-  
-  if(verbose): print("Getting MarketWatch data...")
-  skip = 0
-  resultsPerPage = 25 #new screener only returns 25 per page and can't be changed (afaict)
-  pageList = [None] #init to some value so that its not empty for the loop comparison
-  while len(pageList)>0:
-    pageList = [] #reinit once inside of the loop
-    params['skip']=skip
-    tries = 0
-    while tries<maxTries:
-      try:
-        r = o.requests.get(url, params=params, timeout=5).text
-        pageList = r.split('j-Symbol ">')[1:]
-        pageList = [e.split(">")[1][:-3] for e in pageList]
-        symbList += pageList
-        if(verbose): print(f"MW page {int(skip/resultsPerPage)}")
-        break
-      except Exception:
-        tries+=1
-        print(f"Error getting MW data for {algo}. Trying again...")
-        o.time.sleep(3)
-        continue
-    skip+=len(pageList)
-  
-  
-  
-  #now that we have the marketWatch list, let's get the stocksunder1 list - essentially the getPennies() fxn from other files
-  if(verbose): print("Getting stocksunder1 data...")
-  #TODO: ensure prices and volumes work for all types
-  urlList = ['nasdaq']#,'tech','biotech','marijuana','healthcare','energy'] #the ones not labeled for nasdaq are listed on OTC which we want to avoid
-  for e in urlList:  
-    if(verbose): print(e+" stock list")
-    url = f'https://stocksunder1.org/{e}-penny-stocks/'
-    tries=0
-    while tries<maxTries:
-      try:
-        r = o.requests.post(url, params={"price":5,"volume":0,"updown":"up"}, timeout=5).text
-        pageList = r.split('.php?symbol=')[1:]
-        pageList = [e.split('">')[0] for e in pageList]
-        symbList += pageList
-        break
-      except Exception:
-        print("No connection, or other error encountered (SU1). Trying again...")
-        o.time.sleep(3)
-        tries+=1
-        continue
+  if server_ !=  None:
+    if(verbose): print("getting stocks from personal server")
+    symbList = list(dict.fromkeys(server_)) #combine and remove duplicates
+    # print(symbList)
+    return symbList
+  else:
+    url = "https://www.marketwatch.com/tools/screener/stock"
     
-  if(verbose): print("Removing Duplicates...")
-  symbList = list(dict.fromkeys(symbList)) #combine and remove duplicates
-
-  return symbList
+    params = {
+      "exchange" : "nasdaq",
+      "visiblecolumns" : "Symbol",
+      "pricemin" : str(c[algo]['simMinPrice']),
+      "pricemax" : str(c[algo]['simMaxPrice']),
+      "volumemin" : str(c[algo]['simMinVol']),
+      "partial" : "true"
+    }
+    
+    if(verbose): print("Getting MarketWatch data...")
+    skip = 0
+    resultsPerPage = 25 #new screener only returns 25 per page and can't be changed (afaict)
+    pageList = [None] #init to some value so that its not empty for the loop comparison
+    while len(pageList)>0:
+      pageList = [] #reinit once inside of the loop
+      params['skip']=skip
+      tries = 0
+      while tries<maxTries:
+        try:
+          r = o.requests.get(url, params=params, timeout=5).text
+          pageList = r.split('j-Symbol ">')[1:]
+          pageList = [e.split(">")[1][:-3] for e in pageList]
+          symbList += pageList
+          if(verbose): print(f"MW page {int(skip/resultsPerPage)}")
+          break
+        except Exception:
+          tries+=1
+          print(f"Error getting MW data for {algo}. Trying again...")
+          o.time.sleep(3)
+          continue
+      skip+=len(pageList)
+    
+    
+    
+    #now that we have the marketWatch list, let's get the stocksunder1 list - essentially the getPennies() fxn from other files
+    if(verbose): print("Getting stocksunder1 data...")
+    #TODO: ensure prices and volumes work for all types
+    urlList = ['nasdaq']#,'tech','biotech','marijuana','healthcare','energy'] #the ones not labeled for nasdaq are listed on OTC which we want to avoid
+    for e in urlList:  
+      if(verbose): print(e+" stock list")
+      url = f'https://stocksunder1.org/{e}-penny-stocks/'
+      tries=0
+      while tries<maxTries:
+        try:
+          r = o.requests.post(url, params={"price":5,"volume":0,"updown":"up"}, timeout=5).text
+          pageList = r.split('.php?symbol=')[1:]
+          pageList = [e.split('">')[0] for e in pageList]
+          symbList += pageList
+          break
+        except Exception:
+          print("No connection, or other error encountered (SU1). Trying again...")
+          o.time.sleep(3)
+          tries+=1
+          continue
+      
+    if(verbose): print("Removing Duplicates...")
+    symbList = list(dict.fromkeys(symbList)) #combine and remove duplicates
+    # print(symbList)
+    return symbList
 
 
 #determine if a stock is a good sell or not

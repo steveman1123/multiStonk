@@ -3,7 +3,7 @@ This is a mirror implementation of the [main repo](https://github.com/steveman11
 
 This is experimental.
 
-required for login: - TOTPS 
+required for login: - TOTPS and alpaca API keys 
 
 
 Advance steps:
@@ -19,14 +19,13 @@ TODO:
 - [x] Add trading time from main repo.
 - [x] Add support for robinhood and alpaca
 - [x] Implement all features of the main repo without re-writing code.
-- [x] Add support for multiple accounts.
 
 
 - [x] write createOrder function using limit order.
 - [x] write sell function.
 - [x] write buy function.
 
-- [ ] Add support for Docker for getting api server.
+- [x] Add support for Docker for getting api server for future needs.
 
 - [ ] write watchlist class function.
 - [ ] write email class.

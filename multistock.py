@@ -342,8 +342,9 @@ def updateList(algo, lock, rm=[], verbose=True):
             print(f"Updating {algo} list")
         # TODO: exitFlag doesn't stop individual getList()'s. Might not be a bad idea to read it somehow?
         # this is probably not safe, but best way I can think of
+        trending_ ,suggestion_= robin_account.multistock_server()
+        algoBuys = eval(algo+".getList(server=trending_ + suggestion_)")
         
-        algoBuys = eval(algo+".getList()")
         # remove any stocks that are in the rm list
         algoBuys = {e: algoBuys[e] for e in algoBuys if e not in rm}
         lock.acquire()  # lock in order to write to the list
