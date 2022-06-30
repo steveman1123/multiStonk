@@ -6,4 +6,10 @@
   "ALPACAPAPERKEY" : "",
   "ALPACAPAPERSECRETKEY" : "",
   "ALPACAPAPERURL" : "https://paper-api.alpaca.markets"
+
+  "username" : "",
+  "password" : "",
+  "mfa_code" : "",
+  "TOTPS" : ""
+
 }

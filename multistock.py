@@ -5,6 +5,7 @@ from glob import glob
 from operator import eq
 import datetime as dt
 from colorama import init as colorinit
+import robin_account
 HEADER = '\033[95m'
 OKBLUE = '\033[94m'
 OKCYAN = '\033[96m'
@@ -44,8 +45,7 @@ print(*list(algoList), sep=", ", end="\n\n")
 
 
 a.init(c['file locations']['keyFile'], int(c['account params']['isPaper']))
-
-# add the algos dir
+robin_account.init_robinhood(c['file locations']['keyFile'])
 sys.path.append(c['file locations']['stockAlgosDir'])
 
 # import all algos that are in algoList (they require an up-to-date posList, so must be imported after it's updated)
@@ -77,6 +77,11 @@ def main(verbose=False):
     ask2sell = True  # if this is true, then the program will ask to sell all if portval drops below some % of maxPortVal
     # check that the keys being used are valid
     a.checkValidKeys(int(c['account params']['isPaper']))
+    robin_account.account_isValid()
+    if (len(robin_account.openPositions()) == 0):
+        print("No open positions")
+
+    
     if(len(a.getPos()) == 0):
         print(
             f"Will start buying {c['time params']['buyTime']} minutes before next close")
@@ -95,36 +100,45 @@ def main(verbose=False):
 
     # get the closing prices of the portfolio over the last month
     #TODO: call Robinhood api here. 
-    portHist = a.getProfileHistory(str(dt.date.today()), '1M')['equity']
+    # portHist = a.getProfileHistory(str(dt.date.today()), '1M')['equity']
+    closing_historical,_time_stamp = robin_account.account_history()
+    
+    # print(historical)
+    # print(portHist['adjusted_close_equity'])
+    
     # get the max portfolio value over the last month and remove blank entries
-    maxPortVal = max([e for e in portHist if e is not None])
+    maxPortVal = max([e for e in closing_historical if e is not None])
+    # print(maxPortVal)
     isManualSellOff = not int(c['account params']['portAutoSellOff'])
     while True:
-        acct = a.getAcct()  # get account info
-        pos = a.getPos()  # get all held positions (no algo assigned)
+        
+        # acct = a.getAcct()  # get account info
+        acct = robin_account.get_Account_details()
+        pos = robin_account.openPositions()  # get all held positions (no algo assigned)
 
      
-        if(ask2sell and float(acct['portfolio_value']) < maxPortVal*float(c['account params']['portStopLoss']) and len(pos) > 0):
+        if(ask2sell and float(acct['portfolio_value']) < float(maxPortVal)*float(c['account params']['portStopLoss']) and len(pos) > 0):
                 print(
                     f"Portfolio value of ${acct['portfolio_value']} is less than {c['account params']['portStopLoss']} times the max portfolio value of ${maxPortVal}.")
                 if(not isManualSellOff):
                     print("Automatically selling all...")
                 # if the portfolio value falls below our stop loss, automatically sell everything
-                soldAll = a.sellAll(isManual=isManualSellOff)
-                if(soldAll):
-                    break  # stop the program if the selling occured
-                if(isManualSellOff):  # if the selling is set to manual, then ask if the user wants to keep being asked to sell all or not
-                    ask2sell = (
-                        input("Ask to sell all again today (y/n)? ").lower()) != "n"
-                    if(ask2sell):
-                        print("Will continue asking to sell all today")
-                    else:
-                        print("Will ask to sell all again tomorrow")
+                #TODO: call Robinhood api here.. Resume here.
+                # soldAll = a.sellAll(isManual=isManualSellOff)
+                # if(soldAll):
+                #     break  # stop the program if the selling occured
+                # if(isManualSellOff):  # if the selling is set to manual, then ask if the user wants to keep being asked to sell all or not
+                #     ask2sell = (
+                #         input("Ask to sell all again today (y/n)? ").lower()) != "n"
+                #     if(ask2sell):
+                #         print("Will continue asking to sell all today")
+                #     else:
+                #         print("Will ask to sell all again tomorrow")
 
         totalCash = float(acct['cash']) #TODO: get this from Robinhood API
         tradableCash = getTradableCash(totalCash, maxPortVal)
 
-        if(o.marketIsOpen()):
+        if(o.marketIsOpen() == True):
             print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, port stop loss: {maxPortVal*float(c['account params']['portStopLoss'])},  {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             # update the lists if not updated yet and that it's not currently updating
             if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')]) == 0):
@@ -152,7 +166,6 @@ def main(verbose=False):
                             algo, cashPerAlgo, list(algoList[algo]), False))  # init the thread
                         buyThread.setName(algo)  # set the name to the algo
                         buyThread.start()  # start the thread
-
             time.sleep(60)
         else:
             print("Algo ROI estimates:")
@@ -172,19 +185,28 @@ def main(verbose=False):
                 else:
                     roi = 1
                 print(f"{algo} - {FAIL if roi<1 else OKGREEN}{roi}{ENDC}")
-            portHist = a.getProfileHistory(str(dt.date.today()), '1M')
-            portHist = {str(dt.datetime.fromtimestamp(portHist['timestamp'][i]).date(
-            )): portHist['equity'][i] for i in range(len(portHist['timestamp'])) if portHist['equity'][i] is not None}
+            closing_historical,_time_stamp = robin_account.account_history()
+            
+            # portHist = a.getProfileHistory(str(dt.date.today()), '1M')
+
+            # print(portHist)
+            
+            portHist = {str(dt.datetime.fromtimestamp(_time_stamp[i]).date()): 
+                closing_historical[i] for i in range(len(_time_stamp)) if closing_historical[i] is not None}
+            # quit()
             # get the max portfolio value of the last month
             maxPortVal = max(list(portHist.values()))
+            current_value = portHist[max(list(portHist.keys()))]
+            value = int(float(current_value))
+            # print(round(100*value/int(float(maxPortVal)),3))
 
             # display max val and date
+            print(WARNING+
+                f"\nHighest portVal in the last month: ${round(int(float(maxPortVal)))} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
+            print(f"Current portVal: ${current_value} ({(round(100*value/int(float(maxPortVal)),3))}% of highest)")
             print(
-                f"\nHighest portVal in the last month: ${round(maxPortVal,2)} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
-            print(
-                f"Current portVal: ${round(portHist[max(list(portHist.keys()))],2)} ({round(100*portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of highest)")
-            print(
-                f"Port stop-loss: ${round(float(c['account params']['portStopLoss'])*maxPortVal,2)} ({round(100*float(c['account params']['portStopLoss']),2)}% of highest)\n")
+                f"Port stop-loss: ${round(float(c['account params']['portStopLoss'])*int(float(maxPortVal)),2)} ({round(100*float(c['account params']['portStopLoss']),2)}% of highest)\n"+ENDC)
+            # quit()
             syncPosList()  # sync up posList to live data
             if(o.dt.date.today().weekday() == 4 and o.dt.datetime.now().time() > o.dt.time(12)):
                 print("Removing saved csv files")
@@ -505,7 +527,7 @@ def check2sells(pos, verbose=False):
 def sell(stock, algo):
     global posList, cashList, triggeredStocks
     if(posList[algo][stock]['sharesHeld'] > 0):
-        # print(f"{algo} - {stock} - {posList[algo][stock]['sharesHeld']} shares")
+        print(f"{algo} - {stock} - {posList[algo][stock]['sharesHeld']} shares")
         pass
         
         # TODO: call robinhood api here.
@@ -604,6 +626,7 @@ def setPosList(algoList, verbose=True):
         lock = o.threading.Lock()
         lock.acquire()
         with open(c['file locations']['posList'], 'r') as f:
+            
             lists = json.loads(f.read())
 
         posList = lists['algos']
@@ -711,7 +734,10 @@ def syncPosList(verbose=False):
 
     if(verbose):
         print("getting actually held positions")
-    p = a.getPos()
+    #TODO: Robinhood get_postions() .
+    # p = a.getPos()
+    p = robin_account.get_positions()
+    # quit()
     heldPos = {e['symbol']: float(e['qty'])
                for e in p}  # actually held positions
     # get the actual buy prices for each stock
@@ -1001,6 +1027,7 @@ if __name__ == '__main__':
         print("Exiting")
         exitFlag = True
 
-    except Exception:  # record unhandled exceptions
+    except Exception as e :  # record unhandled exceptions
+        print(e)
         print("An unhandled error was encountered. Please check the log.")
-        traceback.print_exc(file=open(c['file locations']['errLog'], "a"))
+        # traceback.print_exc(file=open(c['file locations']['errLog'], "a"))

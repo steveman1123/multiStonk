@@ -7,4 +7,5 @@ toml
 pandas
 pymongo
 feedparser
+pyotp
 autopep8 # used for formatting code

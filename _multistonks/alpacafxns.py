@@ -55,6 +55,7 @@ def getPos():
       print("No connection, or other error encountered in getPos. Trying again...")
       o.time.sleep(3)
       continue
+  # print(o.json.loads(html))
   return o.json.loads(html)
 
 # return orders for positions/stocks/whatever
@@ -417,6 +418,7 @@ def getProfileHistory(startDate=str(o.dt.date.today()), period='1A'):
       print("No connection, or other error encountered in getProfileHistory. Trying again...")
       o.time.sleep(3)
       continue
+  # print(o.json.loads(html))
   return o.json.loads(html)
 
 
