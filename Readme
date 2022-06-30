@@ -12,8 +12,6 @@ Advance steps:
 - the server is managing the watchlist and sending email alerts.
 
 
-
-
 TODO:
 
 - [x] Add trading time from main repo.
@@ -26,12 +24,12 @@ TODO:
 - [x] write buy function.
 
 - [x] Add support for Docker for getting api server for future needs.
+- [x] Do a pull requests 
 
 - [ ] write watchlist class function.
 - [ ] write email class.
 - [ ] Add support for watchlist
 - [ ] Add support emailing alerts and news.
-
 
 
 notes:
