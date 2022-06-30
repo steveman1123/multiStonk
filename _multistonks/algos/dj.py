@@ -230,7 +230,7 @@ def goodSells(symbList, verbose=False): #symbList is a list of stocks ready to b
 
 #get list of stocks from stocksUnder1 and marketWatch lists
 #TODO: should make this an otherfxns fxn with params so multiple algos can pull from the same code
-def getUnsortedList(verbose=False, maxTries=3):
+def getUnsortedList(verbose=True, maxTries=3):
   symbList = list()
   url = "https://www.marketwatch.com/tools/screener/stock"
   

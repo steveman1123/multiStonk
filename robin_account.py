@@ -36,7 +36,8 @@ def openPositions():
             continue
         instrument_data = r.robinhood.get_instrument_by_url(item.get('instrument'))
         symbol = instrument_data['symbol']
-        symbols.append(symbol)
+        symbols.append({'symbol': symbol, 'qty': item['quantity'] })
+        
     return symbols
 
 
@@ -48,6 +49,7 @@ def get_positions():
         "unrealized_pl": "-2.4",
         "unrealized_plpc": "-0.2620087336244541",
         "avg_entry_price": "2.29",
+        "unrealized_intraday_plpc": "-0.0012"
         
     }]
     return template_data
@@ -110,6 +112,51 @@ def get_Account_details():
  
 
 
-
-def createOrder():
-    pass
+def createOrder(side,
+                qty,
+                symb,
+                preference,
+                # orderType="market",
+                time_in_force="day",
+                useExtended=False,
+                maxTries=3,
+                verbose=False):
+    response_ = {}
+    order = {
+        "symbol": symb,
+        "qty": qty,
+        "type": preference['orderType'],
+        "side": side,
+        "time_in_force": time_in_force,
+        "extended_hours": useExtended
+    }
+    if order['side']=='sell':
+        print("placing :",order['side'], preference['orderType'] + " " + side + " " + str(qty) + " " + symb)
+        current_price = r.robinhood.get_latest_price(order['symbol']).pop()
+        limit_price = (float(current_price) + float(preference['sell_limit_offset']))
+        response_ = r.robinhood.order(
+            side = order['side'],
+            symbol  = order['symbol'],
+            quantity = order['qty'],
+            limitPrice = limit_price,
+            timeInForce='gfd',
+            jsonify=True,
+            extendedHours=False
+        )
+        print(response_)
+        return response_
+    if order['side']=='buy':
+        print("placing :",order['side'], preference['orderType'] + " " + side + " " + str(qty) + " " + symb)
+        current_price = r.robinhood.get_latest_price(order['symbol']).pop()
+        limit_price = (float(current_price) - float(preference['buy_limit_offset']))
+        response_ = r.robinhood.order(
+            side = order['side'],
+            symbol  = order['symbol'],
+            quantity = order['qty'],
+            limitPrice = limit_price,
+            timeInForce='gfd',
+            jsonify=True,
+            extendedHours=False
+        )
+        print(response_)
+        return response_

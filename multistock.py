@@ -114,8 +114,9 @@ def main(verbose=False):
         
         # acct = a.getAcct()  # get account info
         acct = robin_account.get_Account_details()
-        pos = robin_account.openPositions()  # get all held positions (no algo assigned)
-
+        pos  = robin_account.get_positions()  # get positions
+        # pos = robin_account.openPositions()  # get all held positions (no algo assigned)
+        # print(pos)get_positions
      
         if(ask2sell and float(acct['portfolio_value']) < float(maxPortVal)*float(c['account params']['portStopLoss']) and len(pos) > 0):
                 print(
@@ -123,7 +124,8 @@ def main(verbose=False):
                 if(not isManualSellOff):
                     print("Automatically selling all...")
                 # if the portfolio value falls below our stop loss, automatically sell everything
-                #TODO: call Robinhood api here.. Resume here.
+                #TODO: call Robinhood api here.. Resume here. #THIS IS IMPORTANT.
+                
                 # soldAll = a.sellAll(isManual=isManualSellOff)
                 # if(soldAll):
                 #     break  # stop the program if the selling occured
@@ -138,8 +140,8 @@ def main(verbose=False):
         totalCash = float(acct['cash']) #TODO: get this from Robinhood API
         tradableCash = getTradableCash(totalCash, maxPortVal)
 
-        if(o.marketIsOpen() == True):
-            print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, port stop loss: {maxPortVal*float(c['account params']['portStopLoss'])},  {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        if(o.marketIsOpen() == False):
+            print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, port stop loss: {int(float(maxPortVal))*float(c['account params']['portStopLoss'])},  {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             # update the lists if not updated yet and that it's not currently updating
             if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')]) == 0):
                     # init the thread - note locking is required here
@@ -154,7 +156,7 @@ def main(verbose=False):
 
             if((closeTime-dt.datetime.now()).total_seconds() <= 60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()]) == 0):
                     # account for withholding a certain amount of cash+margin
-                    tradableCash = getTradableCash(totalCash, maxPortVal)
+                    tradableCash = getTradableCash(totalCash, int(float(maxPortVal)))
                     # evenly split available cash across all algos
                     cashPerAlgo = tradableCash/len(algoList)
                     # start buying things
@@ -211,8 +213,9 @@ def main(verbose=False):
             if(o.dt.date.today().weekday() == 4 and o.dt.datetime.now().time() > o.dt.time(12)):
                 print("Removing saved csv files")
                 for f in glob(o.c['file locations']['stockDataDir']+"*.csv"):
+                    
                     try:  # placed inside a try statement in the event that the file is removed before being removed here
-                            o.os.unlink(f)
+                        o.os.unlink(f)
                     except Exception:
                         pass
 
@@ -339,6 +342,7 @@ def updateList(algo, lock, rm=[], verbose=True):
             print(f"Updating {algo} list")
         # TODO: exitFlag doesn't stop individual getList()'s. Might not be a bad idea to read it somehow?
         # this is probably not safe, but best way I can think of
+        
         algoBuys = eval(algo+".getList()")
         # remove any stocks that are in the rm list
         algoBuys = {e: algoBuys[e] for e in algoBuys if e not in rm}
@@ -486,6 +490,7 @@ def checkTriggered(verbose=False):
 
 
 def check2sells(pos, verbose=False):
+    # print(pos)
     global triggeredStocks
     # determine if the stocks in the algo are good sells (should return as a dict of {symb:goodSell(t/f)})
     for algo in posList:
@@ -528,11 +533,11 @@ def sell(stock, algo):
     global posList, cashList, triggeredStocks
     if(posList[algo][stock]['sharesHeld'] > 0):
         print(f"{algo} - {stock} - {posList[algo][stock]['sharesHeld']} shares")
-        pass
-        
         # TODO: call robinhood api here.
-        # r = a.createOrder("sell", float(
-        #     posList[algo][stock]['sharesHeld']), stock)
+        r = robin_account.createOrder("sell", float(
+            posList[algo][stock]['sharesHeld']), stock,preference=c['trading params'])
+            # return False
+        # pass
     else:
         print(f"No shares held of {stock}")
         triggeredStocks.discard(algo+"|"+stock)
@@ -540,63 +545,62 @@ def sell(stock, algo):
 
     # TODO: this is an incorrect check
     # see how it looks in here: https://alpaca.markets/docs/trading-on-alpaca/orders/#order-lifecycle
-    # if('status' in r and r['status'] == "accepted"):  # check that it actually sold
-    #     lock = o.threading.Lock()
-    #     lock.acquire()
-    #     # update the cash earned by the sale
-    #     cashList[algo]['earned'] += o.getInfo(stock)['price'] * \
-    #         posList[algo][stock]["sharesHeld"]
-    #     posList[algo][stock] = {  # update the entry in posList
-    #         "sharesHeld": 0,
-    #         "lastTradeDate": str(dt.date.today()),
-    #         "lastTradeType": "sell",
-    #         "buyPrice": 0,
-    #         "shouldSell": False,
-    #         "note": ""
-    #     }
+    if('status' in r and r['status'] == "accepted"):  # check that it actually sold
+        lock = o.threading.Lock()
+        lock.acquire()
+        # update the cash earned by the sale
+        cashList[algo]['earned'] += o.getInfo(stock)['price'] * \
+            posList[algo][stock]["sharesHeld"]
+        posList[algo][stock] = {  # update the entry in posList
+            "sharesHeld": 0,
+            "lastTradeDate": str(dt.date.today()),
+            "lastTradeType": "sell",
+            "buyPrice": 0,
+            "shouldSell": False,
+            "note": ""
+        }
 
-    #     open(c['file locations']['posList'], 'w').write(json.dumps(
-    #         {'algos': posList, 'cash': cashList}, indent=2))  # update the posList file
-    #     triggeredStocks.discard(algo+"|"+stock)
-    #     lock.release()
-    #     print(f"Sold {algo}'s shares of {stock}")
-    #     return True
-    # else:
-    #     print(
-    #         f"Order to sell {posList[algo][stock]['sharesHeld']} shares of {stock} for {algo} not accepted")
-    #     return False
+        open(c['file locations']['posList'], 'w').write(json.dumps(
+            {'algos': posList, 'cash': cashList}, indent=2))  # update the posList file
+        triggeredStocks.discard(algo+"|"+stock)
+        lock.release()
+        print(f"Sold {algo}'s shares of {stock}")
+        return True
+    else:
+        print(
+            f"Order to sell {posList[algo][stock]['sharesHeld']} shares of {stock} for {algo} not accepted")
+        return False
 
 
 
 def buy(shares, stock, algo, buyPrice):
     # this needs to happen first so that it can be as accurate as possible
     print("Buying", shares, "shares of", stock, "at", buyPrice)
-    return False
-    # r = a.createOrder("buy", shares, stock)
-    # global posList, cashList
+    r = a.createOrder("buy", shares, stock,preference=c['trading params'])
+    global posList, cashList
 
-    # # check to make sure that it actually bought - TODO: does the presence of 'status' indicate that it bought or not?
-    # if('status' in r and r['status'] == "accepted"):
-    #     lock = o.threading.Lock()
-    #     lock.acquire()
-    #     posList[algo][stock] = {  # update the entry in posList
-    #         "sharesHeld": float(posList[algo][stock]['sharesHeld'])+float(r['qty']) if stock in posList[algo] else float(r['qty']),
-    #         "lastTradeDate": str(dt.date.today()),
-    #         "lastTradeType": "buy",
-    #         # running avg = (prevAvg*n+newAvg*m)/(n+m)
-    #         "buyPrice": (posList[algo][stock]['buyPrice']*posList[algo][stock]['sharesHeld']+buyPrice*float(r['qty']))/(posList[algo][stock]['sharesHeld']+float(r['qty'])) if stock in posList[algo] else buyPrice,
-    #         "shouldSell": False,
-    #         "note": algoList[algo][stock] if stock in algoList[algo] else ""
-    #     }
+    # check to make sure that it actually bought - TODO: does the presence of 'status' indicate that it bought or not?
+    if('status' in r and r['status'] == "accepted"):
+        lock = o.threading.Lock()
+        lock.acquire()
+        posList[algo][stock] = {  # update the entry in posList
+            "sharesHeld": float(posList[algo][stock]['sharesHeld'])+float(r['qty']) if stock in posList[algo] else float(r['qty']),
+            "lastTradeDate": str(dt.date.today()),
+            "lastTradeType": "buy",
+            # running avg = (prevAvg*n+newAvg*m)/(n+m)
+            "buyPrice": (posList[algo][stock]['buyPrice']*posList[algo][stock]['sharesHeld']+buyPrice*float(r['qty']))/(posList[algo][stock]['sharesHeld']+float(r['qty'])) if stock in posList[algo] else buyPrice,
+            "shouldSell": False,
+            "note": algoList[algo][stock] if stock in algoList[algo] else ""
+        }
 
-    #     cashList[algo]['invested'] += buyPrice*shares
-    #     open(c['file locations']['posList'], 'w').write(json.dumps(
-    #         {'algos': posList, 'cash': cashList}, indent=2))  # update posList file
-    #     lock.release()
-    #     return True
-    # else:  # it didn't actually buy
-    #     print(f"Order to buy {shares} shares of {stock} not accepted")
-    #     return False
+        cashList[algo]['invested'] += buyPrice*shares
+        open(c['file locations']['posList'], 'w').write(json.dumps(
+            {'algos': posList, 'cash': cashList}, indent=2))  # update posList file
+        lock.release()
+        return True
+    else:  # it didn't actually buy
+        print(f"Order to buy {shares} shares of {stock} not accepted")
+        return False
 
 
 
@@ -1030,4 +1034,4 @@ if __name__ == '__main__':
     except Exception as e :  # record unhandled exceptions
         print(e)
         print("An unhandled error was encountered. Please check the log.")
-        # traceback.print_exc(file=open(c['file locations']['errLog'], "a"))
+        traceback.print_exc(file=open(c['file locations']['errLog'], "a"))

@@ -1,0 +1,12 @@
+version: '3.6'
+services:
+  multistock-stocks-api:
+    image: multistock-api-server
+    build:
+      dockerfile: multistock-server/Dockerfile
+    ports:
+      - "2010:80"
+    restart: always
+    container_name: multistock-server
+
+
