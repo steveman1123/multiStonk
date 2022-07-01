@@ -140,7 +140,7 @@ def main(verbose=False):
         totalCash = float(acct['cash']) #TODO: get this from Robinhood API
         tradableCash = getTradableCash(totalCash, maxPortVal)
 
-        if(o.marketIsOpen() == False):
+        if(o.marketIsOpen() ):
             print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, port stop loss: {int(float(maxPortVal))*float(c['account params']['portStopLoss'])},  {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             # update the lists if not updated yet and that it's not currently updating
             if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')]) == 0):
@@ -336,13 +336,15 @@ def updateLists(verbose=False):
     listsUpdatedToday = True
 
 def updateList(algo, lock, rm=[], verbose=True):
+    #TODO : ECHO >>>
     global algoList
     if(not exitFlag):  # ensure that the exit flag isn't set
         if(verbose):
-            print(f"Updating {algo} list")
+            print(f"Updating {algo} list check your server logs to see whats going on.")
         # TODO: exitFlag doesn't stop individual getList()'s. Might not be a bad idea to read it somehow?
         # this is probably not safe, but best way I can think of
-        trending_ ,suggestion_= robin_account.multistock_server()
+        robin_account.multistock_server(algo,c)
+        
         algoBuys = eval(algo+".getList(server=trending_ + suggestion_)")
         
         # remove any stocks that are in the rm list
@@ -531,6 +533,7 @@ def check2sells(pos, verbose=False):
 
 
 def sell(stock, algo):
+    return False
     global posList, cashList, triggeredStocks
     if(posList[algo][stock]['sharesHeld'] > 0):
         print(f"{algo} - {stock} - {posList[algo][stock]['sharesHeld']} shares")
@@ -575,6 +578,7 @@ def sell(stock, algo):
 
 
 def buy(shares, stock, algo, buyPrice):
+    return False
     # this needs to happen first so that it can be as accurate as possible
     print("Buying", shares, "shares of", stock, "at", buyPrice)
     r = a.createOrder("buy", shares, stock,preference=c['trading params'])

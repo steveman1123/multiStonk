@@ -1,5 +1,7 @@
-from flask import Flask
-import stocktwits 
+from flask import Flask,request,jsonify
+import stocktwits
+import marketWatch
+import stocksUnder
 import json
 app = Flask(__name__)
 
@@ -32,7 +34,24 @@ def get_stockswits_suggested():
 
 
 
+@app.route('/api/marketwatch/', methods=['POST'])
+def marketwatch():
+    payload = request.get_json()    
+    posted_payload = marketWatch.get_stock(params =payload)
+    return jsonify(posted_payload)
+
+
+
+
+@app.route('/api/stocksunder/', methods=['POST'])
+def stocksunder():
+    payload = request.get_json()    
+    posted_payload = stocksUnder.get_stocks_under_1(params_ =payload)
+    return jsonify(posted_payload)
+
+
+
 if __name__ == '__main__':
     # defult port is 5000
-    app.run(host='0.0.0.0', port=80, debug=True)
+    app.run(host='0.0.0.0', port=5022, debug=True)
     

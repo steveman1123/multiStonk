@@ -1,7 +1,7 @@
 import requests
 
 def stocktwits_trending():
-    trending_stocks = []
+    trending_stocks = list()
     cookies = {}
     headers = {
         'User-Agent': 'StockTwits/4.23.2 (iPhone; iOS 14.0; Scale/3.00)',
@@ -22,18 +22,14 @@ def stocktwits_trending():
                     sym = sym[:-len(crypto_)]
                 else:
                     pass
-            trending_stocks.append(
-                {"source": "https://api.stocktwits.com/api/2/streams/trending.json", "symbol": sym})
-
-        # print(trending_stocks)
+            trending_stocks += [sym]
         return trending_stocks
     except:
         return "error from function stockstwit_trending_stocks"
         # print("done from function stockstwit_trending_stocks")
 
-
 def stocktwits_suggested():
-    suggested = []
+    suggested = list()
     cookies = {
 
     }
@@ -58,13 +54,11 @@ def stocktwits_suggested():
                         sym = sym[:-len(crypto_)]
                 else:
                     pass
-                suggested.append(
-                    {"source": "https://api.stocktwits.com/api/2/streams/suggested.json", "symbol": sym})
-            except KeyError as e:
+                suggested += [sym]
+            except KeyError as e:                
                 # print(e)
                 continue
         return suggested
     except:
-        print("error from function stockstwit_suggested")
-    print("done adding suggested_stocks")
+        return "error from function suggested_stocks"
 

@@ -124,49 +124,72 @@ def createOrder(side,
                 useExtended=False,
                 maxTries=3,
                 verbose=False):
-    response_ = {}
-    order = {
-        "symbol": symb,
-        "qty": qty,
-        "type": preference['orderType'],
-        "side": side,
-        "time_in_force": time_in_force,
-        "extended_hours": useExtended
-    }
-    if order['side']=='sell':
-        print("placing :",order['side'], preference['orderType'] + " " + side + " " + str(qty) + " " + symb)
-        current_price = r.robinhood.get_latest_price(order['symbol']).pop()
-        limit_price = (float(current_price) + float(preference['sell_limit_offset']))
-        response_ = r.robinhood.order(
-            side = order['side'],
-            symbol  = order['symbol'],
-            quantity = order['qty'],
-            limitPrice = limit_price,
-            timeInForce='gfd',
-            jsonify=True,
-            extendedHours=False
-        )
-        print(response_)
-        return response_
-    if order['side']=='buy':
-        print("placing :",order['side'], preference['orderType'] + " " + side + " " + str(qty) + " " + symb)
-        current_price = r.robinhood.get_latest_price(order['symbol']).pop()
-        limit_price = (float(current_price) - float(preference['buy_limit_offset']))
-        response_ = r.robinhood.order(
-            side = order['side'],
-            symbol  = order['symbol'],
-            quantity = order['qty'],
-            limitPrice = limit_price,
-            timeInForce='gfd',
-            jsonify=True,
-            extendedHours=False
-        )
-        print(response_)
-        return response_
+    return False
+
+    # response_ = {}
+    # order = {
+    #     "symbol": symb,
+    #     "qty": qty,
+    #     "type": preference['orderType'],
+    #     "side": side,
+    #     "time_in_force": time_in_force,
+    #     "extended_hours": useExtended
+    # }
+    # if order['side']=='sell':
+    #     print("placing :",order['side'], preference['orderType'] + " " + side + " " + str(qty) + " " + symb)
+    #     current_price = r.robinhood.get_latest_price(order['symbol']).pop()
+    #     limit_price = (float(current_price) + float(preference['sell_limit_offset']))
+    #     response_ = r.robinhood.order(
+    #         side = order['side'],
+    #         symbol  = order['symbol'],
+    #         quantity = order['qty'],
+    #         limitPrice = limit_price,
+    #         timeInForce='gfd',
+    #         jsonify=True,
+    #         extendedHours=False
+    #     )
+    #     print(response_)
+    #     return response_
+    # if order['side']=='buy':
+    #     print("placing :",order['side'], preference['orderType'] + " " + side + " " + str(qty) + " " + symb)
+    #     current_price = r.robinhood.get_latest_price(order['symbol']).pop()
+    #     limit_price = (float(current_price) - float(preference['buy_limit_offset']))
+    #     response_ = r.robinhood.order(
+    #         side = order['side'],
+    #         symbol  = order['symbol'],
+    #         quantity = order['qty'],
+    #         limitPrice = limit_price,
+    #         timeInForce='gfd',
+    #         jsonify=True,
+    #         extendedHours=False
+    #     )
+    #     print(response_)
+    #     return response_
     
     
-def multistock_server():
+def multistock_server(algo,c):
     get_ip = socket.gethostbyname(socket.gethostname())
-    trending_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-trending/')
-    suggestion_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-suggested/')
-    return trending_.json(),suggestion_.json()
+    headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
+    marketwatch_payload = {
+            "exchange": "nasdaq",
+            "visiblecolumns": "Symbol",
+            "pricemin": str(c[algo]['simMinPrice']),
+            "pricemax": str(c[algo]['simMaxPrice']),
+            "volumemin": str(c[algo]['simMinVol']),
+            "partial": "true"
+        }
+    stocksunder_payload = {"price": 5, "volume": 0, "updown": "up"}
+    # marketwatch = requests.post('http://' + get_ip + ':5022/api/marketwatch/',headers=headers,data=json.dumps(marketwatch_payload))
+    stocksunder = requests.post('http://' + get_ip + ':5022/api/stocksunder/',headers=headers,data=json.dumps(stocksunder_payload))
+
+    print(stocksunder.json())
+    quit()
+    
+# multistock_server()
+
+    # this is for the multistock server running in docker.
+    # trending_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-trending/')
+    # suggestion_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-suggested/')
+    
+    
+    # return trending_.json(),suggestion_.json()

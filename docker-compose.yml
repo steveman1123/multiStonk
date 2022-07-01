@@ -7,6 +7,7 @@ services:
     ports:
       - "2010:80"
     restart: always
+    # This is to make sure that the container is always up-to-date
     container_name: multistock-server
 
 
