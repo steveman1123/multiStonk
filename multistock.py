@@ -79,12 +79,12 @@ def main(verbose=False):
     a.checkValidKeys(int(c['account params']['isPaper']))
     robin_account.account_isValid()
     if (len(robin_account.openPositions()) == 0):
-        print("No open positions")
-
-    
-    if(len(a.getPos()) == 0):
         print(
-            f"Will start buying {c['time params']['buyTime']} minutes before next close")
+            BOLD+f"Will start buying {c['time params']['buyTime']} minutes before next close" +ENDC)
+        # print("No open positions")
+    # quit()
+    
+    # if(len(a.getPos()) == 0):
 
     # initiate/populate the list of positions by algo
     [posList, cashList] = setPosList(algoList)
@@ -97,21 +97,13 @@ def main(verbose=False):
 
     if(verbose):
         print(json.dumps(algoList, indent=2))
-
-    # get the closing prices of the portfolio over the last month
     #TODO: call Robinhood api here. 
     # portHist = a.getProfileHistory(str(dt.date.today()), '1M')['equity']
     closing_historical,_time_stamp = robin_account.account_history()
-    
-    # print(historical)
-    # print(portHist['adjusted_close_equity'])
-    
     # get the max portfolio value over the last month and remove blank entries
     maxPortVal = max([e for e in closing_historical if e is not None])
-    # print(maxPortVal)
     isManualSellOff = not int(c['account params']['portAutoSellOff'])
     while True:
-        
         # acct = a.getAcct()  # get account info
         acct = robin_account.get_Account_details()
         pos  = robin_account.get_positions()  # get positions
@@ -123,6 +115,7 @@ def main(verbose=False):
                     f"Portfolio value of ${acct['portfolio_value']} is less than {c['account params']['portStopLoss']} times the max portfolio value of ${maxPortVal}.")
                 if(not isManualSellOff):
                     print("Automatically selling all...")
+                    quit()
                 # if the portfolio value falls below our stop loss, automatically sell everything
                 #TODO: call Robinhood api here.. Resume here. #THIS IS IMPORTANT.
                 
@@ -140,7 +133,7 @@ def main(verbose=False):
         totalCash = float(acct['cash']) #TODO: get this from Robinhood API
         tradableCash = getTradableCash(totalCash, maxPortVal)
 
-        if(o.marketIsOpen() ):
+        if(o.marketIsOpen()== False):
             print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, port stop loss: {int(float(maxPortVal))*float(c['account params']['portStopLoss'])},  {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             # update the lists if not updated yet and that it's not currently updating
             if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')]) == 0):
@@ -150,11 +143,13 @@ def main(verbose=False):
                     updateListsThread.setName('updateLists')
                     updateListsThread.start()  # start the thread
 
-            print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\ttriggers\tnotes")
-            print("----\t------\t-----\t-----------\t-----------\t-----------\t----------")
+            print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\ttriggers\tnotes....\tis_pending")
+            print("----\t------\t-----\t-----------\t-----------\t-----------\t----------\t-----")
             check2sells(pos)
-
+            
             if((closeTime-dt.datetime.now()).total_seconds() <= 60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()]) == 0):
+
+            # if(0<= 60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()]) == 0):
                     # account for withholding a certain amount of cash+margin
                     tradableCash = getTradableCash(totalCash, int(float(maxPortVal)))
                     # evenly split available cash across all algos
@@ -187,22 +182,12 @@ def main(verbose=False):
                 else:
                     roi = 1
                 print(f"{algo} - {FAIL if roi<1 else OKGREEN}{roi}{ENDC}")
-            closing_historical,_time_stamp = robin_account.account_history()
-            
-            # portHist = a.getProfileHistory(str(dt.date.today()), '1M')
-
-            # print(portHist)
-            
+            closing_historical,_time_stamp = robin_account.account_history()    
             portHist = {str(dt.datetime.fromtimestamp(_time_stamp[i]).date()): 
                 closing_historical[i] for i in range(len(_time_stamp)) if closing_historical[i] is not None}
-            # quit()
-            # get the max portfolio value of the last month
             maxPortVal = max(list(portHist.values()))
             current_value = portHist[max(list(portHist.keys()))]
             value = int(float(current_value))
-            # print(round(100*value/int(float(maxPortVal)),3))
-
-            # display max val and date
             print(WARNING+
                 f"\nHighest portVal in the last month: ${round(int(float(maxPortVal)))} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
             print(f"Current portVal: ${current_value} ({(round(100*value/int(float(maxPortVal)),3))}% of highest)")
@@ -233,6 +218,7 @@ def main(verbose=False):
                     f"Updating stock lists in {round((tto-60*float(c['time params']['updateLists']))/3600,2)} hours\n")
                 time.sleep(tto-60*float(c['time params']['updateLists']))
             # TODO: move this into the thread or within the thread have a "done updating buylist"
+            
             print("Updating buyList")
             # init the thread - note locking is required here
             updateListsThread = o.threading.Thread(target=updateLists)
@@ -253,7 +239,7 @@ def getTradableCash(totalCash, maxPortVal, verbose=False):
         if(verbose):
             print(2)
         return 0
-    elif(minCash2hold*minCashMargin < totalCash < maxPortVal*maxCash2hold):  # 1101-.25*max
+    elif(minCash2hold*minCashMargin < totalCash < int(float(maxPortVal))*maxCash2hold):  # 1101-.25*max
         if(verbose):
             print(3)
         return totalCash-minCash2hold*minCashMargin
@@ -261,8 +247,8 @@ def getTradableCash(totalCash, maxPortVal, verbose=False):
         if(verbose):
             print(4)
         if(verbose):
-            print(maxPortVal*maxCash2hold, minCash2hold*minCashMargin)
-        return totalCash-max(maxPortVal*maxCash2hold, minCash2hold*minCashMargin)
+            print(int(float(maxPortVal))*maxCash2hold, minCash2hold*minCashMargin)
+        return totalCash-max(int(float(maxPortVal))*maxCash2hold, minCash2hold*minCashMargin)
 
 
 
@@ -340,12 +326,13 @@ def updateList(algo, lock, rm=[], verbose=True):
     global algoList
     if(not exitFlag):  # ensure that the exit flag isn't set
         if(verbose):
-            print(f"Updating {algo} list check your server logs to see whats going on.")
-        # TODO: exitFlag doesn't stop individual getList()'s. Might not be a bad idea to read it somehow?
-        # this is probably not safe, but best way I can think of
-        robin_account.multistock_server(algo,c)
+            print(OKCYAN+f"Updating {algo} list check your server logs to see whats going on."+ENDC)
         
-        algoBuys = eval(algo+".getList(server=trending_ + suggestion_)")
+        #TODO: fix this to route to the correct algo
+        
+        marketwatch,stocksunder,trending_,suggestion = robin_account.multistock_server(algo,c)
+        
+        algoBuys = eval(algo+".getList(stocklist=stocksunder)")
         
         # remove any stocks that are in the rm list
         algoBuys = {e: algoBuys[e] for e in algoBuys if e not in rm}
@@ -395,7 +382,7 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
             float(c['account params']['minDolPerStock']), cashAvailable/len(stocks2buy)))
         if(verbose):
             print(
-                f"stocks to buy for {algo}: {len(stocks2buy)}\tcash available for {algo}: {round(cashAvailable,2)}\tcash per stock: {round(cashPerStock,2)}")
+                f"stocks to buy for {algo} is {len(stocks2buy)}: \tcash available for {algo}: {round(cashAvailable,2)}\tcash per stock: {round(cashPerStock,2)}")
     else:
         print(f"No stocks to buy for {algo}")
     # loop through the stocks to be bought
@@ -408,7 +395,8 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
                 "lastTradeType": "NA",
                 "buyPrice": 0,
                 "shouldSell": False,
-                "note": ""
+                "note": "",
+                "is_pending": False
             }
 
             # get the last date it was traded, if it isn't populated, just set it to yesterday
@@ -432,20 +420,19 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
                 # print(mktCap,curPrice)
                 #print(mktCap/curPrice,c['account params']['maxVolPerc'])
                 #print(cashPerStock/curPrice,(mktCap/curPrice)*float(c['account params']['maxVolPerc']))
-
-                if(verbose):
-                    print(
-                        f"{algo} - {stock} - {curPrice} - ok to buy {shares} shares")
-                if(shares > 0):  # cannot place an order for 0 shares
-                    # market must be open in order to place the trade (this check is here in the event that the program is suspended while market open, then restarted while market closed)
-                    # if(o.marketIsOpen()): #TODO: add once this is confirmed, otherwise wait for a better solution to not need queries
-                    isBought = buy(shares, stock, algo,
-                                   curPrice)  # buy the stock
-                    if(isBought):
-                        print(
-                            f"buy\t{shares}\t{stock}\t{algo}\t{round(curPrice,2)}\t{round(shares*curPrice,2)}")
-                    else:
-                        print(f"could not buy {stock}")
+                try:
+                    if posList[algo][stock]["is_pending"] == True:
+                        print(f"{algo} - {stock} - {curPrice} - duplicated purchases")
+                        continue
+                except Exception as e:
+                    if(shares > 0):  # cannot place an order for 0 shares
+                        isBought = buy(shares, stock, algo,curPrice)  # buy the stock
+                        if(isBought):
+                            print(
+                                f"buy\t{shares}\t{stock}\t{algo}\t{round(curPrice,2)}\t{round(shares*curPrice,2)}")
+                        else:
+                            print(f"could not buy {stock}")
+          
 
 
 
@@ -509,8 +496,7 @@ def check2sells(pos, verbose=False):
             # only display/sell if not bought today
             if(posList[algo][e['symbol']]['lastTradeDate'] < str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType'] != 'buy'):
                 print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{ENDC}\t\t{FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{ENDC}\t\t"+str(
-                    round(eval(f'{algo}.sellDn("{e["symbol"]}")'), 2))+" & "+str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'), 2))+f"\t{posList[algo][e['symbol']]['note']}")
-                # ensure that the market is open in order to actually place a trade
+                    round(eval(f'{algo}.sellDn("{e["symbol"]}")'), 2))+" & "+str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'), 2))+f"\t{posList[algo][e['symbol']]['note']}"+f"\t{WARNING+str(posList[algo][e['symbol']]['is_pending'])+ENDC}")
                 # this check is here in the event that the program is suspended while open, then restarted while closed
                 # if(o.marketIsOpen()): #TODO: confirm that this is needed first and not a setting that can be changed outside of this script
                 if(gs[e['symbol']] == 1):  # if the stock is a good sell (sellUp)
@@ -527,21 +513,24 @@ def check2sells(pos, verbose=False):
                         triggerThread.setName("triggered")
                         triggerThread.start()  # start the thread
                 elif(gs[e['symbol']] == -1):  # else if it sells down (stop-loss)
-                    # sell immediately
-                    sell(e['symbol'], algo)
-
-
+                    try:
+                        if posList[algo][e['symbol']]["is_pending"]  == True:
+                            print(WARNING+"can't place a sell order while a pending order is open for :" +e['symbol'] +ENDC)
+                            continue
+                        else:
+                            sell(e['symbol'], algo)
+                    except KeyError:
+                        print(WARNING+"can't place a sell order because the stock isn't in the position list for :" +e['symbol'] +ENDC)
+                        continue
+          
 
 def sell(stock, algo):
-    return False
     global posList, cashList, triggeredStocks
     if(posList[algo][stock]['sharesHeld'] > 0):
-        print(f"{algo} - {stock} - {posList[algo][stock]['sharesHeld']} shares")
-        # TODO: call robinhood api here.
+        # print(f"{algo} - {stock} - {posList[algo][stock]['sharesHeld']} shares")
+        # TODO: call robinhood api here... Check here
         r = robin_account.createOrder("sell", float(
             posList[algo][stock]['sharesHeld']), stock,preference=c['trading params'])
-            # return False
-        # pass
     else:
         print(f"No shares held of {stock}")
         triggeredStocks.discard(algo+"|"+stock)
@@ -549,7 +538,7 @@ def sell(stock, algo):
 
     # TODO: this is an incorrect check
     # see how it looks in here: https://alpaca.markets/docs/trading-on-alpaca/orders/#order-lifecycle
-    if('status' in r and r['status'] == "accepted"):  # check that it actually sold
+    if('state' in r and r['state'] == "unconfirmed" or 'state' in r and r['state'] == "filled"):
         lock = o.threading.Lock()
         lock.acquire()
         # update the cash earned by the sale
@@ -562,6 +551,7 @@ def sell(stock, algo):
             "buyPrice": 0,
             "shouldSell": False,
             "note": ""
+            
         }
 
         open(c['file locations']['posList'], 'w').write(json.dumps(
@@ -578,14 +568,11 @@ def sell(stock, algo):
 
 
 def buy(shares, stock, algo, buyPrice):
-    return False
     # this needs to happen first so that it can be as accurate as possible
-    print("Buying", shares, "shares of", stock, "at", buyPrice)
-    r = a.createOrder("buy", shares, stock,preference=c['trading params'])
+    r = robin_account.createOrder("buy", shares, stock,preference=c['trading params'])
     global posList, cashList
-
     # check to make sure that it actually bought - TODO: does the presence of 'status' indicate that it bought or not?
-    if('status' in r and r['status'] == "accepted"):
+    if('state' in r and r['state'] == "unconfirmed" or 'state' in r and r['state'] == "filled"):
         lock = o.threading.Lock()
         lock.acquire()
         posList[algo][stock] = {  # update the entry in posList
@@ -595,7 +582,8 @@ def buy(shares, stock, algo, buyPrice):
             # running avg = (prevAvg*n+newAvg*m)/(n+m)
             "buyPrice": (posList[algo][stock]['buyPrice']*posList[algo][stock]['sharesHeld']+buyPrice*float(r['qty']))/(posList[algo][stock]['sharesHeld']+float(r['qty'])) if stock in posList[algo] else buyPrice,
             "shouldSell": False,
-            "note": algoList[algo][stock] if stock in algoList[algo] else ""
+            "note": algoList[algo][stock] if stock in algoList[algo] else "",
+            "is_pending":True
         }
 
         cashList[algo]['invested'] += buyPrice*shares
@@ -607,10 +595,11 @@ def buy(shares, stock, algo, buyPrice):
         print(f"Order to buy {shares} shares of {stock} not accepted")
         return False
 
+    # return False
 
 
 
-def setPosList(algoList, verbose=True):
+def setPosList(algoList, verbose=False):
     posList = {}
     cashList = {}
     # if the posList file doesn't exist
@@ -732,7 +721,8 @@ def syncPosList(verbose=False):
                     'lastTradeType': posList[inactiveAlgo][symb]['lastTradeType'],
                     'buyPrice': posList[inactiveAlgo][symb]['buyPrice'],
                     'shouldSell': posList[inactiveAlgo][symb]['shouldSell'],
-                    'note': posList[inactiveAlgo][symb]['note']
+                    'note': posList[inactiveAlgo][symb]['note'],
+                    'is_pending': posList[inactiveAlgo][symb]['is_pending']
                 }
 
             # remove the shares fromt he inactive algo
@@ -747,15 +737,20 @@ def syncPosList(verbose=False):
     # p = a.getPos()
     p = robin_account.get_positions()
     # quit()
-    heldPos = {e['symbol']: float(e['qty'])
-               for e in p}  # actually held positions
+    heldPos = {e['symbol']: float(e['qty']) for e in p}  # actually held positions
     # get the actual buy prices for each stock
     heldBuyPrices = {e['symbol']: float(e['avg_entry_price']) for e in p}
+    is_pending = {e['symbol']: e['is_pending'] for e in p}
+    
 
+    
+    
+    
     if(verbose):
         print("Adding any missing fields to current records")
     for algo in posList:
         for symb in posList[algo]:
+            # print(is_pending[symb])
             lock.acquire()
             if('sharesHeld' not in posList[algo][symb]):
                 if(verbose):
@@ -782,6 +777,9 @@ def syncPosList(verbose=False):
                     print(f"{algo} {symb} missing note")
                 posList[algo][symb]['note'] = algoList[algo][symb] if(
                     algo in algoList and symb in algoList[algo]) else ""
+            if('is_pending' not in posList[algo][symb]):
+                posList[algo][symb]['is_pending'] = is_pending[symb]
+            
             lock.release()
 
     # total stocks in posList
@@ -922,7 +920,8 @@ def syncPosList(verbose=False):
                                              'sharesHeld': heldPos[symb],
                                              'shouldSell': False,
                                              'buyPrice': heldBuyPrices[symb],
-                                             'note': algoList[maxAlgo[0]][symb]
+                                             'note': algoList[maxAlgo[0]][symb],
+                                             'is_pending': is_pending[symb]
                                              }
                 lock.release()
                 # also add the stock to the recPos temp var
@@ -947,7 +946,11 @@ def syncPosList(verbose=False):
                                              'sharesHeld': heldPos[symb],
                                              'buyPrice': heldBuyPrices[symb],
                                              'shouldSell': False,
-                                             'note': algoList[minAlgo[0]][symb] if symb in algoList[minAlgo[0]] else ""
+                                             'note': algoList[minAlgo[0]][symb] if symb in algoList[minAlgo[0]] else "",
+                                             'is_pending': is_pending[symb]
+
+                                            #  'is_pending': False
+
                                              }
                 lock.release()
                 # also add the stock to the recPos temp var

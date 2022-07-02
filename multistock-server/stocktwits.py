@@ -1,6 +1,7 @@
 import requests
 
 def stocktwits_trending():
+    # trending_stocks.clear()
     trending_stocks = list()
     cookies = {}
     headers = {
@@ -13,6 +14,7 @@ def stocktwits_trending():
     response = requests.get(
         'https://api.stocktwits.com/api/2/streams/trending.json', headers=headers, cookies=cookies)
     get_symbols = response.json()
+    trending_stocks.clear() # just incase the list is not empty
     try:
         for line in get_symbols['messages']:
             for symbol in line['symbols']:
@@ -44,6 +46,7 @@ def stocktwits_suggested():
     response = requests.get(
         'https://api.stocktwits.com/api/2/streams/suggested.json', headers=headers, cookies=cookies)
     get_symbols = response.json()
+    suggested.clear() # just incase the list is not empty
     try:
         for line in get_symbols['messages']:
             try:

@@ -32,8 +32,11 @@ def account_isValid():
 
 
 def openPositions():
+    #TODO: get positions from robinhood
+    # r.robinhood.cancel_all_stock_orders()
+    
     symbols = []
-    holdings_data = r.robinhood.get_open_stock_positions()
+    holdings_data = r.robinhood.build_holdings()
     for item in holdings_data:
         if not item:
             continue
@@ -45,29 +48,49 @@ def openPositions():
 
 
 def get_positions():
-    #TODO: get positions from robinhood
-    template_data = [{
-        "symbol": "OBSV",
-        "qty": "10",
-        "unrealized_pl": "-2.4",
-        "unrealized_plpc": "-0.2620087336244541",
-        "avg_entry_price": "2.29",
-        "unrealized_intraday_plpc": "-0.0012"
-        
-    }]
-    return template_data
-    # equity_change = r.robinhood.build_holdings()
-    # pprint.pprint(equity_change)
-    # for position in equity_change:
-    #     print(position)
-        
-    #     pass
+    positions = []
+    holdings_data = r.robinhood.get_open_stock_positions()
+    # holdings_data = r.robinhood.build_holdings()
+    for item in holdings_data:
+        if not item:
+            continue
+        instrument_data = r.robinhood.get_instrument_by_url(item.get('instrument'))
+        symbol = instrument_data['symbol']
+        held_shares = item['shares_held_for_buys']
+        if item["average_buy_price"] == "0.0000":
+            getprice = r.robinhood.get_latest_price(symbol).pop()
+            # print("This may be a pending order :" + symbol)
+            pending_orders = {
+                "symbol": symbol,
+                "qty": held_shares,
+                "is_pending": True,
+                "unrealized_pl": "0.00",
+                "unrealized_plpc": "0.00",
+                "avg_entry_price": float(getprice),
+                "unrealized_intraday_plpc": "0.00"
+            }
+            positions.append(pending_orders)
+        else:
+            print("This is a real position :" + symbol)
+            #TODO: Come back to this function to fix the relevant info
+            return openPositions()
+    return positions
+            # helded_positions = [{
+            #     "symbol": symbol,
+            #     "qty": "10",
+            #     "unrealized_pl": "-2.4",
+            #     "unrealized_plpc": "-0.2620087336244541",
+            #     "avg_entry_price": "2.29",
+            #     "unrealized_intraday_plpc": "-0.0012"
+            # }]
+            # return helded_positions
+
+
 
 
 def account_history():
     closing_historical = []
     time_stamp = []
-    # time_stamp = []
     while True:
         try:
             historicals_ = r.robinhood.get_historical_portfolio(
@@ -83,11 +106,6 @@ def account_history():
                 _day = int(historical_date.split(',')[2])
                 _time_stamp = dt.datetime(_year,_month,_day,0,0).timestamp()
                 time_stamp.append(_time_stamp)
-                # print(_time_stamp)
-                            
-                
-
-            # return closing_historical,_time_stamp
             break
         except Exception as e:
             print(
@@ -107,65 +125,57 @@ def getProfileHistory():
 
 def get_Account_details():
     account_info = {}
-    user_account = r.robinhood.account.build_user_profile()
-    account_info['portfolio_value'] = user_account['equity']
-    account_info['cash'] = user_account['cash']   
+    user_account = r.robinhood.account.load_phoenix_account()
+    account_info['portfolio_value'] = user_account['equities']['equity']['amount']
+    account_info['cash'] = user_account['account_buying_power']['amount']
     return account_info    
 
  
-
-
+ 
+ 
 def createOrder(side,
                 qty,
                 symb,
                 preference,
-                # orderType="market",
                 time_in_force="day",
-                useExtended=False,
-                maxTries=3,
-                verbose=False):
-    return False
+                useExtended=False
+                ):
+    response_ = {}
+    order = {
+        "symbol": symb,
+        "qty": qty,
+        "type": preference['orderType'],
+        "side": side,
+        "time_in_force": time_in_force,
+        "extended_hours": useExtended
+    }
+    try:
+        current_price = r.robinhood.get_latest_price(order['symbol']).pop()
+        if order['side']=='sell':
+            limit_price = (float(current_price) + float(preference['sell_limit_offset']))
+        elif order['side']=='buy':
+            limit_price = (float(current_price) - float(preference['buy_limit_offset']))
+        # lets hope this is the correct way to do it... 
+        print("placing :",order['side'], preference['orderType'] + " " + side + " " + str(qty) + " " + symb)
+        current_price = r.robinhood.get_latest_price(order['symbol']).pop()
+        print(limit_price, current_price)
+        response_ = r.robinhood.order(
+            side = order['side'],
+            symbol  = order['symbol'],
+            quantity = order['qty'],
+            limitPrice = limit_price,
+            timeInForce='gtc',
+            jsonify=True,
+            extendedHours=False
+        )
+        response_["qty"] = order['qty']
+        print(response_)
+        return response_
+    except Exception as e:
+        print("Error: ",e)
+        return response_
+        
 
-    # response_ = {}
-    # order = {
-    #     "symbol": symb,
-    #     "qty": qty,
-    #     "type": preference['orderType'],
-    #     "side": side,
-    #     "time_in_force": time_in_force,
-    #     "extended_hours": useExtended
-    # }
-    # if order['side']=='sell':
-    #     print("placing :",order['side'], preference['orderType'] + " " + side + " " + str(qty) + " " + symb)
-    #     current_price = r.robinhood.get_latest_price(order['symbol']).pop()
-    #     limit_price = (float(current_price) + float(preference['sell_limit_offset']))
-    #     response_ = r.robinhood.order(
-    #         side = order['side'],
-    #         symbol  = order['symbol'],
-    #         quantity = order['qty'],
-    #         limitPrice = limit_price,
-    #         timeInForce='gfd',
-    #         jsonify=True,
-    #         extendedHours=False
-    #     )
-    #     print(response_)
-    #     return response_
-    # if order['side']=='buy':
-    #     print("placing :",order['side'], preference['orderType'] + " " + side + " " + str(qty) + " " + symb)
-    #     current_price = r.robinhood.get_latest_price(order['symbol']).pop()
-    #     limit_price = (float(current_price) - float(preference['buy_limit_offset']))
-    #     response_ = r.robinhood.order(
-    #         side = order['side'],
-    #         symbol  = order['symbol'],
-    #         quantity = order['qty'],
-    #         limitPrice = limit_price,
-    #         timeInForce='gfd',
-    #         jsonify=True,
-    #         extendedHours=False
-    #     )
-    #     print(response_)
-    #     return response_
-    
     
 def multistock_server(algo,c):
     get_ip = socket.gethostbyname(socket.gethostname())
@@ -179,17 +189,9 @@ def multistock_server(algo,c):
             "partial": "true"
         }
     stocksunder_payload = {"price": 5, "volume": 0, "updown": "up"}
-    # marketwatch = requests.post('http://' + get_ip + ':5022/api/marketwatch/',headers=headers,data=json.dumps(marketwatch_payload))
-    stocksunder = requests.post('http://' + get_ip + ':5022/api/stocksunder/',headers=headers,data=json.dumps(stocksunder_payload))
-
-    print(stocksunder.json())
-    quit()
+    marketwatch = requests.post('http://' + get_ip + ':2010/api/marketwatch/',headers=headers,data=json.dumps(marketwatch_payload))
+    stocksunder = requests.post('http://' + get_ip + ':2010/api/stocksunder/',headers=headers,data=json.dumps(stocksunder_payload))
+    trending_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-trending/')
+    suggestion_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-suggested/')
+    return marketwatch.json(),stocksunder.json(),trending_.json(),suggestion_.json()
     
-# multistock_server()
-
-    # this is for the multistock server running in docker.
-    # trending_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-trending/')
-    # suggestion_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-suggested/')
-    
-    
-    # return trending_.json(),suggestion_.json()

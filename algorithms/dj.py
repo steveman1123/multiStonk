@@ -23,10 +23,11 @@ def init(configFile):
 # get a list of potential gainers according to this algo
 
 
-def getList(verbose=True, server=list()):
+def getList(verbose=True,stocklist=None):
     if(verbose):
         print(f"getting unsorted list for {algo}...")
-    ul = getUnsortedList(server_=server)
+    ul = stocklist
+    
     # print(ul)
     if(verbose):
         print(f"found {len(ul)} stocks to sort through for {algo}.")

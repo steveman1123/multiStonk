@@ -8,14 +8,7 @@ This is experimental.
 required for login: - TOTPS and alpaca API keys 
     
 
-
-Moved all stocks required for trading to  multistock-server which is running on a server and returns the data in a json format. This is done for maintenance reasons and to debug failing apis.
-
-using graphql will be too much work, so we request data individually from the api.
-marketwatch you will have to post parameters to the api.
-
-    requests.post(url = "https://www.marketwatch.com/tools/screener/stock")
-
+Moved all stocks required for trading to  multistock-server which is running on a server and returns the data in a json format. This is done for maintenance reasons and to debug failing apis in the future.
 
 
 TODO:
@@ -32,18 +25,21 @@ TODO:
 - [x] Add support for Docker for getting api server for future needs.
 - [x] Do a pull requests 
 
-
+- [x] prevent duplicate orders during limit orders.
+- [x] fix limit orders and syncing issues. 
 
 - [ ] A Docker instance or create systemd background simple task for the server to run in the background. 
 - [ ] The server is managing the watchlist and sending email alerts.
 
 - [ ] write watchlist class function.
 - [ ] write email class.
-- [ ] Add support for watchlist
+- [ ] Add support for watchlist.
 - [ ] Add support emailing alerts and news.
 
 
 notes:
-graphql may help, but thats too much code. It is better to use the api directly.
+Robinhood hours for trading has changed, keeping the original hours. 
+
+graphql may help, but thats too much work. It is better to use the api directly instead of querying.
 
 autopep8 -i convert-to-tabs.py
