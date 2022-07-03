@@ -146,7 +146,7 @@ def goodBuy(symb, days2look=-1, verbose=False):  # days2look=how far back to loo
 
 # perform the same checks as goodBuy but multiplexed for fewer requests
 # returns a dict of {symb:validBuyText} where validBuyText will contain the failure reason or if it succeeds, then it is the initial jump date
-def goodBuys(symbList, days2look=-1, verbose=False):
+def goodBuys(symbList, days2look=-1, verbose=True):
     if(days2look < 0):
         days2look = int(c[algo]['simDays2look'])
     # calc price % diff over past 20 days (current price/price of day n) - current must be >= 80% for any
@@ -300,89 +300,6 @@ def goodSells(symbList, verbose=False):  # symbList is a list of stocks ready to
     return gs
 
 
-# get list of stocks from stocksUnder1 and marketWatch lists
-# TODO: should make this an otherfxns fxn with params so multiple algos can pull from the same code
-def getUnsortedList(verbose=True, maxTries=3, server_=None):
-    symbList = list()
-    if server_ != None:
-        if(verbose):
-            print("getting stocks from personal server")
-        # combine and remove duplicates
-        symbList = list(dict.fromkeys(server_))
-        # print(symbList)
-        return symbList
-    else:
-        url = "https://www.marketwatch.com/tools/screener/stock"
-
-        params = {
-            "exchange": "nasdaq",
-            "visiblecolumns": "Symbol",
-            "pricemin": str(c[algo]['simMinPrice']),
-            "pricemax": str(c[algo]['simMaxPrice']),
-            "volumemin": str(c[algo]['simMinVol']),
-            "partial": "true"
-        }
-
-        if(verbose):
-            print("Getting MarketWatch data...")
-        skip = 0
-        # new screener only returns 25 per page and can't be changed (afaict)
-        resultsPerPage = 25
-        # init to some value so that its not empty for the loop comparison
-        pageList = [None]
-        while len(pageList) > 0:
-            pageList = []  # reinit once inside of the loop
-            params['skip'] = skip
-            tries = 0
-            while tries < maxTries:
-                try:
-                    r = o.requests.get(url, params=params, timeout=5).text
-                    pageList = r.split('j-Symbol ">')[1:]
-                    pageList = [e.split(">")[1][:-3] for e in pageList]
-                    symbList += pageList
-                    if(verbose):
-                        print(f"MW page {int(skip/resultsPerPage)}")
-                    break
-                except Exception:
-                    tries += 1
-                    print(f"Error getting MW data for {algo}. Trying again...")
-                    o.time.sleep(3)
-                    continue
-            skip += len(pageList)
-
-        # now that we have the marketWatch list, let's get the stocksunder1 list - essentially the getPennies() fxn from other files
-        if(verbose):
-            print("Getting stocksunder1 data...")
-        # TODO: ensure prices and volumes work for all types
-        # ,'tech','biotech','marijuana','healthcare','energy'] #the ones not labeled for nasdaq are listed on OTC which we want to avoid
-        urlList = ['nasdaq']
-        for e in urlList:
-            if(verbose):
-                print(e+" stock list")
-            url = f'https://stocksunder1.org/{e}-penny-stocks/'
-            tries = 0
-            while tries < maxTries:
-                try:
-                    r = o.requests.post(
-                        url, params={"price": 5, "volume": 0, "updown": "up"}, timeout=5).text
-                    pageList = r.split('.php?symbol=')[1:]
-                    pageList = [e.split('">')[0] for e in pageList]
-                    symbList += pageList
-                    break
-                except Exception:
-                    print(
-                        "No connection, or other error encountered (SU1). Trying again...")
-                    o.time.sleep(3)
-                    tries += 1
-                    continue
-
-        if(verbose):
-            print("Removing Duplicates...")
-        # combine and remove duplicates
-        symbList = list(dict.fromkeys(symbList))
-        # print(symbList)
-        return symbList
-
 
 # determine if a stock is a good sell or not
 # depreciated, replaced with goodSells
@@ -461,6 +378,7 @@ def sellDn(symb=""):
     squeezeTime = float(c[algo]['squeezeTime'])
 
     if(symb in stockList):
+        
         try:  # try setting the last jump, if it doesn't work, set it to yesterday
             lastJump = o.dt.datetime.strptime(
                 stockList[symb]['note'], "%Y-%m-%d").date()

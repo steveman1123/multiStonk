@@ -45,6 +45,16 @@ def stocksunder():
 
 
 
+app.route('/api/ping/', methods=['GET'])
+def ping():
+    
+    
+    return jsonify({"ping": "pong"})
+
+
+
+
+
 if __name__ == '__main__':
     # defult port is 5000
     app.run(host='0.0.0.0', port=80, debug=True)

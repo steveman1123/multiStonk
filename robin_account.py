@@ -158,7 +158,7 @@ def createOrder(side,
         # lets hope this is the correct way to do it... 
         print("placing :",order['side'], preference['orderType'] + " " + side + " " + str(qty) + " " + symb)
         current_price = r.robinhood.get_latest_price(order['symbol']).pop()
-        print(limit_price, current_price)
+        # print(limit_price, current_price)
         response_ = r.robinhood.order(
             side = order['side'],
             symbol  = order['symbol'],
@@ -193,5 +193,7 @@ def multistock_server(algo,c):
     stocksunder = requests.post('http://' + get_ip + ':2010/api/stocksunder/',headers=headers,data=json.dumps(stocksunder_payload))
     trending_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-trending/')
     suggestion_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-suggested/')
+    print( marketwatch.json(), stocksunder.json(), trending_.json(), suggestion_.json())
+    
     return marketwatch.json(),stocksunder.json(),trending_.json(),suggestion_.json()
     
