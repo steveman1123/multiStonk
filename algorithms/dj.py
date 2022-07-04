@@ -1,10 +1,12 @@
 # this file contains functions specifically for the double jump (aka dead cat bounce) algo
 # when a penny stock gains a significant amount with a large volume then falls with a small volume, then it generally gains a second time
-
 import _multistonks.otherfxns as o
+import robin_account as apis
 
 # name of the algo based on the file name
 algo = o.os.path.basename(__file__).split('.')[0]
+
+
 def init(configFile):
     global posList, c
     # set the multi config file
@@ -23,19 +25,20 @@ def init(configFile):
 # get a list of potential gainers according to this algo
 
 
-def getList(verbose=True,stocklist=None):
+def getList(verbose=False):
     if(verbose):
         print(f"getting unsorted list for {algo}...")
-    ul = stocklist
-    
-    # print(ul)
+    ul = getUnsortedList()
     if(verbose):
         print(f"found {len(ul)} stocks to sort through for {algo}.")
+        # print(f"determining buys for {algo}: stocks.\t {symbList}")
+
     if(verbose):
         print(f"finding stocks for {algo}...")
     # get dict of the list of stocks if they're good buys or not
     gb = goodBuys(ul)
-    print(gb)
+    # print(gb)
+    
     # the only time that the first char is a number is if it is a valid/good buy
     gb = {e: gb[e] for e in gb if gb[e][0].isnumeric()}
     if(verbose):
@@ -51,9 +54,7 @@ def getList(verbose=True,stocklist=None):
 
 
 def goodBuy(symb, days2look=-1, verbose=False):  # days2look=how far back to look for a jump
-    
     if(days2look < 0):
-        
         days2look = int(c[algo]['simDays2look'])
     validBuy = "not tradable"  # set to the jump date if it's valid
     if(o.getInfo(symb, ['istradable'])['istradable']):
@@ -146,7 +147,7 @@ def goodBuy(symb, days2look=-1, verbose=False):  # days2look=how far back to loo
 
 # perform the same checks as goodBuy but multiplexed for fewer requests
 # returns a dict of {symb:validBuyText} where validBuyText will contain the failure reason or if it succeeds, then it is the initial jump date
-def goodBuys(symbList, days2look=-1, verbose=True):
+def goodBuys(symbList, days2look=-1, verbose=False):
     if(days2look < 0):
         days2look = int(c[algo]['simDays2look'])
     # calc price % diff over past 20 days (current price/price of day n) - current must be >= 80% for any
@@ -300,6 +301,18 @@ def goodSells(symbList, verbose=False):  # symbList is a list of stocks ready to
     return gs
 
 
+# get list of stocks from stocksUnder1 and marketWatch lists
+# TODO: should make this an otherfxns fxn with params so multiple algos can pull from the same code
+def getUnsortedList(verbose=False):
+    symbList = list()
+    marketwatch, stocksunder = apis.multistock_server(algo,c)    
+    symbList += marketwatch
+    symbList += stocksunder    
+    if(verbose):
+        print("Removing Duplicates...")
+    symbList = list(dict.fromkeys(symbList))  # combine and remove duplicates
+    return symbList
+
 
 # determine if a stock is a good sell or not
 # depreciated, replaced with goodSells
@@ -378,7 +391,6 @@ def sellDn(symb=""):
     squeezeTime = float(c[algo]['squeezeTime'])
 
     if(symb in stockList):
-        
         try:  # try setting the last jump, if it doesn't work, set it to yesterday
             lastJump = o.dt.datetime.strptime(
                 stockList[symb]['note'], "%Y-%m-%d").date()

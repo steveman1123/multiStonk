@@ -2,6 +2,7 @@ from flask import Flask,request,jsonify
 import stocktwits
 import marketWatch
 import stocksUnder
+import syncWatchlist
 app = Flask(__name__)
 
 
@@ -13,8 +14,8 @@ def home():
 @app.route('/api/stocktwits-trending/')
 def get_stockswits():
     _trending = stocktwits.stocktwits_trending()
-    trending = list(dict.fromkeys(_trending))
-    return jsonify(trending)
+    # trending = list(dict.fromkeys(_trending))
+    return jsonify(_trending)
 
 
 
@@ -22,8 +23,8 @@ def get_stockswits():
 @app.route('/api/stocktwits-suggested/')
 def get_stockswits_suggested():
     _suggested = stocktwits.stocktwits_suggested()
-    suggested = list(dict.fromkeys(_suggested))
-    return jsonify(suggested)
+    # suggested = list(dict.fromkeys(_suggested))
+    return jsonify(_suggested)
 
 
 
@@ -31,8 +32,8 @@ def get_stockswits_suggested():
 def marketwatch():
     payload = request.get_json()    
     posted_payload = marketWatch.get_stock(params =payload)
-    market_watch_ = list(dict.fromkeys(posted_payload))
-    return jsonify(market_watch_)
+    # market_watch_ = list(dict.fromkeys(posted_payload))
+    return jsonify(posted_payload)
 
 
 
@@ -40,16 +41,19 @@ def marketwatch():
 def stocksunder():
     payload = request.get_json()    
     posted_payload = stocksUnder.get_stocks_under_1(params_ =payload)
-    stocksunder_ = list(dict.fromkeys(posted_payload))
-    return jsonify(stocksunder_)
+    # stocksunder_ = list(dict.fromkeys(posted_payload))
+    return jsonify(posted_payload)
 
 
 
-app.route('/api/ping/', methods=['GET'])
-def ping():
-    
-    
-    return jsonify({"ping": "pong"})
+
+@app.route('/api/make_watchlist/', methods=['POST'])
+def makewatchlist():
+    payload = request.get_json()    
+    posted_payload = syncWatchlist.make_watchlist(token =payload['token'],wl_name= payload['wl_name'])
+    # stocksunder_ = list(dict.fromkeys(posted_payload))
+    return jsonify(posted_payload)
+
 
 
 

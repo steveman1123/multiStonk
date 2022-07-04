@@ -4,8 +4,6 @@ import requests
 import time 
 
 
-
-
 def get_stock(maxTries=3,params=None):
     symbList = list()
     url = "https://www.marketwatch.com/tools/screener/stock"

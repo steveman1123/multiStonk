@@ -12,5 +12,11 @@
   "mfa_code" : "",
   "TOTPS" : "",
 
+  "from" : "",
+  "to" : "",
+  "password" : "",
+  "subject" : "",
+  
+  "sendPath" : ""
 
 }
