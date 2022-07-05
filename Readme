@@ -15,8 +15,8 @@ For emailing alerts: use apple and yahoo.
 
 
 TODO:
-
-- [-]   Add trading time from main repo.
+- [x] Add option to cache data for x amount of time.
+- [-] Add trading time from main repo.
 - [x] Add support for robinhood and alpaca(used for market time and getting some data)
 - [-] Implement all features of the main repo without re-writing code.
 

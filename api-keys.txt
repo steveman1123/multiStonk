@@ -14,7 +14,7 @@
 
   "from" : "",
   "to" : "",
-  "password" : "",
+  "email_password" : "",
   "subject" : "",
   
   "sendPath" : ""

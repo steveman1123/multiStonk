@@ -3,6 +3,14 @@ import stocktwits
 import marketWatch
 import stocksUnder
 import syncWatchlist
+import time
+try:
+    import buyhold
+except Exception as e:
+    print(e)
+    
+
+
 app = Flask(__name__)
 
 
@@ -47,12 +55,23 @@ def stocksunder():
 
 
 
+
+
+
+
 @app.route('/api/make_watchlist/', methods=['POST'])
 def makewatchlist():
     payload = request.get_json()    
     posted_payload = syncWatchlist.make_watchlist(token =payload['token'],wl_name= payload['wl_name'])
     # stocksunder_ = list(dict.fromkeys(posted_payload))
     return jsonify(posted_payload)
+
+
+
+@app.route('/api/buyholdsell/')
+def buyholdselling():
+    buyhold_data = buyhold.bsholddata()
+    return jsonify(buyhold_data)
 
 
 

@@ -13,8 +13,8 @@ from email.mime.text import MIMEText
 headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
 get_ip = socket.gethostbyname(socket.gethostname())
 
-
 keyFile = "./api-keys-dev.txt"
+
 def init_robinhood(keyFile):
     global ROBINHOOD_USERNAME, ROBINHOOD_PASSWORD, ROBINHOOD_TOTPS,systemConfigs
     with open(keyFile, "r") as keyFile:
@@ -29,6 +29,7 @@ def init_robinhood(keyFile):
 def account_isValid():
     try:
         TOTPS_TOKEN = pyotp.TOTP(ROBINHOOD_TOTPS).now()
+        print(ROBINHOOD_USERNAME, ROBINHOOD_PASSWORD, ROBINHOOD_TOTPS)
         account_info = r.robinhood.login(username=ROBINHOOD_USERNAME, password= ROBINHOOD_PASSWORD, mfa_code=TOTPS_TOKEN,store_session=True)
         return account_info
         # print(account_info)
@@ -203,7 +204,8 @@ def multistock_server(algo,c=None):
         return marketwatch.json(),stocksunder.json()
     
     
-    # trending_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-trending/')
+    winners = requests.get('http://' + get_ip + ':2010/api/buyholdsell/')
+    return winners.json()
     # suggestion_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-suggested/')
     # print( marketwatch.json(), stocksunder.json(), trending_.json(), suggestion_.json())
 
@@ -270,7 +272,7 @@ def sendmail(message,subject=None):
     mailserver.starttls()
     # re-identify ourselves as an encrypted connection
     mailserver.ehlo()
-    mailserver.login(systemConfigs['from'], systemConfigs['password'])
+    mailserver.login(systemConfigs['from'], systemConfigs['email_password'])
     mailserver.sendmail(systemConfigs['from'],
                         systemConfigs['to'], msg.as_bytes())
 

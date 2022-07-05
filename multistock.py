@@ -666,6 +666,7 @@ def setPosList(algoList, verbose=False):
 
 
 def syncPosList(verbose=False):
+    #TODO: get watchlist update here.
     global posList, cashList
     # locking is needed to write to the file and edit the posList var (will have to see how threads and globals work with each other)
     lock = o.threading.Lock()
