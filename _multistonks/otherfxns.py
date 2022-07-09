@@ -287,6 +287,7 @@ def getInfo(symb,data=['price'], maxTries=3):
     try:
       infj = json.loads(requests.get(infurl,headers=HEADERS, timeout=5).text)
       sumj = json.loads(requests.get(sumurl,headers=HEADERS, timeout=5).text)
+      # print(sumj)
       break
     except Exception:
       print(f"No connection, or other error encountered in getInfo of {symb}. Trying again...")
@@ -378,7 +379,7 @@ def getPrices(symbList,maxTries=3,verbose=False):
         r = json.loads(requests.get(f"{BASEURL}/quote/watchlist",params={'symbol':symbQuery},headers=HEADERS,timeout=5).text)
         break
       except Exception: #if it doesn't work, try again
-        print(f"Error getting prices. Trying again ({tries+1}/{maxTries})...")
+        print(f"Error getting prices. Trying again ({symbQuery}{tries+1}/{maxTries})...")
         r['data'] = [] #if something fails, then set it to nothin in the event it completely fails out (this way it won't throw an error when trying to extend)
         tries+=1
         time.sleep(3)

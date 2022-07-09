@@ -9,5 +9,12 @@ services:
     restart: always
     # This is to make sure that the container is always up-to-date
     container_name: multistock-server
-
-
+  multistock-stocks:
+    image: multistock-trading-bot
+    build:
+      dockerfile: Dockerfile.bot
+    # ports:
+    #   - ":80"
+    restart: always
+    # This is to make sure that the container is always up-to-date
+    container_name: multistock-trading-bot

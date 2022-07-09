@@ -13,12 +13,20 @@ Watchlist corresponds with the buylist and algorithms.
 
 For emailing alerts: use apple and yahoo. 
 
+Provide is a docker-compose file, to getting started. Docker is not recommended if you plan on monitoring your account. 
+
+A makefile is provided for the server, using systemd to config the program to run on boot and in a tmux session.
+
+
+
+<!-- You can run this in a docker container or tmux session or even a  systemd script .  -->
 
 TODO:
 - [x] Add option to cache data for x amount of time.
 - [-] Add trading time from main repo.
 - [x] Add support for robinhood and alpaca(used for market time and getting some data)
 - [-] Implement all features of the main repo without re-writing code.
+- [ ] Check to see if limit orders have been filled.
 
 
 - [x] write createOrder function using limit order.
@@ -32,14 +40,14 @@ TODO:
 - [x] fix limit orders and syncing issues. 
 - [x] Tested limit orders.
 
-- [ ] Add support for real time data syncing.
+- [-] Add support for real time data syncing.
 
 - [x] Fix issues with is_pending not updating.
 - [x] A Docker instance or create systemd background simple task for the server to run in the background. 
-- [ ] The server is managing the watchlist and sending email alerts.
-- [ ] write watchlist class function.
-- [ ] write email class.
-- [ ] Add support for watchlist.
+- [x] The server is managing the watchlist and sending email alerts.
+~~- [x] write watchlist class function. ~~ just using funtions for now. 
+- [x] write email class.
+- [x] Add support for watchlist.
 
 - [ ] Add support emailing alerts and news.(emailing will be used for alerts and news)
 - [ ] Testing and more testing.
@@ -65,4 +73,4 @@ https://github.com/steveman1123/multiStonk/blob/robinhood/algos/template.py
 
 
 
-autopep8 -i convert-spaces.py
+autopep8 -i test_scripts.py

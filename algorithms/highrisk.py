@@ -1,7 +1,7 @@
 import _multistonks.otherfxns as o
 import robin_account as apis
 algo = o.os.path.basename(__file__).split('.')[0]
-
+import robin_stocks as r
 
 def init(configFile):
     global posList, c
@@ -24,6 +24,7 @@ def getList(verbose=False):
     if(verbose):
         print(f"getting unsorted list for {algo}...")
     ul = getUnsortedList()
+    # print(ul)
     if(verbose):
         print(f"found {len(ul)} stocks to sort through for {algo}.")
     if(verbose):
@@ -47,25 +48,51 @@ def getList(verbose=False):
 def goodBuys(symbList, verbose=False):
     out = {}
     if(verbose):
-        print(f"determining buys for {algo}: algorithm.\t {symbList}")
-    prices = o.getPrices([e+"|stocks" for e in symbList])
-    validStocks = [e.split("|")[0] for e in prices]  # only look at the valid stocks
-    for ticker in validStocks:
-        validBuy = str(o.dt.datetime.now().strftime("%Y-%m-%d"))
-
-        out[ticker] = validBuy
         
+        print(f"determining buys for {algo}: algorithm.\t {symbList}")
+        
+    # symbQuery = symbList[i:min(i+maxSymbs,len(symbList))]
+    # print(symbList)
+    # prices = o.getPrices([e+"|stocks" for e in symbList])
+    
+    # # print(prices,symbList)
+    # validStocks = [e.split("|")[0] for e in prices]  # only look at the valid stocks
+    for ticker in symbList:
+        try:
+            _trading = r.robinhood.account.get_instruments_by_symbols(ticker)
+            for _t in _trading:
+                if _t['symbol'] == ticker:
+                    if _t['tradeable'] == True:
+                        validBuy = str(o.dt.datetime.now().strftime("%Y-%m-%d"))
+                        out[ticker] = validBuy
+                    else:
+                        print(f"{ticker} is not tradable")
+        except Exception as e:
+            print("Error: ",e)
+            continue
     return out
 
 
 # should return list of symbols
-def getUnsortedList(verbose=False):
+def getUnsortedList(verbose=True):
     symbList = list()
-    symbList += apis.multistock_server(algo,c=None)
+    buyholdsell,trending, suggestion = apis.multistock_server(algo,c=None)
+    # print(suggestion)
+    for i in buyholdsell:
+        if i == "winners":
+            symbList += buyholdsell[i]
+        if i == "losers":
+            symbList += buyholdsell[i]
+    symbList += trending
+    symbList +=suggestion
+    
+
+
     if(verbose):
         print("Removing Duplicates...")
     symbList = list(dict.fromkeys(symbList))  # combine and remove duplicates
-
+    
+    # print(symbList)
     return symbList
 
 
@@ -114,15 +141,15 @@ def goodSells(symbList, verbose=False):  # symbList is a list of stocks ready to
 
 # get list of stocks from stocksUnder1 and marketWatch lists
 # TODO: should make this an otherfxns fxn with params so multiple algos can pull from the same code
-def getUnsortedList(verbose=False):
-    symbList = list()
-    marketwatch, stocksunder = apis.multistock_server(algo,c)    
-    symbList += marketwatch
-    symbList += stocksunder    
-    if(verbose):
-        print("Removing Duplicates...")
-    symbList = list(dict.fromkeys(symbList))  # combine and remove duplicates
-    return symbList
+# def getUnsortedList(verbose=False):
+#     symbList = list()
+#     marketwatch, stocksunder = apis.multistock_server(algo,c)    
+#     symbList += marketwatch
+#     symbList += stocksunder    
+#     if(verbose):
+#         print("Removing Duplicates...")
+#     symbList = list(dict.fromkeys(symbList))  # combine and remove duplicates
+#     return symbList
 
 
 

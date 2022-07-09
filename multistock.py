@@ -83,13 +83,10 @@ def main(verbose=False):
     info = robin_account.account_isValid()
     wl_info["token"] = info['access_token']
     # wl_info["wl_name"] = "testing"
-    if (len(robin_account.openPositions()) == 0):
+    if (len(robin_account.get_positions()) == 0):
         print(
             BOLD+f"Will start buying {c['time params']['buyTime']} minutes before next close" +ENDC)
-        # print("No open positions")
-    # quit()
-    
-    # if(len(a.getPos()) == 0):
+ 
 
     # initiate/populate the list of positions by algo
     [posList, cashList] = setPosList(algoList)
@@ -121,8 +118,13 @@ def main(verbose=False):
                     print("Automatically selling all...")
                     quit()
                 # if the portfolio value falls below our stop loss, automatically sell everything
-                #TODO: call Robinhood api here.. Resume here. #THIS IS IMPORTANT.
-                
+        #TODO: call Robinhood api here.. Resume here. #THIS IS IMPORTANT.
+        # if(ask2sell and float(acct['portfolio_value']) >= float(maxPortVal)*float(c['account params']['portStopLoss']) and len(pos) > 0):
+        #         print(
+        #             f"Portfolio value of ${acct['portfolio_value']} is less than {c['account params']['portStopLoss']} times the max portfolio value of ${maxPortVal}.")
+        #         if(not isManualSellOff):
+        #             print("Automatically selling all...")
+        #             quit()
                 # soldAll = a.sellAll(isManual=isManualSellOff)
                 # if(soldAll):
                 #     break  # stop the program if the selling occured
@@ -137,7 +139,7 @@ def main(verbose=False):
         totalCash = float(acct['cash']) #TODO: get this from Robinhood API
         tradableCash = getTradableCash(totalCash, maxPortVal)
 
-        if(o.marketIsOpen() == False):
+        if(o.marketIsOpen()):
             print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, port stop loss: {int(float(maxPortVal))*float(c['account params']['portStopLoss'])},  {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             # update the lists if not updated yet and that it's not currently updating
             if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')]) == 0):
@@ -147,35 +149,31 @@ def main(verbose=False):
                     updateListsThread.setName('updateLists')
                     updateListsThread.start()  # start the thread
 
-            print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\ttriggers\tnotes....\tis_pending")
-            print("----\t------\t-----\t-----------\t-----------\t-----------\t----------\t-----")
+            print("algo      \tshares\tsymb \tcng frm buy\tcng frm cls\ttriggers\tnotes....\tis_pending")
+            print("----------\t------\t-----\t-----------\t-----------\t-----------\t----------\t-----")
             check2sells(pos)
-            
             if stopbuying == False:
-                # if((closeTime-dt.datetime.now()).total_seconds() <= 60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()]) == 0):
-                if(0<= 60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()]) == 0):
-                        # account for withholding a certain amount of cash+margin
-                        tradableCash = getTradableCash(totalCash, int(float(maxPortVal)))
-                        # evenly split available cash across all algos
-                        cashPerAlgo = tradableCash/len(algoList)
-                        # start buying things
-                        # print(tradableCash,cashPerAlgo,algoList,sep="\n")
-                        for algo in algoList:
-                            if(verbose):
-                                print(f"starting buy thread {algo}")
-                            buyThread = o.threading.Thread(target=check2buy, args=(
-                                algo, cashPerAlgo, list(algoList[algo]), False))  # init the thread
-                            buyThread.setName(algo)  # set the name to the algo
-                            buyThread.start()  # start the thread
-                        stopbuying = True
-                        # syncPosList()
-                time.sleep(3) # sleep for 3 seconds before checking again for 60...
+                # if((0<= 60*float(c['time params']['buyTime'])) and sum([t.getName().startswith('update') for t in o.threading.enumerate()]) == 0):
+                # print(closeTime.strftime('%Y-%m-%d %H:%M:%S'))
+                if((closeTime-dt.datetime.now()).total_seconds()<=60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()]) == 0):
+                    tradableCash = getTradableCash(totalCash, int(float(maxPortVal)))
+                    # evenly split available cash across all algos
+                    cashPerAlgo = tradableCash/len(algoList)
+                    # start buying things
+                    # print(tradableCash,cashPerAlgo,algoList,sep="\n")
+                    for algo in algoList:
+                        if(verbose):
+                            print(f"starting buy thread {algo}")
+                        buyThread = o.threading.Thread(target=check2buy, args=(algo, cashPerAlgo, list(algoList[algo]), True))  # init the thread
+                        buyThread.setName(algo)  # set the name to the algo
+                        buyThread.start()  # start the thread
+                    stopbuying = True # set buying to True to prevent another buy thread from starting
+                    print()
+                    print(OKCYAN+f"buying thread done."+ENDC)
+                time.sleep(60)
             elif stopbuying is True:
-                print(FAIL+"Done buying for today waiting for market to close:  \nattempting to  giving control back \nif you purchased today, wait till the next day to see it get monitored." +ENDC)
-                time.sleep(3) # ECHO: sleep for 60 seconds before checking again for 60...
-                # check2sells(pos)
-                
-
+                print(OKCYAN+"Next update in 60 seconds"+ENDC)
+                time.sleep(30) # ECHO: sleep for 60 seconds before checking again for 60...
 
         else:
             print("Algo ROI estimates:")
@@ -316,6 +314,8 @@ def updateLists(verbose=False):
         for e in algoList:  # start a thread to update the list for each algorithm
             # we intercept here to create the watchlist name:
             wl_info["wl_name"] = f'{e+"_algorithm"}'
+            robin_account.del_watchlist(token = wl_info['token'], wl_name = algo+"_algorithm")
+            print("Creating watchlist")
             robin_account.postWatchlist(wl_info)
 
             # print(e)
@@ -353,11 +353,13 @@ def updateList(algo, lock, rm=[], verbose=True):
         # TODO: exitFlag doesn't stop individual getList()'s. Might not be a bad idea to read it somehow?
         # this is probably not safe, but best way I can think of
         algoBuys = eval(algo+".getList()")
+        # algoBuys = {}
         # remove any stocks that are in the rm list
         algoBuys = {e: algoBuys[e] for e in algoBuys if e not in rm}
         lock.acquire()  # lock in order to write to the list
         algoList[algo] = algoBuys
-        #TODO: Add this to the server.
+        #TODO:ECHOO>>> Send this to server and forget about it. Add this to the server.
+        # print(wl_info)
         for algo_tickers in algoList[algo]:
             robin_stocks.robinhood.post_symbols_to_watchlist(inputSymbols= algo_tickers, name = algo+"_algorithm")    
         lock.release()  # then unlock
@@ -368,8 +370,8 @@ def updateList(algo, lock, rm=[], verbose=True):
 
 def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
     global posList, cashList
-    if(verbose):
-        print(stocks2buy)
+    # if(verbose):
+        # print(stocks2buy)
     random.shuffle(stocks2buy)  # shuffle the stocks2buy to avoid front loading
     # calculate the cash to be put towards various stocks in the algo (shouldn't be more than the cash available, but shouldn't be less than than the minDolPerStock (unless mindol > cashAvail))
     if(len(stocks2buy) > 0):
@@ -403,12 +405,27 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
 
             # to avoid day trading, make sure that it either didn't trade yet today, or if it has, that it hasn't sold yet
             if lastTradeDate < dt.date.today() and stockInfo['lastTradeType'] != "sell":
-                inf = o.getInfo(stock, ['price', 'mktcap'])
-                [curPrice, mktCap] = [inf['price'], inf['mktcap']]
+                # inf = o.getInfo(stock, ['price', 'mktcap']) #TODO: This function sometimes doesn't work. 
+                _inf = robin_account.getStockInfo(stock,['price', 'mktcap'])
+                [curPrice, mktCap] = [_inf['price'], _inf['mktcap']]
+                # print(inf)
+                #################################################################
+                # if inf['mktcap'] == 0 or inf['price'] == 0:
+                #     # print(f"{stock} getting info from robinhood instead alpaca  getInfo function failed")
+                #     _inf = robin_account.getStockInfo(stock,['price', 'mktcap'])
+                #     [curPrice, mktCap] = [_inf['price'], _inf['mktcap']]
+                #     # print(_inf)
+                # else:
+                #     print(f"{stock} getting info from alpaca")
+                #     [curPrice, mktCap] = [inf['price'], inf['mktcap']]
+                    # print( inf)
+                ##############################################################################
+                # quit()
                 # set number of shares to be at most some % of the mktcap, otherwise as many int shares as cash is available (or 0 if curPrice is 0)
                 if(curPrice > 0):
                     shares = int(min(cashPerStock/curPrice, (mktCap/curPrice)
                                  * float(c['account params']['maxVolPerc'])))
+                    # print(shares)
                 else:
                     shares = 0
 
@@ -423,11 +440,14 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
                     if(shares > 0):  # cannot place an order for 0 shares
                         isBought = buy(shares, stock, algo,curPrice)  # buy the stock
                         if(isBought):
-                            print(
-                                f"buy\t{shares}\t{stock}\t{algo}\t{round(curPrice,2)}\t{round(shares*curPrice,2)}")
+                            # print(f"{algo} - {stock} - {curPrice} - {shares}")      
+                            pass
+                            # print(
+                            #     f"buy\t{shares}\t{stock}\t{algo}\t{round(curPrice,2)}\t{round(shares*curPrice,2)}")
                         else:
                             print(f"could not buy {stock}")
-          
+    print(WARNING+"\nif any purchases where made today, wait till the next day to see it show up \nonly display/sell if not bought today or rerun the program to see if it shows up." +ENDC)
+
 
 
 
@@ -436,13 +456,15 @@ def checkTriggered(verbose=False):
     lock = o.threading.Lock()
     maxPrices = {}
     while(len(list(triggeredStocks)) > 0 and not exitFlag):  # only run if there's stocks to sell
-        if(verbose):
+        if(True):
             print(f"{len(list(triggeredStocks))} stocks triggered for sale")
         # get prices for all stocks to sell
         prices = o.getPrices(
             [e.split("|")[1]+"|stocks" for e in list(triggeredStocks)])
+        # print(prices)
         maxPrices = {e: max(maxPrices[e], prices[e]['price']) if(
             e in maxPrices) else prices[e]['price'] for e in prices}  # get the max prices of the stocks since watching
+        # print(maxPrices)
         # check for stocks in triggeredStocks that aren't in prices (some error occured that we hold it but it can't be traded)
         lock.acquire()
         for e in [e for e in list(triggeredStocks) if (e.split("|")[1]+"|stocks").upper() not in prices]:
@@ -452,13 +474,18 @@ def checkTriggered(verbose=False):
         print()
 
         for e in list(triggeredStocks):
+            # print(e)
+            
             # get the sellUpDn % - TODO: this should probably be moved out of this for loop and generate a dict {algo:sellUpDn} since it doesn't depend on the individual stock (this would reduce function calls)
             sellUpDn = eval(f"{e.split('|')[0]}.sellUpDn()")
+            # working on the assumption that the sellUpDn is the same for all stocks in the algo
+            
             # get the current prices of the stocks
             curPrice = prices[(e.split("|")[1]+'|stocks').upper()]['price']
             if(curPrice > 0):  # make sure that the price is valid
                 # sell once the current price drops below some % of the maxPrice since watching or within one minute of close
                 if(curPrice >= sellUpDn*maxPrices[(e.split('|')[1]+"|stocks").upper()] and (closeTime-dt.datetime.now()).total_seconds() > 60):
+                    # pass
                     print(
                         f"{e.split('|')[0]}\t{e.split('|')[1]}\t{round(curPrice/maxPrices[(e.split('|')[1]+'|stocks').upper()],2)} : {sellUpDn}")
                 else:
@@ -477,7 +504,7 @@ def checkTriggered(verbose=False):
 def check2sells(pos, verbose=False):
     # print(pos)
     global triggeredStocks
-    # print("checking to sell")
+    print("checking to sell")
     # determine if the stocks in the algo are good sells (should return as a dict of {symb:goodSell(t/f)})
     for algo in posList:
         if(verbose):
@@ -492,7 +519,7 @@ def check2sells(pos, verbose=False):
             # only display/sell if not bought today
             if(posList[algo][e['symbol']]['lastTradeDate'] < str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType'] != 'buy'):
                 print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{ENDC}\t\t{FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{ENDC}\t\t"+str(
-                    round(eval(f'{algo}.sellDn("{e["symbol"]}")'), 2))+" & "+str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'), 2))+f"\t{posList[algo][e['symbol']]['note']}"+f"\t{WARNING+str(posList[algo][e['symbol']]['is_pending'])+ENDC}")
+                    round(eval(f'{algo}.sellDn("{e["symbol"]}")'), 2))+" & "+str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'), 2))+f"\t{posList[algo][e['symbol']]['note']}"+f"\t\t{WARNING+str(posList[algo][e['symbol']]['is_pending'])+ENDC}")
                 # this check is here in the event that the program is suspended while open, then restarted while closed
                 # if(o.marketIsOpen()): #TODO: confirm that this is needed first and not a setting that can be changed outside of this script
                 if(gs[e['symbol']] == 1):  # if the stock is a good sell (sellUp)
@@ -510,6 +537,7 @@ def check2sells(pos, verbose=False):
                         triggerThread.start()  # start the thread
                 elif(gs[e['symbol']] == -1):  # else if it sells down (stop-loss)
                     try:
+                        # just in case the stock is already in the triggered list
                         if posList[algo][e['symbol']]["is_pending"]  == True:
                             print(WARNING+"can't place a sell order while a pending order is open for :" +e['symbol'] +ENDC)
                             continue
@@ -523,10 +551,11 @@ def check2sells(pos, verbose=False):
 def sell(stock, algo):
     global posList, cashList, triggeredStocks
     if(posList[algo][stock]['sharesHeld'] > 0):
-        # print(f"{algo} - {stock} - {posList[algo][stock]['sharesHeld']} shares")
+        print(f"{algo} - {stock} - {posList[algo][stock]['sharesHeld']} shares")
         # TODO: call robinhood api here... Check here
         r = robin_account.createOrder("sell", float(
             posList[algo][stock]['sharesHeld']), stock,preference=c['trading params'])
+        # r= {"state": "unconfirmed"}
     else:
         print(f"No shares held of {stock}")
         triggeredStocks.discard(algo+"|"+stock)
@@ -564,8 +593,14 @@ def sell(stock, algo):
 
 
 def buy(shares, stock, algo, buyPrice):
+    # TODO: check the buyPrice against the robinhood quotes.
+    
+    
     # this needs to happen first so that it can be as accurate as possible
     r = robin_account.createOrder("buy", shares, stock,preference=c['trading params'])
+    # r= {"state": "unconfirmed" ,"qty": "1"}
+    # print(f"{algo} - {stock} - {shares} shares")
+    # r = False
     global posList, cashList
     # check to make sure that it actually bought - TODO: does the presence of 'status' indicate that it bought or not?
     if('state' in r and r['state'] == "unconfirmed" or 'state' in r and r['state'] == "filled"):
