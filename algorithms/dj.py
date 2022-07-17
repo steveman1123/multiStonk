@@ -1,7 +1,7 @@
 # this file contains functions specifically for the double jump (aka dead cat bounce) algo
 # when a penny stock gains a significant amount with a large volume then falls with a small volume, then it generally gains a second time
 import _multistonks.otherfxns as o
-import robin_account as apis
+import robin_account 
 
 # name of the algo based on the file name
 algo = o.os.path.basename(__file__).split('.')[0]
@@ -25,7 +25,7 @@ def init(configFile):
 # get a list of potential gainers according to this algo
 
 
-def getList(verbose=False):
+def getList(verbose=True):
     if(verbose):
         print(f"getting unsorted list for {algo}...")
     ul = getUnsortedList()
@@ -178,7 +178,12 @@ def goodBuys(symbList, days2look=-1, verbose=False):
     end = str(o.dt.date.today())
 
     # get the vol, current and opening prices of all valid stocks (invalid ones will not be returned by getPrices) - using as a filter to get rid of not tradable stocks
-    prices = o.getPrices([e+"|stocks" for e in symbList])
+    # prices = o.getPrices([e+"|stocks" for e in symbList])
+    prices = robin_account.getPrices([s for s in symbList])
+
+    
+    
+    
     symbList = [e.split("|")[0]
                 for e in prices]  # only look at the valid stocks
 
@@ -270,7 +275,9 @@ def goodSells(symbList, verbose=False):  # symbList is a list of stocks ready to
     buyPrices = {s: float(posList[s]['buyPrice'])
                  for s in symbList}  # get buyPrices {symb:buyPrce}
     # currently format of {symb|assetclass:{price,vol,open}}
-    prices = o.getPrices([s+"|stocks" for s in symbList])
+    # prices = o.getPrices([s+"|stocks" for s in symbList])
+    prices = robin_account.getPrices([s for s in symbList])
+    
     # now format of {symb:{price,vol,open}}
     prices = {s.split("|")[0]: prices[s] for s in prices}
 
@@ -303,16 +310,39 @@ def goodSells(symbList, verbose=False):  # symbList is a list of stocks ready to
 
 # get list of stocks from stocksUnder1 and marketWatch lists
 # TODO: should make this an otherfxns fxn with params so multiple algos can pull from the same code
-def getUnsortedList(verbose=False):
+# def getUnsortedList(verbose=False):
+#     symbList = list()
+#     marketwatch, stocksunder = robin_account.multistock_server(algo,c)    
+#     symbList += marketwatch
+#     symbList += stocksunder    
+#     if(verbose):
+#         print("Removing Duplicates...")
+#     symbList = list(dict.fromkeys(symbList))  # combine and remove duplicates
+#     return symbList
+
+
+
+
+def getUnsortedList(verbose=True):
     symbList = list()
-    marketwatch, stocksunder = apis.multistock_server(algo,c)    
-    symbList += marketwatch
-    symbList += stocksunder    
+    buyholdsell,trending = robin_account.multistock_server(algo,c=c)
+    # print(buyholdsell,trending)
+    for i in buyholdsell:
+        if i == "winners":
+            symbList += buyholdsell[i]
+        if i == "losers":
+            symbList += buyholdsell[i]
+    symbList += trending
+    # symbList +=suggestion
+    
+
+
     if(verbose):
         print("Removing Duplicates...")
     symbList = list(dict.fromkeys(symbList))  # combine and remove duplicates
+    
+    # print(symbList)
     return symbList
-
 
 # determine if a stock is a good sell or not
 # depreciated, replaced with goodSells

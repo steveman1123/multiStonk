@@ -1,4 +1,7 @@
-timestamp=`date -d "-5 hours" +"%m-%d-%Y_%I:%M"`
-mv /home/ubuntu/multiStonk/stockStuff/buyListMulti.json /home/ubuntu/multiStonk/stockStuff/.backup/$timestamp.json
+#!/bin/bash
+
+
+rm /home/ubuntu/multiStonk/stockStuff/buyListMulti.json
+rm /home/ubuntu/multiStonk/stockStuff/posListMulti.json
 
 python multistock.py

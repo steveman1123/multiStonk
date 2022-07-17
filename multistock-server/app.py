@@ -4,10 +4,13 @@ import marketWatch
 import stocksUnder
 import syncWatchlist
 import time
+import json
+import os
 try:
     import buyhold
-except Exception as e:
-    print(e)
+except ImportError:
+    raise ImportError('this is a private api. Sorry.')
+
     
 
 
@@ -16,13 +19,16 @@ app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "<h1> multistock-server is running </h1>"
+    is_online = {
+        'status': 'online'
+    }
+    return jsonify(is_online)
+
 
 
 @app.route('/api/stocktwits-trending/')
 def get_stockswits():
     _trending = stocktwits.stocktwits_trending()
-    # trending = list(dict.fromkeys(_trending))
     return jsonify(_trending)
 
 
@@ -31,7 +37,6 @@ def get_stockswits():
 @app.route('/api/stocktwits-suggested/')
 def get_stockswits_suggested():
     _suggested = stocktwits.stocktwits_suggested()
-    # suggested = list(dict.fromkeys(_suggested))
     return jsonify(_suggested)
 
 
@@ -40,7 +45,6 @@ def get_stockswits_suggested():
 def marketwatch():
     payload = request.get_json()    
     posted_payload = marketWatch.get_stock(params =payload)
-    # market_watch_ = list(dict.fromkeys(posted_payload))
     return jsonify(posted_payload)
 
 
@@ -49,7 +53,6 @@ def marketwatch():
 def stocksunder():
     payload = request.get_json()    
     posted_payload = stocksUnder.get_stocks_under_1(params_ =payload)
-    # stocksunder_ = list(dict.fromkeys(posted_payload))
     return jsonify(posted_payload)
 
 
@@ -63,7 +66,6 @@ def stocksunder():
 def makewatchlist():
     payload = request.get_json()    
     posted_payload = syncWatchlist.make_watchlist(token =payload['token'],wl_name= payload['wl_name'])
-    # stocksunder_ = list(dict.fromkeys(posted_payload))
     return jsonify(posted_payload)
 
 
@@ -74,6 +76,44 @@ def buyholdselling():
     return jsonify(buyhold_data)
 
 
+
+@app.route('/api/post_ngrok_address/', methods=['POST'])
+def post_ngrok():
+    posted_payload = request.get_json()
+    with open('ngrok_address.txt', 'w') as f:
+        json.dump(posted_payload, f)
+    return jsonify(posted_payload)
+
+
+
+@app.route('/api/get_ngrok_address/')
+def get_ngrok():
+    with open('ngrok_address.txt', 'r') as f:
+        _address = json.load(f)
+        tcp_address = _address['tcp']
+
+    return jsonify(tcp_address)
+
+
+
+#TODO: rethink this route
+@app.route('/api/post_ml_requests/', methods=['POST'])
+def ml_requests():
+    ml_req = request.get_json() 
+    with open('ml_requests.txt', 'w') as f:
+        json.dump(ml_req, f)
+    return jsonify(ml_req)
+
+    
+@app.route('/api/get_ml_requests/')
+def get_ml_requests():
+    with open('ml_requests.txt', 'r') as f:
+        predict_ = json.load(f)
+        # delete the file
+        os.remove('ml_requests.txt')
+    return jsonify(predict_)
+
+    
 
 
 

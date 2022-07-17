@@ -10,3 +10,4 @@ feedparser
 pyotp
 flask
 autopep8 # used for formatting code
+

@@ -369,14 +369,18 @@ def getPrices(symbList,maxTries=3,verbose=False):
   maxSymbs = 20 #cannot do more than 20 at a time, so loop through requests
   d = [] #init data var
   r = {}
+  
   #loop through the symbols by breaking them into managable chunks for th api
   for i in range(0,len(symbList),maxSymbs):
+    # print()
     tries=0
     while tries<maxTries:
       try: #try getting the data
         symbQuery = symbList[i:min(i+maxSymbs,len(symbList))]
+        # print(symbQuery)
         if(verbose): print(symbQuery)
         r = json.loads(requests.get(f"{BASEURL}/quote/watchlist",params={'symbol':symbQuery},headers=HEADERS,timeout=5).text)
+        # print(r)
         break
       except Exception: #if it doesn't work, try again
         print(f"Error getting prices. Trying again ({symbQuery}{tries+1}/{maxTries})...")
@@ -390,6 +394,7 @@ def getPrices(symbList,maxTries=3,verbose=False):
   #isolate the symbols and prices and remove any that are none's
   prices={}
   for e in d:
+    
     if(e['volume'] is not None and len(e['volume'])>0 and e['lastSalePrice'] is not None and len(e['lastSalePrice'])>0 and e['netChange'] is not None and len(e['netChange'])>0):
       if(verbose): print(e)
       prices[f"{e['symbol']}|{e['assetClass']}"] = {
@@ -397,7 +402,7 @@ def getPrices(symbList,maxTries=3,verbose=False):
                                                 'vol':int(e['volume'].replace(",","")),
                                                 'open':float(e['lastSalePrice'].replace("$",""))-(float(e['netChange']) if e['netChange']!='UNCH' else 0)
                                                 }
-
+  # print( prices[f"{e['symbol']}|{e['assetClass']}"])
   return prices
   
 

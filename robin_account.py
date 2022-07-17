@@ -10,9 +10,24 @@ import json
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import os
+import subprocess
+
+
+shell_scripts_dir = os.path.dirname(os.path.abspath(__file__))
+# shell_scripts= os.path.join(shell_scripts_dir, 'scripts')
 
 headers = {'Content-type': 'application/json', 'Accept': 'text/plain'}
 get_ip = socket.gethostbyname(socket.gethostname())
+# check if file exists
+def server_ip(file_name):
+    try:
+        with open(file_name):
+            return get_ip
+    except FileNotFoundError:
+        with open(file_name, 'w') as f:
+            f.write(str(get_ip))
+            return get_ip
 
 
 def init_robinhood(keyFile):
@@ -147,6 +162,30 @@ def account_history():
     return closing_historical,time_stamp
 
 
+
+
+def getPrices(symbList):
+    # This function needs to be updated: it is not working properly
+    
+    max_symbs = 20
+    d = []
+    for i in range(0,len(symbList),max_symbs):
+        symbQuery = symbList[i:min(i+max_symbs,len(symbList))]
+        d.extend(r.robinhood.get_fundamentals(symbQuery))
+        get_price =  r.robinhood.get_latest_price(symbQuery).pop()
+    prices = {}
+    for e in d:
+        if(e['volume'] is not None and len(e['volume'])>0 and float(get_price) > 0):
+            prices[f"{e['symbol']}|stocks"] = {
+                    'price':float(get_price),
+                    'vol':(float(e['volume'])),
+                    'open':float(e['open']),
+                }    
+    return prices
+
+
+
+
 def getStockInfo(ticker,data=['price']):
     data = [e.lower() for e in data]
     out = {}
@@ -169,21 +208,53 @@ def getStockInfo(ticker,data=['price']):
 
 def get_Account_details():
     account_info = {}
-    user_account = r.robinhood.account.load_phoenix_account()
-    account_info['portfolio_value'] = user_account['equities']['equity']['amount']
-    account_info['cash'] = user_account['account_buying_power']['amount']
-    return account_info    
+    try:
+            
+        user_account = r.robinhood.account.load_phoenix_account()
+        account_info['portfolio_value'] = user_account['equities']['equity']['amount']
+        account_info['cash'] = user_account['account_buying_power']['amount']
+        return account_info    
+    except Exception as e:
+        time.sleep(10)
+        print("Error: timeout getting account value. Sleeping \n",e)
+        return account_info
+
+
+def ml_determine_limit(ticker, order_side =None,interval=None,risk=None):
+    '''
+    interval = '5 Minute', '15 Minute', '30 Minute', '1 Hour', '1 Day', '1 Week'
+    risk = ('Low', 'Medium', 'High'))
+
+    '''
+    # interval = '1 Day'
+    # risk = 'Medium'
+    subprocess.call(['bash',shell_scripts_dir + '/kaggle.sh','-p' ,interval,risk,ticker])
+    ml_limit = requests.get('http://' + server_ip("./server-ip.txt") + ':2010/api/get_ml_requests/')
+    for k,l in ml_limit.json().items():
+        if 'ml_request' in k:
+            current_price = l['current_price']
+            confidence = l['confidence'].replace('*(','').replace('% confident)*','')
+            equity = l['equity']
+            predicted_price = l['requested_prediction_price']
+            sell_price = l['sell_price']
+            buy_price = l['buy_price']
+            side = l['side']
+
+    print(ml_limit.text)
+    return current_price,confidence,equity,predicted_price,sell_price,buy_price,side
+                    
+
 
 
 
 def determine_limit(ticker,side=None):
     # buying the lowest price in from the last 1 or 2 days
+
     holdprice = []
     lastest_price = r.robinhood.get_latest_price(ticker).pop()
     get_history = r.robinhood.get_stock_historicals(
         ticker, interval='5minute', span='week')
     for dates in get_history:
-        
         query_date = dates['begins_at'].split('T')[0]
         today_date = time.strftime("%Y-%m-%d")
         yesterday_date = time.strftime(
@@ -222,6 +293,13 @@ def determine_limit(ticker,side=None):
             except Exception as e:
                 print(e,ticker)
                 pass
+            
+
+
+
+
+
+
 
  
 def createOrder(side,
@@ -243,65 +321,40 @@ def createOrder(side,
         "extended_hours": useExtended
     }
     try:
-        # if preference['orderType'] == "limit":
-        #     order['price'] = buylimit
-        # order_response = r.robinhood.place_order(order)
-        # if debug:
-        #     print(order_response)
-        # return order_response
-
-        #TODO: change varibales names to prevent errors. Since python is just too cool. 
-        # this is written like to make sure it is explicit on what is happening.
-        current_price = r.robinhood.get_latest_price(order['symbol']).pop()
-        # buylimit = determine_limit(ticker = symb)
-        if order['side']=='sell':
-            print("Selling " + str(order['qty']) + " " + order['symbol'] + " at " + str(current_price))
-            sell_limit = determine_limit(ticker = symb , side = order['side'])
-            if (debug==False):
-                order_response = r.robinhood.order(
-                side = order['side'],
-                symbol  = order['symbol'],
-                quantity = order['qty'],
-                limitPrice = sell_limit,
-                timeInForce='gfd',
-                jsonify=True,
-                extendedHours=False)
-                order_response["qty"] = order['qty']
-                print(f"symbol: {symb} limit: {buylimit} side:{side} current_price: {current_price} qty: {qty}")
-                # print(f"placing {order['side']} with limit price of {str(sell_limit)} for {symb} current price  {current_price} purchasing {str(qty)}")
-                return order_response
-            
-        elif order['side']=='buy':
-            buylimit = determine_limit(ticker = symb)
-            if (debug==False):
-                order_response = r.robinhood.order(
-                side = order['side'],
-                symbol  = order['symbol'],
-                quantity = order['qty'],
-                limitPrice = buylimit,
-                timeInForce='gfd',
-                jsonify=True,
-                extendedHours=False)
-                order_response["qty"] = order['qty']
-                # print(f"placing {order['side']} with limit price of {str(buylimit)} for {symb} current price  {current_price} purchasing {str(qty)}")
-                print(f"symbol: {symb} limit: {buylimit} side:{side} current_price: {current_price} qty: {qty}")
-                return order_response
-    
+        if preference['machine_learning'] == '1':
+            print("Using machine learning")
+            quoted_price,confidence,equity,predicted_price,sell_price,buy_price,action = ml_determine_limit(ticker = symb , order_side = order['side'] ,interval=preference['interval'],risk=preference['risk'])
+            if action == 'hold':
+                if  order['side'] == 'buy':
+                    print("Using buy price from machine learning")
+                    limit_order = buy_price
+                if order['side'] == 'sell':
+                    print("Using predicted_price price")
+                    limit_order = predicted_price
+            elif order['side'] == 'sell':
+                print("Using sell price from machine learning")
+                limit_order = sell_price
+        elif preference['machine_learning'] == '0':
+            limit_order = determine_limit(ticker = symb , side = order['side'])   
+        if (debug==False):
+            order_response = r.robinhood.order(
+            side = order['side'],
+            symbol  = order['symbol'],
+            quantity = order['qty'],
+            limitPrice = limit_order,
+            timeInForce='gfd',
+            jsonify=True,
+            extendedHours=False)
+            order_response["qty"] = order['qty']
+            current_price = r.robinhood.get_latest_price(order['symbol']).pop()
+            print(f"symbol: {symb} limit: {limit_order} side:{side} current_price: {current_price} qty: {qty}")
+            return order_response
+        
+      
         if (debug==True):
             debug_response = {"state": "unconfirmed" ,"qty": "1"}
             return debug_response
-        
-        # if (debug==False):
-        #     order_response = r.robinhood.order(
-        #     side = order['side'],
-        #     symbol  = order['symbol'],
-        #     quantity = order['qty'],
-        #     limitPrice = limit_price,
-        #     timeInForce='gfd',
-        #     jsonify=True,
-        #     extendedHours=False)
-        #     order_response["qty"] = order['qty']
-        #     return order_response
+    
     
     except Exception as e:
         print("Error: ",e)
@@ -311,6 +364,17 @@ def createOrder(side,
 
     
 def multistock_server(algo,c=None):
+    try:
+        if('status' in c and c['status'] == "online"):
+            try:
+                _online = requests.get('http://' + get_ip + ':2010/')
+                if _online.status_code == 200:
+                    print("Server is online")
+            except Exception as e:
+                print("Server is offline")
+                return False
+    except:
+        pass
     if algo == "highrisk":
         buyholdsell = requests.get('http://' + get_ip + ':2010/api/buyholdsell/')
         trending_ = requests.get('http://' + get_ip + ':2010/api/stocktwits-trending/')
@@ -347,7 +411,7 @@ def postWatchlist(payload):
 
 
 def del_watchlist(token,wl_name = None):
-    print("deleting watchlist " + str(wl_name))
+    # print("deleting watchlist " + str(wl_name))
     header = {
         'Content-Type': 'application/json; charset=utf-8',
         'X-Robinhood-API-Version': '1.431.4',

@@ -7,70 +7,16 @@ This is a mirror implementation of the [main repo](https://github.com/steveman11
     required for login: - TOTPS and alpaca API keys 
     
 
-Moved all stocks required for trading to  multistock-server which is running on a server and returns the data in a json format. This is done for maintenance reasons and to debug failing apis in the future.
-
-Watchlist corresponds with the buylist and algorithms.
-
-For emailing alerts: use apple and yahoo. 
-
-Provide is a docker-compose file, to getting started. Docker is not recommended if you plan on monitoring your account. 
-
-A makefile is provided for the server, using systemd to config the program to run on boot and in a tmux session.
-
-
-
-<!-- You can run this in a docker container or tmux session or even a  systemd script .  -->
-
-TODO:
-- [x] Add option to cache data for x amount of time.
-- [-] Add trading time from main repo.
-- [x] Add support for robinhood and alpaca(used for market time and getting some data)
-- [-] Implement all features of the main repo without re-writing code.
-- [ ] Check to see if limit orders have been filled.
-
-
-- [x] write createOrder function using limit order.
-- [x] write sell function.
-- [x] write buy function.
-
-- [x] Add support for Docker for getting api server for future needs.
-- [x] Do a pull requests 
-
-- [x] prevent duplicate orders during limit orders.
-- [x] fix limit orders and syncing issues. 
-- [x] Tested limit orders.
-
-- [-] Add support for real time data syncing.
-
-- [x] Fix issues with is_pending not updating.
-- [x] A Docker instance or create systemd background simple task for the server to run in the background. 
-- [x] The server is managing the watchlist and sending email alerts.
-~~- [x] write watchlist class function. ~~ just using funtions for now. 
-- [x] write email class.
-- [x] Add support for watchlist.
-
-- [ ] Add support emailing alerts and news.(emailing will be used for alerts and news)
-- [ ] Testing and more testing.
 
 
 
 
 
 
-
-
-
-
-notes:
-
-Robinhood hours for trading has changed, keeping the original hours since we are not stupid enough to trade outside liquid hours.
-
-graphql may help, but thats too much work. It is better to use the api directly instead of querying.
-
-
-for creating algothrims: follow this format: 
-https://github.com/steveman1123/multiStonk/blob/robinhood/algos/template.py
-
-
-
-autopep8 -i test_scripts.py
+TODO: 
+- clean up code and repo
+- Fix Kaggle script.
+- Fix buy and sell logic, its too ambitious.
+- Fix server to handle data better. 
+- Documentation and examples.
+- https://github.com/akurgat/automating-technical-analysis

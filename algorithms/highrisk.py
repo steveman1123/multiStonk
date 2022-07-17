@@ -1,5 +1,5 @@
 import _multistonks.otherfxns as o
-import robin_account as apis
+import robin_account
 algo = o.os.path.basename(__file__).split('.')[0]
 import robin_stocks as r
 
@@ -76,7 +76,7 @@ def goodBuys(symbList, verbose=False):
 # should return list of symbols
 def getUnsortedList(verbose=True):
     symbList = list()
-    buyholdsell,trending, suggestion = apis.multistock_server(algo,c=None)
+    buyholdsell,trending, suggestion = robin_account.multistock_server(algo,c=None)
     # print(suggestion)
     for i in buyholdsell:
         if i == "winners":
@@ -99,6 +99,7 @@ def getUnsortedList(verbose=True):
 
 def goodSells(symbList, verbose=False):  # symbList is a list of stocks ready to be sold
     lock = o.threading.Lock()
+    verbose  = True
     lock.acquire()
     posList = o.json.loads(open(c['file locations']['posList'], 'r').read())[
         'algos'][algo]  # load up the stock data for the algo
@@ -107,13 +108,17 @@ def goodSells(symbList, verbose=False):  # symbList is a list of stocks ready to
     symbList = [e for e in symbList if e in posList]
     buyPrices = {s: float(posList[s]['buyPrice'])
                  for s in symbList}  # get buyPrices {symb:buyPrce}
+    
     # currently format of {symb|assetclass:{price,vol,open}}
-    prices = o.getPrices([s+"|stocks" for s in symbList])
+    prices = robin_account.getPrices([s for s in symbList])
+    # prices = o.getPrices([s+"|stocks" for s in symbList])
+    # print(prices)
     # now format of {symb:{price,vol,open}}
     prices = {s.split("|")[0]: prices[s] for s in prices}
-
+    
     gs = {}
     for s in symbList:
+        # print(prices[s])
         if(s in prices):
             if(verbose):
                 print(
@@ -135,7 +140,6 @@ def goodSells(symbList, verbose=False):  # symbList is a list of stocks ready to
     # display stocks that have an error
     for e in [e for e in symbList if e not in gs]:
         print(f"{e} not tradable")
-
     return gs
 
 
@@ -215,5 +219,6 @@ def sellDn(symb=""):
 
 def sellUpDn(symb=""):
     mainSellUpDn = float(c[algo]['sellUpDn'])
+    print(mainSellUpDn)
     # if there's ever any future enhancement that we want to add here, we can
     return mainSellUpDn
