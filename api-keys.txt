@@ -1,0 +1,22 @@
+{
+  "ALPACAKEY" : "",
+  "ALPACASECRETKEY" : "",
+  "ALPACAURL" : "https://api.alpaca.markets",
+
+  "ALPACAPAPERKEY" : "",
+  "ALPACAPAPERSECRETKEY" : "",
+  "ALPACAPAPERURL" : "https://paper-api.alpaca.markets"
+
+  "username" : "",
+  "password" : "",
+  "mfa_code" : "",
+  "TOTPS" : "",
+
+  "from" : "",
+  "to" : "",
+  "email_password" : "",
+  "subject" : "",
+  
+  "sendPath" : ""
+
+}

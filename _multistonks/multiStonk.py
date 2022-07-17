@@ -180,11 +180,7 @@ def main(verbose=False):
       print("----\t------\t-----\t-----------\t-----------\t-----------\t----------")
       #look to sell things
       check2sells(pos)
-      
-      #start checking to buy things if within the buy time frame and lists are not being updated
-      #print(((closeTime-dt.datetime.now()).total_seconds())<60*float(c['time params']['buyTime']))
-      #print(sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0)
-
+   
       if((closeTime-dt.datetime.now()).total_seconds()<=60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
         tradableCash = getTradableCash(totalCash, maxPortVal) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
@@ -212,6 +208,7 @@ def main(verbose=False):
       #display the total p/l % of each algo
       print("Algo ROI estimates:") #TODO: these numbers are incorrect for some reason. check math
       for algo in posList:
+        
         curPrices = o.getPrices([e+"|stocks" for e in posList[algo]]) #get the current prices of all the stocks in a given algo
         
         algoCurVal = sum([posList[algo][s]['sharesHeld']*curPrices[s+"|stocks".upper()]['price'] for s in posList[algo] if s+"|stocks".upper() in curPrices])+cashList[algo]['earned'] #get the total value of the stocks in a given algo plus the returned cash

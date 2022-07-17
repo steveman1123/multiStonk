@@ -1,0 +1,6 @@
+flask
+requests
+robin_stocks
+pathlib
+toml
+pytz
