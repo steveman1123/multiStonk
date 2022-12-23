@@ -3,7 +3,7 @@
 
 print("\nStarting up...")
 
-import otherfxns as o
+import ndaqfxns as n
 import alpacafxns as a
 import random, time, json, sys, os, traceback
 from glob import glob
@@ -48,7 +48,7 @@ if(len(sys.argv)>1): #if there's an argument present
 
 
 #set the multi config file
-c = o.configparser.ConfigParser()
+c = n.configparser.ConfigParser()
 c.read(configFile)
 
 #list of algorithms to be used and their corresponding stock lists to be bought (init with none)
@@ -89,7 +89,7 @@ class bcolor:
 
 #init some gobal vars
 listsUpdatedToday = False #tell everyone whether the list has been updated yet today or not
-closeTime = o.closeTime(estOffset=-1) #get the time in datetime format of when the market closes (reference this when looking at time till close)
+closeTime = n.closeTime(estOffset=-1) #get the time in datetime format of when the market closes (reference this when looking at time till close)
 
 minCashMargin = float(c['account params']['minCashMargin']) #extra cash to hold above hold value
 if(minCashMargin<1): #minCashMargin MUST BE GREATER THAN 1 in order for it to work correctly
@@ -168,12 +168,12 @@ def main(verbose=False):
     ###
     #execute when the market is open
     ###
-    if(o.marketIsOpen()):
-      print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, port stop loss: {maxPortVal*float(c['account params']['portStopLoss'])},  {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    if(n.marketIsOpen()):
+      print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, port stop loss: {round(maxPortVal*float(c['account params']['portStopLoss']),2)},  {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
       #update the lists if not updated yet and that it's not currently updating
-      if(not listsUpdatedToday and len([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
-        updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
-        updateListsThread.setName('updateLists') #set the name to the stock symb
+      if(not listsUpdatedToday and len([t.name for t in n.threading.enumerate() if t.name.startswith('update')])==0):
+        updateListsThread = n.threading.Thread(target=updateLists) #init the thread - note locking is required here
+        updateListsThread.name = 'updateLists' #set the name to the stock symb
         updateListsThread.start() #start the thread
 
       print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\ttriggers\tnotes")
@@ -183,17 +183,17 @@ def main(verbose=False):
       
       #start checking to buy things if within the buy time frame and lists are not being updated
       #print(((closeTime-dt.datetime.now()).total_seconds())<60*float(c['time params']['buyTime']))
-      #print(sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0)
+      #print(sum([t.name.startswith('update') for t in n.threading.enumerate()])==0)
 
-      if((closeTime-dt.datetime.now()).total_seconds()<=60*float(c['time params']['buyTime']) and sum([t.getName().startswith('update') for t in o.threading.enumerate()])==0):
+      if((closeTime-dt.datetime.now()).total_seconds()<=60*float(c['time params']['buyTime']) and sum([t.name.startswith('update') for t in n.threading.enumerate()])==0):
         tradableCash = getTradableCash(totalCash, maxPortVal) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
         #print(tradableCash,cashPerAlgo,algoList,sep="\n")
         for algo in algoList:
           if(verbose): print(f"starting buy thread {algo}")
-          buyThread = o.threading.Thread(target=check2buy, args=(algo,cashPerAlgo, list(algoList[algo]),False)) #init the thread
-          buyThread.setName(algo) #set the name to the algo
+          buyThread = n.threading.Thread(target=check2buy, args=(algo,cashPerAlgo, list(algoList[algo]),False)) #init the thread
+          buyThread.name = algo #set the name to the algo
           buyThread.start() #start the thread
     
       time.sleep(60)
@@ -212,7 +212,7 @@ def main(verbose=False):
       #display the total p/l % of each algo
       print("Algo ROI estimates:") #TODO: these numbers are incorrect for some reason. check math
       for algo in posList:
-        curPrices = o.getPrices([e+"|stocks" for e in posList[algo]]) #get the current prices of all the stocks in a given algo
+        curPrices = n.getPrices([e+"|stocks" for e in posList[algo]]) #get the current prices of all the stocks in a given algo
         
         algoCurVal = sum([posList[algo][s]['sharesHeld']*curPrices[s+"|stocks".upper()]['price'] for s in posList[algo] if s+"|stocks".upper() in curPrices])+cashList[algo]['earned'] #get the total value of the stocks in a given algo plus the returned cash
         
@@ -238,12 +238,12 @@ def main(verbose=False):
       print(f"Port stop-loss: ${round(float(c['account params']['portStopLoss'])*maxPortVal,2)} ({round(100*float(c['account params']['portStopLoss']),2)}% of highest)\n")
       syncPosList() #sync up posList to live data
 
-      if(o.dt.date.today().weekday()==4 and o.dt.datetime.now().time()>o.dt.time(12)): #if it's friday afternoon
+      if(n.dt.date.today().weekday()==4 and n.dt.datetime.now().time()>n.dt.time(12)): #if it's friday afternoon
         #delete all csv files in stockDataDir
         print("Removing saved csv files")
-        for f in glob(o.c['file locations']['stockDataDir']+"*.csv"):
+        for f in glob(n.c['file locations']['stockDataDir']+"*.csv"):
           try: #placed inside a try statement in the event that the file is removed before being removed here
-            o.os.unlink(f)
+            n.os.unlink(f)
           except Exception:
             pass
         
@@ -268,11 +268,11 @@ def main(verbose=False):
       ###
       #update stock lists
       print("Updating buyList") #TODO: move this into the thread or within the thread have a "done updating buylist"
-      updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
-      updateListsThread.setName('updateLists') #set the name to the stock symb
+      updateListsThread = n.threading.Thread(target=updateLists) #init the thread - note locking is required here
+      updateListsThread.name = 'updateLists' #set the name to the stock symb
       updateListsThread.start() #start the thread
 
-      closeTime = o.closeTime(estOffset=-1) #get the next closing time
+      closeTime = n.closeTime(estOffset=-1) #get the next closing time
       time.sleep(a.timeTillOpen())
       
 
@@ -300,7 +300,7 @@ def updateLists(verbose=False):
   #check that the buyfile is present and if it was updated today: if it was, then read directly from it, else generate lists
   errored = False
   if(verbose): print("Checking if buyList file is present")
-  if(o.os.path.isfile(c['file locations']['buyList'])):
+  if(n.os.path.isfile(c['file locations']['buyList'])):
     if(verbose): print("File is present. Checking mod date")
     try:
       modDate = dt.datetime.strptime(time.strftime("%Y-%m-%d",time.localtime(os.stat(c['file locations']['buyList']).st_mtime)),"%Y-%m-%d").date() #if ANYONE knows of a better way to get the modified date into a date format, for the love of god please let me know
@@ -327,18 +327,18 @@ def updateLists(verbose=False):
   #TODO: check that all algos in the algolist are present in the buy list as well (in the event that an algo has been added or removed after updating today
   if(errored):
   
-    lock = o.threading.Lock()
-    revSplits = o.reverseSplitters()
+    lock = n.threading.Lock()
+    revSplits = n.reverseSplitters()
     for e in algoList: #start a thread to update the list for each algorithm
       # print(f"updating {e} list")
-      updateThread = o.threading.Thread(target=updateList, args=(e,lock,revSplits)) #init the thread - note locking is required here
-      updateThread.setName("update-"+e) #set the name to the stock symb
+      updateThread = n.threading.Thread(target=updateList, args=(e,lock,revSplits)) #init the thread - note locking is required here
+      updateThread.name = "update-"+e #set the name to the stock symb
       updateThread.start() #start the thread
         
     #TODO: see the following because the updateList threads currently all access algoList, and the while loop is probably not the best solution for waiting
-    # https://www.geeksforgeeks.org/multio.threading-in-python-set-2-synchronization/
+    # https://www.geeksforgeeks.org/multin.threading-in-python-set-2-synchronization/
     #wait for the threads to finish updating, or the exitFlag is triggered
-    while(len([t.getName() for t in o.threading.enumerate() if t.getName().startswith("update-")])>0 and not exitFlag):
+    while(len([t.name for t in n.threading.enumerate() if t.name.startswith("update-")])>0 and not exitFlag):
       time.sleep(2)
     
     if(not exitFlag):
@@ -379,14 +379,14 @@ def check2sell(algo, pos):
         if(goodSell):
           if(algo+"|"+e['symbol'] not in triggeredStocks):
             triggeredStocks.add(algo+"|"+e['symbol'])
-          if("triggered" not in [t.getName() for t in o.threading.enumerate()]):
-            triggerThread = o.threading.Thread(target=checkTriggered) #init the thread - note locking is required here
-            triggerThread.setName("triggered") #set the name to the algo and stock symb
+          if("triggered" not in [t.name for t in n.threading.enumerate()]):
+            triggerThread = n.threading.Thread(target=checkTriggered) #init the thread - note locking is required here
+            triggerThread.name = "triggered" #set the name to the algo and stock symb
             triggerThread.start() #start the thread
           
-          if(f"{algo}-{e['symbol']}" not in [t.getName() for t in o.threading.enumerate()]): #make sure that the thread isn't already running
-            triggerThread = o.threading.Thread(target=triggeredUp, args=(e['symbol'],algo)) #init the thread - note locking is required here
-            triggerThread.setName(f"{algo}-{e['symbol']}") #set the name to the algo and stock symb
+          if(f"{algo}-{e['symbol']}" not in [t.name for t in n.threading.enumerate()]): #make sure that the thread isn't already running
+            triggerThread = n.threading.Thread(target=triggeredUp, args=(e['symbol'],algo)) #init the thread - note locking is required here
+            triggerThread.name = f"{algo}-{e['symbol']}" #set the name to the algo and stock symb
             triggerThread.start() #start the thread
 '''
 
@@ -424,7 +424,7 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
       
       #to avoid day trading, make sure that it either didn't trade yet today, or if it has, that it hasn't sold yet
       if lastTradeDate < dt.date.today() and stockInfo['lastTradeType']!="sell":
-        inf = o.getInfo(stock,['price','mktcap'])
+        inf = n.getInfo(stock,['price','mktcap'])
         [curPrice, mktCap] = [inf['price'],inf['mktcap']]
         #set number of shares to be at most some % of the mktcap, otherwise as many int shares as cash is available (or 0 if curPrice is 0)
         if(curPrice>0): shares = int(min(cashPerStock/curPrice,(mktCap/curPrice)*float(c['account params']['maxVolPerc'])))
@@ -437,7 +437,7 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
         if(verbose): print(f"{algo} - {stock} - {curPrice} - ok to buy {shares} shares")
         if(shares>0): #cannot place an order for 0 shares
           #market must be open in order to place the trade (this check is here in the event that the program is suspended while market open, then restarted while market closed)
-          # if(o.marketIsOpen()): #TODO: add once this is confirmed, otherwise wait for a better solution to not need queries
+          # if(n.marketIsOpen()): #TODO: add once this is confirmed, otherwise wait for a better solution to not need queries
           isBought = buy(shares,stock,algo,curPrice) #buy the stock
           if(isBought):
             print(f"buy\t{shares}\t{stock}\t{algo}\t{round(curPrice,2)}\t{round(shares*curPrice,2)}")
@@ -454,21 +454,21 @@ def triggeredUp(symb, algo):
   sellUpDn = float(eval(algo+".sellUpDn()"))
   #ensure that current price>0 (getPrice returns 0 if it can't recognize a symbol (eg if a merger happens or a stock is delisted)
   while(curPrice>0 and curPrice>=sellUpDn*maxPrice and (closeTime-dt.datetime.now()).total_seconds()>60 and not exitFlag):
-    curPrice = o.getInfo(symb)['price']
+    curPrice = n.getInfo(symb)['price']
     maxPrice = max(maxPrice,curPrice)
     print(f"{algo}\t{symb}\t{round(curPrice/maxPrice,2)} : {round(sellUpDn,2)}")
-    time.sleep(len(o.threading.enumerate())+2) #slow it down proportional to the number of threads running to not barage with requests
+    time.sleep(len(n.threading.enumerate())+2) #slow it down proportional to the number of threads running to not barage with requests
   isSold = sell(symb, algo)
   if(isSold): print(f"Sold all shares of {symb} for {algo} algo")
 
 #run as long as the len of triggeredStocks>0 (where triggeredStocks is a set of format {"algo|symb"})
 def checkTriggered(verbose=False):
   global triggeredStocks
-  lock = o.threading.Lock()
+  lock = n.threading.Lock()
   maxPrices = {}
   while(len(list(triggeredStocks))>0 and not exitFlag): #only run if there's stocks to sell
     if(verbose): print(f"{len(list(triggeredStocks))} stocks triggered for sale")
-    prices = o.getPrices([e.split("|")[1]+"|stocks" for e in list(triggeredStocks)]) #get prices for all stocks to sell
+    prices = n.getPrices([e.split("|")[1]+"|stocks" for e in list(triggeredStocks)]) #get prices for all stocks to sell
     maxPrices = {e:max(maxPrices[e],prices[e]['price']) if(e in maxPrices) else prices[e]['price'] for e in prices} #get the max prices of the stocks since watching
     #check for stocks in triggeredStocks that aren't in prices (some error occured that we hold it but it can't be traded)
     lock.acquire()
@@ -493,7 +493,7 @@ def checkTriggered(verbose=False):
     print()
     time.sleep(max(5,len(list(triggeredStocks))/5)) #wait at least 5 seconds between checks, and if there are more, wait longer
     
-#multiplex check2sell where pos is the output of o.getPos
+#multiplex check2sell where pos is the output of n.getPos
 def check2sells(pos,verbose=False):
   global triggeredStocks
   #determine if the stocks in the algo are good sells (should return as a dict of {symb:goodSell(t/f)})
@@ -502,19 +502,26 @@ def check2sells(pos,verbose=False):
     algoSymbs = [e for e in pos if e['symbol'] in posList[algo]] #only the stocks in both posList[algo] and held positions
     symbList = [e['symbol'] for e in algoSymbs] #isolate just the symbols
     #TODO: in each algo, add an error report if there's a stock that doesn't appear to be tradable (that is, it's in symbList but doesn't show up in getPrices)
+    
+    
+    #TODO: IMPORTANT should pass entire position object so that the current price is also passed to the goodSells() function so it doesn't have to call the ndaq api
     gs = eval(f"{algo}.goodSells(symbList)") #get whether the stocks are good sells or not
+    
+    
+    
+    
     for e in algoSymbs: #go through the stocks of the algo
       if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'): #only display/sell if not bought today
         print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t"+str(round(eval(f'{algo}.sellDn("{e["symbol"]}")'),2))+" & "+str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'),2))+f"\t{posList[algo][e['symbol']]['note']}")
         #ensure that the market is open in order to actually place a trade
         #this check is here in the event that the program is suspended while open, then restarted while closed
-        # if(o.marketIsOpen()): #TODO: confirm that this is needed first and not a setting that can be changed outside of this script
+        # if(n.marketIsOpen()): #TODO: confirm that this is needed first and not a setting that can be changed outside of this script
         if(gs[e['symbol']]==1): #if the stock is a good sell (sellUp)
           if(algo+"|"+e['symbol'] not in triggeredStocks): #make sure that it's not already present
             triggeredStocks.add(algo+"|"+e['symbol']) #if not, then add it to the triggered list
-          if("triggered" not in [t.getName() for t in o.threading.enumerate()]): #make sure that the triggered list isn't already running
-            triggerThread = o.threading.Thread(target=checkTriggered) #init the thread - note locking is required here
-            triggerThread.setName("triggered") #set the name to the algo and stock symb
+          if("triggered" not in [t.name for t in n.threading.enumerate()]): #make sure that the triggered list isn't already running
+            triggerThread = n.threading.Thread(target=checkTriggered) #init the thread - note locking is required here
+            triggerThread.name = "triggered" #set the name to the algo and stock symb
             triggerThread.start() #start the thread
         elif(gs[e['symbol']]==-1): #else if it sells down (stop-loss)
           #sell immediately
@@ -534,9 +541,9 @@ def sell(stock, algo):
   #TODO: this is an incorrect check
   #see how it looks in here: https://alpaca.markets/docs/trading-on-alpaca/orders/#order-lifecycle
   if('status' in r and r['status'] == "accepted"): #check that it actually sold
-    lock = o.threading.Lock()
+    lock = n.threading.Lock()
     lock.acquire()
-    cashList[algo]['earned'] += o.getInfo(stock)['price']*posList[algo][stock]["sharesHeld"] #update the cash earned by the sale
+    cashList[algo]['earned'] += n.getInfo(stock)['price']*posList[algo][stock]["sharesHeld"] #update the cash earned by the sale
     posList[algo][stock] = { #update the entry in posList
         "sharesHeld":0,
         "lastTradeDate":str(dt.date.today()),
@@ -561,7 +568,7 @@ def buy(shares, stock, algo, buyPrice):
   global posList, cashList
 
   if('status' in r and r['status'] == "accepted"): #check to make sure that it actually bought - TODO: does the presence of 'status' indicate that it bought or not?
-    lock = o.threading.Lock()
+    lock = n.threading.Lock()
     lock.acquire()
     posList[algo][stock] = { #update the entry in posList
         "sharesHeld":float(posList[algo][stock]['sharesHeld'])+float(r['qty']) if stock in posList[algo] else float(r['qty']),
@@ -589,7 +596,7 @@ def setPosList(algoList, verbose=True):
   #if the posList file doesn't exist
   if(not os.path.isfile(c['file locations']['posList'])):
     if(verbose): print("File is missing. Creating and adding blank lists...")
-    lock = o.threading.Lock()
+    lock = n.threading.Lock()
     lock.acquire()
     with open(c['file locations']['posList'],'w') as f:
       f.write(json.dumps({'algos':{e:{} for e in algoList},'cash':{e:{"earned":0,"invested":0} for e in algoList}})) #write a empty algos and 0 cash for all algos to the posList file
@@ -602,7 +609,7 @@ def setPosList(algoList, verbose=True):
     lock.release()
   else: #if it does exist
     # try: #try reading any json data from it
-    lock = o.threading.Lock()
+    lock = n.threading.Lock()
     lock.acquire()
     with open(c['file locations']['posList'],'r') as f:
       lists = json.loads(f.read())
@@ -624,7 +631,7 @@ def setPosList(algoList, verbose=True):
     lock.release()
 
     #write the missing algos to the file
-    lock = o.threading.Lock()
+    lock = n.threading.Lock()
     lock.acquire()
     with open(c['file locations']['posList'],'w') as f:
       f.write(json.dumps({'algos':posList,'cash':cashList}))
@@ -633,7 +640,7 @@ def setPosList(algoList, verbose=True):
     except Exception: #if it fails, then just write the empty algoList to the file
       #TODO: this is dangerous! This could potentially overwrite all saved position data if there's any error above. TODO Make this more robust
       if(verbose): print("Something went wrong. Overwriting poslist file")
-      lock = o.threading.Lock()
+      lock = n.threading.Lock()
       lock.acquire()
       with open(c['file locations']['posList'],'w') as f:
         f.write(json.dumps({'algos':{e:{} for e in algoList},'cash':{e:{"earned":0,"invested":0} for e in algoList}})) #write a empty algos and 0 cash for all algos to the posList file
@@ -649,7 +656,7 @@ def setPosList(algoList, verbose=True):
 #TODO: if not done already, need to make sure that when the posList says there's 0 shares held, but getPos says there's shares, that the share amounts are transferred
 def syncPosList(verbose=False):
   global posList, cashList
-  lock = o.threading.Lock() #locking is needed to write to the file and edit the posList var (will have to see how threads and globals work with each other)
+  lock = n.threading.Lock() #locking is needed to write to the file and edit the posList var (will have to see how threads and globals work with each other)
   print("Syncing posList...")
   
   #check if an algo in the posList is removed from the algoList
@@ -802,14 +809,14 @@ def syncPosList(verbose=False):
   if(not eq(recPos, heldPos) or not os.path.isfile(c['file locations']['buyList'])): #compare again after the initial comparison
     if(verbose): print(f"Discrepency still present or buyList file is missing. Updating buy list")
     #if the lists aren't currently updating and haven't already updated today, then update
-    if(not listsUpdatedToday and len([t for t in o.threading.enumerate() if t.getName().startswith('update')])==0):
-      updateListsThread = o.threading.Thread(target=updateLists) #init the thread - note locking is required here
-      updateListsThread.setName('updateLists') #set the name to the stock symb
+    if(not listsUpdatedToday and len([t for t in n.threading.enumerate() if t.name.startswith('update')])==0):
+      updateListsThread = n.threading.Thread(target=updateLists) #init the thread - note locking is required here
+      updateListsThread.name = 'updateLists' #set the name to the stock symb
       updateListsThread.start() #start the thread
 
     if(verbose): print("Waiting for stock lists to finish updating...")
-    while(not listsUpdatedToday or len([t for t in o.threading.enumerate() if t.getName().startswith('update')])>0): #wait for the lists to finish updating
-      # print([t.getName() for t in o.threading.enumerate() if t.getName().startswith('update')])
+    while(not listsUpdatedToday or len([t for t in n.threading.enumerate() if t.name.startswith('update')])>0): #wait for the lists to finish updating
+      # print([t.name for t in n.threading.enumerate() if t.name.startswith('update')])
       time.sleep(2)
     if(verbose): print("lists done updating for syncPosList")
 
@@ -887,7 +894,7 @@ def syncPosList(verbose=False):
     if(verbose): print(round(cashList[algo]['invested'],2))
   
   if(verbose): print("Marking to be sold")
-  revSplits = o.reverseSplitters()
+  revSplits = n.reverseSplitters()
   for algo in posList:
     for symb in posList[algo]:
       if(symb in revSplits):
@@ -912,7 +919,7 @@ if __name__ == '__main__':
   exitFlag = False #set to true if the program stopped by ctrl+c
 
   try:
-    main(False) #start running the program
+    main(True) #start running the program
   except KeyboardInterrupt: #exit on ctrl+c
     print("Exiting")
     exitFlag=True
