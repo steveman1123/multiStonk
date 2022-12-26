@@ -481,15 +481,19 @@ def reverseSplitters():
 # available data (at the moment): ['price', 'vol', 'mktcap', 'open', 'prevclose', 'istradable','hilo']
 #return dict of format {'option':value}
 #TODO: on err of something not present, set to None rather than 0
-def getInfo(symb,data=['price'], maxTries=3):
+def getInfo(symb,data=['price'], verbose=False):
   data = [e.lower() for e in data]
-  infurl = f'{BASEURL}/quote/{symb}/info?assetclass=stocks' #use this URL to avoid alpaca
-  sumurl = f'{BASEURL}/quote/{symb}/summary?assetclass=stocks' #use this URL to avoid alpaca
+  if(verbose): print("request data:",data)
+  
+  #use these URLs to avoid alpaca
+  infurl = f'{BASEURL}/quote/{symb}/info?assetclass=stocks'
+  sumurl = f'{BASEURL}/quote/{symb}/summary?assetclass=stocks'
   infj = json.loads(robreq(url=infurl,headers=HEADERS,timeout=5).text)
   sumj = json.loads(robreq(url=sumurl,headers=HEADERS,timeout=5).text)
 
 
-  out = {}
+  out = {} #init the output variable
+  #determine which data to output in the request
   if('price' in data):
     try:
       out['price'] = float(infj["data"]["primaryData"]["lastSalePrice"][1:])
@@ -528,52 +532,53 @@ def getInfo(symb,data=['price'], maxTries=3):
     except Exception:
       out['high'] = 0
       out['low'] = 0
+  
+  if(verbose): print("returned data:",list(out))
   return out
 
+
 #get day chart prices for the current day (not exactly minute to minute)
-def getChart(symb, maxTries=3, verbose=False):
+def getChart(symb, verbose=False):
   r = json.loads(robreq(f"{BASEURL}/quote/{symb}/chart?assetclass=stocks",headers=HEADERS).text)
   
   out = {e['z']['dateTime']:float(e['z']['value']) for e in r['data']['chart']}
   return out
-  
+
+
 #get the next trade date in datetime date format
-def nextTradeDate():
+def nextTradeDate(verbose=False):
   try:
     r = json.loads(robreq(url=f"{BASEURL}/market-info",headers=HEADERS).text)['data']['nextTradeDate']
     return str(r)
   except Exception:
+    if(verbose): print("error getting data. Assuming next workday")
     return str(wd(dt.date.today(),1))
   
 
 #return dict of current prices of assets (symblist is list format of symb|assetclass) output of {symb|assetclass:{price,vol,open}}
-def getPrices(symbList,maxTries=3,verbose=False):
+def getPrices(symbList,maxTries=3,verbose=True):
   maxSymbs = 20 #cannot do more than 20 at a time, so loop through requests
   d = [] #init data var
-  r = {}
-  #loop through the symbols by breaking them into managable chunks for th api
+  r = {} #init request var
+  #loop through the symbols by breaking them into managable chunks for the api
   for i in range(0,len(symbList),maxSymbs):
-    tries=0
-    while tries<maxTries:
-      try: #try getting the data
-        symbQuery = symbList[i:min(i+maxSymbs,len(symbList))]
-        if(verbose): print(symbQuery)
-        r = json.loads(robreq(f"{BASEURL}/quote/watchlist",params={'symbol':symbQuery},headers=HEADERS,timeout=5).text)
-        break
-      except Exception: #if it doesn't work, try again
-        print(f"Error getting prices. Trying again ({tries+1}/{maxTries})...")
-        r['data'] = [] #if something fails, then set it to nothin in the event it completely fails out (this way it won't throw an error when trying to extend)
-        tries+=1
-        time.sleep(3)
-        continue
-    if(verbose): print(json.dumps(r['data'],indent=2))
-    if(r['data'] is not None): d.extend(r['data']) #append the lists
+    if(verbose): print(f"get prices ({i}-{min(i+maxSymbs,len(symbList))}/{len(symbList)})")
+    symbQuery = symbList[i:min(i+maxSymbs,len(symbList))]
+    r = json.loads(robreq(f"{BASEURL}/quote/watchlist",params={'symbol':symbQuery},headers=HEADERS,timeout=5).text)
+    
+    #if the list has data, append it
+    if(r['data'] is not None):
+      d.extend(r['data']) #append the lists
+    else: #else if there's no data, don't append the list and let us know
+      print(f"Error getting prices")
 
   #isolate the symbols and prices and remove any that are none's
   prices={}
-  for e in d:
+  for e in d: #for every symb in the data
+    #ensure that all data is present and valid
     if(e['volume'] is not None and len(e['volume'])>0 and e['lastSalePrice'] is not None and len(e['lastSalePrice'])>0 and e['netChange'] is not None and len(e['netChange'])>0):
-      if(verbose): print(e)
+      # if(verbose): print(e)
+      
       prices[f"{e['symbol']}|{e['assetClass']}"] = {
                                                 'price':float(e['lastSalePrice'].replace("$","")),
                                                 'vol':int(e['volume'].replace(",","")),

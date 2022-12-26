@@ -5,14 +5,21 @@ import alpacafxns as a
 import json, csv
 import datetime as dt
 
-a.init("../stockStuff/apikeys/steve.txt",0)
 
-#set up the range
-startDate = "2021-04-20"
-endDate = str(dt.date.today())
+#set up the info
+startDate = "2022-04-20" #start of range to check
+endDate = str(dt.date.today()) #end of range to check
+apikeyfile = "../stockStuff/apikeys/steve.txt" #keyfile for alpaca api
+
+
+a.init(apikeyfile,1)
+
+print("\ngetting trade data")
+print("key file:",apikeyfile)
+print(f"checking trading from {startDate} to {endDate}")
+
 
 #get the trade data
-print("\ngetting trade data")
 trades = a.getTrades(startDate, endDate)[::-1]
 
 print("formatting data")

@@ -210,35 +210,37 @@ def jumpedToday(symb,jump):
 
 
 #perform the same checks as goodSell but multiplexed for fewer requests
+#symbList = list of position objects from alpaca that are ready to be sold
 #return dict of {symb:goodSell}
-def goodSells(symbList, verbose=False): #symbList is a list of stocks ready to be sold
+def goodSells(symbList, verbose=False):
   lock = threading.Lock()
   lock.acquire()
   posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo] #load up the stock data for the algo
   lock.release()
-  symbList = [e for e in symbList if e in posList] #only look at the stocks that are in the algo
-  buyPrices = {s:float(posList[s]['buyPrice']) for s in symbList} #get buyPrices {symb:buyPrce}
-  prices = n.getPrices([s+"|stocks" for s in symbList]) #currently format of {symb|assetclass:{price,vol,open}}
-  prices = {s.split("|")[0]:prices[s] for s in prices} #now format of {symb:{price,vol,open}}
   
+  #only look at the stocks that are in the algo
+  symbList = [e for e in symbList if e['symbol'] in posList]
+   
   gs = {}
   for s in symbList:
-    if(s in prices):
-      if(verbose): print(f"{s}\topen: {round(prices[s]['price']/prices[s]['open'],2)}\tbuy: {round(prices[s]['price']/buyPrices[s],2)}\tsellUp: {sellUp(s)}\tsellDn: {sellDn(s)}")
-      #check if price triggered up
-      if(prices[s]['open']>0 and buyPrices[s]>0):
-        if(prices[s]['price']/prices[s]['open']>=sellUp(s) or prices[s]['price']/buyPrices[s]>=sellUp(s)):
-          gs[s] = 1
-        #check if price triggered down
-        elif(prices[s]['price']/prices[s]['open']<sellDn(s) or prices[s]['price']/buyPrices[s]<sellDn(s)):
-          gs[s] = -1
-        else: #price didn't trigger either side
-          gs[s] = 0
-      else: #TODO: is this correct? Should it sell if it can't find a price?
-        gs[s] = 0
-    else:
-      gs[s] = 0
-  
+    su = sellUp(s['symbol'])
+    sd = sellDn(s['symbol'])
+    if(verbose):
+      print(f"{s['symbol']}",
+            f"open: {round(float(s['change_today']),2)}", #change since open
+            f"buy: {round(float(s['unrealized_plpc']),2)}", #change since buy
+            f"sellUp: {su}",
+            f"sellDn: {sd}")
+
+    #check if price triggered up
+    if(float(s['change_today'])>=sellUp(s) or float(s['unrealized_plpc'])>=sellUp(s)):
+      gs[s['symbol']] = 1
+    #check if price triggered down
+    elif(float(s['change_today'])<sellDn(s) or float(s['unrealized_plpc'])<sellDn(s)):
+      gs[s['symbol']] = -1
+    else: #price didn't trigger either side
+      gs[s['symbol']] = 0
+
   
   #display stocks that have an error
   for e in [e for e in symbList if e not in gs]:

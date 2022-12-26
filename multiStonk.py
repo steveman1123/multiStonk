@@ -204,17 +204,23 @@ def main(verbose=False):
     #execute when the market is closed
     ###
     else:
-      
       ###
       #execute immediately after close
       ###
+      print("market closed\n")
       
       #display the total p/l % of each algo
       print("Algo ROI estimates:") #TODO: these numbers are incorrect for some reason. check math
       for algo in posList:
-        curPrices = n.getPrices([e+"|stocks" for e in posList[algo]]) #get the current prices of all the stocks in a given algo
+        pos = a.getPos()
+        curPrices = [float(e['current_price']) for e in pos if e['symbol'] in posList[algo]] #get the current prices of all the stocks in a given algo
         
-        algoCurVal = sum([posList[algo][s]['sharesHeld']*curPrices[s+"|stocks".upper()]['price'] for s in posList[algo] if s+"|stocks".upper() in curPrices])+cashList[algo]['earned'] #get the total value of the stocks in a given algo plus the returned cash
+        #alternative non-alpaca call (slower since it needs more requests usually)
+        #curPrices = n.getPrices([e+"|stocks" for e in posList[algo]])
+        
+        
+        algoCurVal = sum([posList[algo][s]['sharesHeld']*curPrices[s.upper()] for s in posList[algo] if s.upper() in curPrices])+cashList[algo]['earned'] #get the total value of the stocks in a given algo plus the returned cash
+        
         
         #update the invested amount (just in case)
         if(cashList[algo]['invested']==0):
@@ -238,7 +244,10 @@ def main(verbose=False):
       print(f"Port stop-loss: ${round(float(c['account params']['portStopLoss'])*maxPortVal,2)} ({round(100*float(c['account params']['portStopLoss']),2)}% of highest)\n")
       syncPosList() #sync up posList to live data
 
-      if(n.dt.date.today().weekday()==4 and n.dt.datetime.now().time()>n.dt.time(12)): #if it's friday afternoon
+      '''
+      #this is not really relevent anymore since the stock data is updated more logically and is used by other applications, so removal can happen manually as we see fit, doesn't need to happen weekly
+      #if it's friday afternoon
+      if(n.dt.date.today().weekday()==4 and n.dt.datetime.now().time()>n.dt.time(12)):
         #delete all csv files in stockDataDir
         print("Removing saved csv files")
         for f in glob(n.c['file locations']['stockDataDir']+"*.csv"):
@@ -246,7 +255,8 @@ def main(verbose=False):
             n.os.unlink(f)
           except Exception:
             pass
-        
+      '''
+      
       
       # clear all lists in algoList
       print("Clearing buyList")
@@ -499,12 +509,10 @@ def check2sells(pos,verbose=False):
   #determine if the stocks in the algo are good sells (should return as a dict of {symb:goodSell(t/f)})
   for algo in posList:
     if(verbose): print(algo)
-    algoSymbs = [e for e in pos if e['symbol'] in posList[algo]] #only the stocks in both posList[algo] and held positions
-    symbList = [e['symbol'] for e in algoSymbs] #isolate just the symbols
+    symbList = [e for e in pos if e['symbol'] in posList[algo]] #only the stocks in both posList[algo] and held positions
+    
     #TODO: in each algo, add an error report if there's a stock that doesn't appear to be tradable (that is, it's in symbList but doesn't show up in getPrices)
     
-    
-    #TODO: IMPORTANT should pass entire position object so that the current price is also passed to the goodSells() function so it doesn't have to call the ndaq api
     gs = eval(f"{algo}.goodSells(symbList)") #get whether the stocks are good sells or not
     
     
@@ -919,7 +927,7 @@ if __name__ == '__main__':
   exitFlag = False #set to true if the program stopped by ctrl+c
 
   try:
-    main(True) #start running the program
+    main() #start running the program
   except KeyboardInterrupt: #exit on ctrl+c
     print("Exiting")
     exitFlag=True
