@@ -245,7 +245,7 @@ def main(verbose=False):
       syncPosList() #sync up posList to live data
 
       '''
-      #this is not really relevent anymore since the stock data is updated more logically and is used by other applications, so removal can happen manually as we see fit, doesn't need to happen weekly
+      #TODO: this should be done when the folder reaches a certain size, rather than weekly
       #if it's friday afternoon
       if(n.dt.date.today().weekday()==4 and n.dt.datetime.now().time()>n.dt.time(12)):
         #delete all csv files in stockDataDir
@@ -603,7 +603,7 @@ def setPosList(algoList, verbose=True):
   cashList = {}
   #if the posList file doesn't exist
   if(not os.path.isfile(c['file locations']['posList'])):
-    if(verbose): print("File is missing. Creating and adding blank lists...")
+    if(verbose): print("posList file is missing. Creating and adding blank lists...")
     lock = n.threading.Lock()
     lock.acquire()
     with open(c['file locations']['posList'],'w') as f:

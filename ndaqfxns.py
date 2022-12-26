@@ -556,7 +556,7 @@ def nextTradeDate(verbose=False):
   
 
 #return dict of current prices of assets (symblist is list format of symb|assetclass) output of {symb|assetclass:{price,vol,open}}
-def getPrices(symbList,maxTries=3,verbose=True):
+def getPrices(symbList,maxTries=3,verbose=False):
   maxSymbs = 20 #cannot do more than 20 at a time, so loop through requests
   d = [] #init data var
   r = {} #init request var
