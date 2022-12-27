@@ -632,7 +632,7 @@ def getPrices(symbList,maxTries=3,verbose=False):
   for i in range(0,len(symbList),maxSymbs):
     if(verbose): print(f"get prices ({i}-{min(i+maxSymbs,len(symbList))}/{len(symbList)})")
     symbQuery = symbList[i:min(i+maxSymbs,len(symbList))]
-    r = json.loads(robreq(f"{BASEURL}/quote/watchlist",params={'symbol':symbQuery},headers=HEADERS,timeout=5).text)
+    r = json.loads(robreq(f"{BASEURL}/quote/watchlist",params={'symbol':symbQuery},maxTries=maxTries,headers=HEADERS,timeout=5).text)
     
     #if the list has data, append it
     if(r['data'] is not None):
