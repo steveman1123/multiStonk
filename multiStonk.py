@@ -509,18 +509,30 @@ def check2sells(pos,verbose=False):
   #determine if the stocks in the algo are good sells (should return as a dict of {symb:goodSell(t/f)})
   for algo in posList:
     if(verbose): print(algo)
-    symbList = [e for e in pos if e['symbol'] in posList[algo]] #only the stocks in both posList[algo] and held positions
+    #only the stocks in both posList[algo] and held positions
+    #the stocks held by the given algo
+    symbList = [e for e in pos if e['symbol'] in posList[algo]]
     
     #TODO: in each algo, add an error report if there's a stock that doesn't appear to be tradable (that is, it's in symbList but doesn't show up in getPrices)
     
-    gs = eval(f"{algo}.goodSells(symbList)") #get whether the stocks are good sells or not
+    #get whether the stocks are good sells or not
+    gs = eval(f"{algo}.goodSells(symbList)")
     
     
     
-    
-    for e in algoSymbs: #go through the stocks of the algo
-      if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'): #only display/sell if not bought today
-        print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t"+str(round(eval(f'{algo}.sellDn("{e["symbol"]}")'),2))+" & "+str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'),2))+f"\t{posList[algo][e['symbol']]['note']}")
+    #go through the stocks of the algo
+    for e in symbList:
+      #only display/sell if not bought today
+      if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'):
+        print(f"{algo}",
+              f"{int(posList[algo][e['symbol']]['sharesHeld'])}",
+              f"{e['symbol']}",
+              f"{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}",
+              f"{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}",
+              str(round(eval(f'{algo}.sellDn("{e["symbol"]}")'),2)),
+              " & ",
+              str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'),2)),
+              f"{posList[algo][e['symbol']]['note']}")
         #ensure that the market is open in order to actually place a trade
         #this check is here in the event that the program is suspended while open, then restarted while closed
         # if(n.marketIsOpen()): #TODO: confirm that this is needed first and not a setting that can be changed outside of this script
