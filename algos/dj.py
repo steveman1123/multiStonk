@@ -22,6 +22,7 @@ def init(configFile):
   lock.release()
 
 #get a list of potential gainers according to this algo
+#return a 
 def getList(verbose=True):
   if(verbose): print(f"getting unsorted list for {algo}...")
   ul = getUnsortedList()
@@ -32,7 +33,7 @@ def getList(verbose=True):
   if(verbose): print(f"{len(gb)} found for {algo}.")
   return gb
 
-#TODO: add verbose-ness to goodBuys, goodSells
+#TODO: add verbose-ness to goodBuys
 
 #checks whether something is a good buy or not (if not, return why - no initial jump or second jump already missed).
 #if it is a good buy, return initial jump date

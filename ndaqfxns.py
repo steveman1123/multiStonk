@@ -3,13 +3,14 @@
 #TODO: https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
 #TODO: point all url tries/catches as a robreq() fxn like in multiforex
 
-import json,requests,os,time,re,csv,sys,configparser,threading
+import json,requests,os,time,sys,configparser,threading,re
+import Levenshtein as lev
 import datetime as dt
 from bs4 import BeautifulSoup as bs
-from math import ceil
 from statistics import mean
 from workdays import workday as wd
 from workdays import networkdays as nwd
+
 
 #read the config file
 configFile = "./configs/ndaq.config"
@@ -433,21 +434,88 @@ def getHistory(symb,startDate,endDate,assetclass="stocks",verbose=False):
 
 
 
-#get the ticker symbol and exchange of a company or return "-" if not found
-def getSymb(company,maxTries=3):
+#get the ticker symbol of a company or return None if not found
+def getSymb(company,verbose=False):
   symb = ""
-  exch = ""
+  
+  #for now, just use the locally generated file
+  if(os.path.isfile(c['file locations']['allSymbsFile'])):
+    with open(c['file locations']['allSymbsFile'],'r') as f:
+      symbList = json.loads(f.read())
+      f.close()
+  else:
+    if(verbose): print("allSymbsFile not found. Generating new one")
+    symbList = getAllSymbs()
+  
+  cname = "" #company name to compare to the query
+  cnames = list(symbList) #list of symbols
+  i = -1 #company name index of list() (init to -1 since it'll increment before checking the index)
+  ratio = 0 #levenshtein ratio
+  maxratio = 0 #max levenstein ratio seen
+  ratiocutoff = 0.9 #cutoff to assume that it's a match
+  #while the maxratio hasn't reached the cutoff
+  while maxratio<ratiocutoff and i<len(cnames)-1:
+    i+=1
+    cname = symbList[cnames[i]]
+    ratio = lev.ratio(company.lower(),cname.lower())
+    maxratio = max(maxratio,ratio)
+    if(verbose): print(company,cname,maxratio)
+  
+  symb = None #matched symbol
+  if(maxratio>=ratiocutoff):
+    symb = cnames[i]
+  
   #idk where a good spot to find this info may be
   '''
   https://www.nasdaq.com/search_api_autocomplete/search?q=facebook
   https://stockmarketmba.com/symbollookupusingidentifier.php
-  https://sec.report/CIK/0001652044
-  https://stocks.tradingcharts.com/stocks/symbols/s/all/alphab
   https://quotes.fidelity.com/mmnet/SymLookup.phtml?reqforlookup=REQUESTFORLOOKUP&productid=mmnet&isLoggedIn=mmnet&rows=50&for=stock&by=D&criteria=amazon&submit=Search
   and more I'm sure
+
+
+  url = "https://www.nasdaq.com/search_api_autocomplete/search"
+  params = {"q":company}
+  r = json.loads(robreq(method="get",params=params,headers=HEADERS).text)[0]['value']
+
+
+  url = "https://stocks.tradingcharts.com/stocks/symbols/s/us/{company}"
+  r = robreq(url=url,headers=HEADERS).text
+  r = r.split("<tr>")[1:-1]
+  r = [e.split("rowspan=1>") for e in r]
+  print(r)
   '''
   
-  return [symb, exch]
+  
+  
+  return symb
+
+
+#get all nasdaq symbols and company names into a json object and save to a json file
+#format of {"symb":"company name"}
+def getAllSymbs(verbose=False):
+  cs = {}
+
+  for i in range(65,91): #ASCII A-Z
+    if(verbose): print(chr(i),end=" - ",flush=True)
+    r = requests.get(f"http://www.advfn.com/nasdaq/nasdaq.asp?companies={chr(i)}",headers={"User-Agent":'test/1.0'},timeout=500).text
+
+    table = r.split("Info</th>")[1].split("</table")[0]
+    s = BeautifulSoup(table, features="html.parser")
+
+
+    for r in s.find_all('tr'):
+      o = []
+      for d in r.find_all('td'):
+        o.append(d.get_text())
+      cs[o[1]] = o[0]
+
+    if(verbose): print(f"total: {len(cs)}")
+
+  if(verbose): print(len(cs))
+  with open(c['file locations']['allSymbsFile'],'w') as f:
+    f.write(json.dumps(cs))
+    f.close()
+  return cs
 
 
 

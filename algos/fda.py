@@ -1,12 +1,13 @@
 #this file contains functions specifically for the FDA drug approval algo
 #we can see which companies are slated for an FDA drug approval. They almost always gain
 
-import otherfxns as o
+import ndaqfxns as n
+import os,json,threading
 
-algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
+algo = os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
 #TODO: how to handle large drops that are either potentially oversold, or valid such as what happened here (price dropped from $25 to $15 after this news):
-# https://finance.yahoo.com/news/cara-therapeutics-announces-topline-results-110000707.html
+# https://finance.yahon.com/news/cara-therapeutics-announces-topline-results-110000707.html
 # ^ check how insider trading is, and upcoming important dates (like announcements of phase results, etc)
 # if it still falls significantly despite those, then wait at least a week and then make a decision based on the articles being posted
 #TODO: should check history to make sure that the price isn't consistently decreasing
@@ -14,16 +15,17 @@ algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the
 def init(configFile):
   global posList,c
   #set the multi config file
-  c = o.configparser.ConfigParser()
+  c = n.configparser.ConfigParser()
   c.read(configFile)
   
   #stocks held by this algo according to the records
-  lock = o.threading.Lock()
+  lock = threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
+  posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
 
 #get list of stocks pending FDA approvals
+#eturn dict of format {"symb":"-"} (since there's no important info otherwise to report (as of right now), the values can be empty)
 def getList(verbose=True):
   if(verbose): print(f"getting unsorted list for {algo}...")
   ul = getUnsortedList()
@@ -40,19 +42,26 @@ def getUnsortedList(verbose=False):
   if(verbose): print(f"{algo} getting stocks from drugs.com")
   while True: #get pages of pending stocks
     try:
-      r = o.requests.get("https://www.drugs.com/new-drug-applications.html", timeout=5).text
+      r = n.requests.get("https://www.drugs.com/new-drug-applications.html", timeout=5).text
       break
     except Exception:
       print(f"No connection, or other error encountered in getUnsortedList for {algo}. trying again...")
-      o.time.sleep(3)
+      n.time.sleep(3)
       continue
+  
   try:
     arr = r.split("Company:</b>") #go down to stock list
     arr = [e.split("<br>")[0].strip() for e in arr][1::] #get list of companies
+    if(verbose): print(arr) #company names
     arr = list(set(arr)) #remove duplicates
-    arr = [o.getSymb(e,maxTries=1) for e in arr] #get the symbols and exchanges of the companies
-    prices = o.getPrices([e[0]+"|stocks" for e in arr if e[1]=="NAS"]) #get only the nasdaq ones
+    arr = [n.getSymb(e) for e in arr] #get the symbols and exchanges of the companies
+    arr = [e for e in arr if e is not None] #remove empty ones
+    if(verbose): print(arr) #print symbs
+    
+    #ensure tradable and prices are within range
+    prices = n.getPrices([e+"|stocks" for e in arr])
     arr = [e.split("|")[0] for e in prices if(float(c['fda']['minPrice'])<prices[e]['price']<float(c['fda']['maxPrice']))] #ensure we're within the price range
+  
   except Exception:
     print(f"Bad data from drugs.com from {algo}")
     arr = []
@@ -64,16 +73,16 @@ def getUnsortedList(verbose=False):
 
 #multiplex the good sell function to return dict of {symb:t/f}
 def goodSells(symbList,verbose=False):
-  lock = o.threading.Lock()
+  lock = threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
+  posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   if(verbose): print(f"stocks in {algo}: {list(posList)}\n")
   symbList = [e.upper() for e in symbList if e.upper() in posList] #make sure they're the ones in the posList only
   buyPrices = {e:float(posList[e]['buyPrice']) for e in symbList} #get the prices each stock was bought at
   if(verbose): print(f"stocks in the buyPrices: {list(buyPrices)}")
-  prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
+  prices = n.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
   prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
   if(verbose): print(f"stocks in prices: {list(prices)}")
@@ -109,7 +118,7 @@ def goodBuy(symb):
 def goodBuys(symbList,verbose=False):
   [minPrice,maxPrice] = [float(c[algo]['minPrice']),float(c[algo]['maxPrice'])] #get the price range
   if(verbose): print(f"min: {minPrice}, max: {maxPrice}")
-  prices = o.getPrices([e+"|stocks" for e in symbList]) #get current prices
+  prices = n.getPrices([e+"|stocks" for e in symbList]) #get current prices
   #make sure that price is within our target range and that the price was actually obtained
   out = {s:((s+"|stocks").upper() in prices and minPrice<=prices[(s+"|stocks").upper()]['price']<=maxPrice) for s in symbList}
   
