@@ -552,7 +552,7 @@ def check2sells(pos,verbose=False):
 def sell(stock, algo):
   global posList, cashList,triggeredStocks
   if(posList[algo][stock]['sharesHeld']>0):
-    r = a.createOrder("sell",float(posList[algo][stock]['sharesHeld']),stock)
+    r = a.createOrder(side="sell",qty=float(posList[algo][stock]['sharesHeld']),symb=stock)
   else:
     print(f"No shares held of {stock}")
     triggeredStocks.discard(algo+"|"+stock)
@@ -584,7 +584,7 @@ def sell(stock, algo):
 
 #basically just a market buy of this many shares of this stock for this algo
 def buy(shares, stock, algo, buyPrice):
-  r = a.createOrder("buy",shares,stock) #this needs to happen first so that it can be as accurate as possible
+  r = a.createOrder(side="buy",qty=shares,symb=stock) #this needs to happen first so that it can be as accurate as possible
   global posList, cashList
 
   if('status' in r and r['status'] == "accepted"): #check to make sure that it actually bought - TODO: does the presence of 'status' indicate that it bought or not?
