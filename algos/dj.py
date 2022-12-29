@@ -228,18 +228,22 @@ def goodSells(symbList, verbose=False):
   for s in symbList:
     su = sellUp(s['symbol'])
     sd = sellDn(s['symbol'])
+    
+    daychng = float(s['change_today'])+1 #current price/last close price
+    buychng = float(s['unrealized_plpc'])+1 #current price/buy price
+    
     if(verbose):
       print(f"{s['symbol']}",
-            f"open: {round(float(s['change_today']),2)}", #change since open
-            f"buy: {round(float(s['unrealized_plpc']),2)}", #change since buy
+            f"open: {round(daychng,2)}", #change since open
+            f"buy: {round(buychng,2)}", #change since buy
             f"sellUp: {su}",
             f"sellDn: {sd}")
 
     #check if price triggered up
-    if(float(s['change_today'])>=su or float(s['unrealized_plpc'])>=su):
+    if(daychng>=su or buychng>=su):
       gs[s['symbol']] = 1
     #check if price triggered down
-    elif(float(s['change_today'])<sd or float(s['unrealized_plpc'])<sd):
+    elif(daychng<sd or buychng<sd):
       gs[s['symbol']] = -1
     else: #price didn't trigger either side
       gs[s['symbol']] = 0
