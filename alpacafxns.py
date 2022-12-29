@@ -204,7 +204,7 @@ def createOrder(symb, #stock ticker symbol
   elif(float(notional)==0 and float(qty)!=0):
     order['qty'] = qty
   else:
-    raise ValueError("Must set price or quantity")
+    raise ValueError(f"Must set price or quantity. Price set to {notional}, qty set to {qty}")
   
   
   #other required params (throw an error if not present)

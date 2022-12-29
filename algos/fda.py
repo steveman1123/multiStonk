@@ -79,32 +79,39 @@ def goodSells(symbList,verbose=False):
   lock.release()
   
   if(verbose): print(f"stocks in {algo}: {list(posList)}\n")
-  symbList = [e.upper() for e in symbList if e.upper() in posList] #make sure they're the ones in the posList only
-  buyPrices = {e:float(posList[e]['buyPrice']) for e in symbList} #get the prices each stock was bought at
-  if(verbose): print(f"stocks in the buyPrices: {list(buyPrices)}")
-  prices = n.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
-  prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
-  if(verbose): print(f"stocks in prices: {list(prices)}")
+  #make sure they're the ones in the posList only
+  symbList = [e for e in symbList if e['symbol'] in posList]
+
+  
   #check that it has exceeded the stopLoss or takeProfit points
-  
   gs = {}
   for s in symbList:
-    if(s in prices):
-      if(verbose): print(f"{s}\topen: {round(prices[s]['price']/prices[s]['open'],2)}\tbuy: {round(prices[s]['price']/buyPrices[s],2)}\tsellUp: {sellUp(s)}\tsellDn: {sellDn(s)}")
-      #check if price triggered up
-      if(prices[s]['open']>0 and buyPrices[s]>0):
-        if(prices[s]['price']/prices[s]['open']>=sellUp(s) or prices[s]['price']/buyPrices[s]>=sellUp(s)):
-          gs[s] = 1
-        #check if price triggered down
-        elif(prices[s]['price']/prices[s]['open']<sellDn(s) or prices[s]['price']/buyPrices[s]<sellDn(s)):
-          gs[s] = -1
-        else: #price didn't trigger either side
-          gs[s] = 0
-      else: #TODO: is this correct? Should it sell if it can't find a price?
-        gs[s] = 0
-    else:
-      gs[s] = 0
+    su = sellUp(s['symbol'])
+    sd = sellDn(s['symbol'])
+  
+    daychng = float(s['change_today'])+1 #current price/last close price
+    buychng = float(s['unrealized_plpc'])+1 #current price/buy price
+    
+    if(verbose): 
+      print(f"{s['symbol']}",
+            f"open: {round(daychng,2)}",
+            f"buy: {round(buychng,2)}",
+            f"sellUp: {su}",
+            f"sellDn: {sd}")
+    
+    #check if price triggered up
+    if(daychng>=su or buychng>=su):
+      gs[s['symbol']] = 1
+    #check if price triggered down
+    elif(daychng<sd or buychng<sd):
+      gs[s['symbol']] = -1
+    else: #price didn't trigger either side
+      gs[s['symbol']] = 0
+      
+  #display stocks that have an error
+  for e in [e for e in symbList if e['symbol'] not in gs]:
+    print(f"{e['symbol']} not tradable in {algo}")
   
   return gs
 
