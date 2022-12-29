@@ -176,8 +176,7 @@ def main(verbose=False):
         updateListsThread.name = 'updateLists' #set the name to the stock symb
         updateListsThread.start() #start the thread
 
-      print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\ttriggers\tnotes")
-      print("----\t------\t-----\t-----------\t-----------\t-----------\t----------")
+      
       #look to sell things
       check2sells(pos)
       
@@ -504,9 +503,13 @@ def checkTriggered(verbose=False):
     time.sleep(max(5,len(list(triggeredStocks))/5)) #wait at least 5 seconds between checks, and if there are more, wait longer
     
 #multiplex check2sell where pos is the output of n.getPos
+#determine if the stocks in the algo are good sells (return dict of {symb:goodSell(t/f)})
 def check2sells(pos,verbose=False):
   global triggeredStocks
-  #determine if the stocks in the algo are good sells (should return as a dict of {symb:goodSell(t/f)})
+  
+  print("algo\tshares\tsymb \tcng frm buy\tcng frm cls\ttriggers\tnotes")
+  print("----\t------\t-----\t-----------\t-----------\t-----------\t----------")
+  
   for algo in posList:
     if(verbose): print(algo)
     #only the stocks in both posList[algo] and held positions
@@ -516,7 +519,7 @@ def check2sells(pos,verbose=False):
     #TODO: in each algo, add an error report if there's a stock that doesn't appear to be tradable (that is, it's in symbList but doesn't show up in getPrices)
     
     #get whether the stocks are good sells or not
-    gs = eval(f"{algo}.goodSells(symbList)")
+    gs = eval(f"{algo}.goodSells(symbList,verbose=False)")
     
     
     
@@ -524,15 +527,18 @@ def check2sells(pos,verbose=False):
     for e in symbList:
       #only display/sell if not bought today
       if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'):
-        print(f"{algo}",
-              f"{int(posList[algo][e['symbol']]['sharesHeld'])}",
-              f"{e['symbol']}",
-              f"{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}",
-              f"{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}",
+        
+        print(f"{algo}\t\t",
+              f"{int(posList[algo][e['symbol']]['sharesHeld'])}\t",
+              f"{e['symbol']}\t",
+              f"{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t",
+              f"{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t",
               str(round(eval(f'{algo}.sellDn("{e["symbol"]}")'),2)),
               " & ",
-              str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'),2)),
+              str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'),2))+"\t",
               f"{posList[algo][e['symbol']]['note']}")
+        
+        
         #ensure that the market is open in order to actually place a trade
         #this check is here in the event that the program is suspended while open, then restarted while closed
         # if(n.marketIsOpen()): #TODO: confirm that this is needed first and not a setting that can be changed outside of this script
@@ -552,7 +558,7 @@ def check2sells(pos,verbose=False):
 def sell(stock, algo):
   global posList, cashList,triggeredStocks
   if(posList[algo][stock]['sharesHeld']>0):
-    r = a.createOrder("sell",float(posList[algo][stock]['sharesHeld']),stock)
+    r = a.createOrder(side="sell",qty=float(posList[algo][stock]['sharesHeld']),symb=stock)
   else:
     print(f"No shares held of {stock}")
     triggeredStocks.discard(algo+"|"+stock)
@@ -584,7 +590,7 @@ def sell(stock, algo):
 
 #basically just a market buy of this many shares of this stock for this algo
 def buy(shares, stock, algo, buyPrice):
-  r = a.createOrder("buy",shares,stock) #this needs to happen first so that it can be as accurate as possible
+  r = a.createOrder(side="buy",qty=shares,symb=stock) #this needs to happen first so that it can be as accurate as possible
   global posList, cashList
 
   if('status' in r and r['status'] == "accepted"): #check to make sure that it actually bought - TODO: does the presence of 'status' indicate that it bought or not?
