@@ -219,6 +219,8 @@ def goodSells(symbList, verbose=False):
   posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo] #load up the stock data for the algo
   lock.release()
   
+  if(verbose): print(f"stocks in {algo}: {list(posList)}\n")
+  
   #only look at the stocks that are in the algo
   symbList = [e for e in symbList if e['symbol'] in posList]
    
@@ -226,26 +228,30 @@ def goodSells(symbList, verbose=False):
   for s in symbList:
     su = sellUp(s['symbol'])
     sd = sellDn(s['symbol'])
+    
+    daychng = float(s['change_today'])+1 #current price/last close price
+    buychng = float(s['unrealized_plpc'])+1 #current price/buy price
+    
     if(verbose):
       print(f"{s['symbol']}",
-            f"open: {round(float(s['change_today']),2)}", #change since open
-            f"buy: {round(float(s['unrealized_plpc']),2)}", #change since buy
+            f"open: {round(daychng,2)}", #change since open
+            f"buy: {round(buychng,2)}", #change since buy
             f"sellUp: {su}",
             f"sellDn: {sd}")
 
     #check if price triggered up
-    if(float(s['change_today'])>=sellUp(s) or float(s['unrealized_plpc'])>=sellUp(s)):
+    if(daychng>=su or buychng>=su):
       gs[s['symbol']] = 1
     #check if price triggered down
-    elif(float(s['change_today'])<sellDn(s) or float(s['unrealized_plpc'])<sellDn(s)):
+    elif(daychng<sd or buychng<sd):
       gs[s['symbol']] = -1
     else: #price didn't trigger either side
       gs[s['symbol']] = 0
 
   
   #display stocks that have an error
-  for e in [e for e in symbList if e not in gs]:
-    print(f"{e} not tradable")
+  for e in [e for e in symbList if e['symbol'] not in gs]:
+    print(f"{e['symbol']} not tradable in {algo}")
   
   return gs
 
