@@ -383,8 +383,12 @@ def getHistory(symb,startDate,endDate,assetclass="stocks",verbose=False):
       #request data from end of data to today
       
       #set the requesting params
-      params = { "fromdate":str((dt.datetime.strptime(max(list(hist)),"%Y-%m-%d")-dt.timedelta(days=MINREQDAYS)).date()),
-                 "limit":(dt.date.today()-dt.datetime.strptime(max(list(hist)),"%Y-%d-%m").date()).days+MINREQDAYS,
+      fromdate = dt.datetime.strptime(max(list(hist)),"%Y-%m-%d").date()
+      limit = (dt.date.today()-fromdate).days+MINREQDAYS
+      #adjust params to include the minimum required days
+      params = {
+                 "fromdate":str((fromdate-dt.timedelta(days=MINREQDAYS))),
+                 "limit":limit,
                  "assetclass":assetclass
                 }
 
@@ -624,6 +628,7 @@ def nextTradeDate(verbose=False):
   
 
 #return dict of current prices of assets (symblist is list format of symb|assetclass) output of {symb|assetclass:{price,vol,open}}
+#TODO: this function returns error fairly often (especially in the api endpoint and periodically that the data returned doesn't have anything in it
 def getPrices(symbList,maxTries=3,verbose=False):
   maxSymbs = 20 #cannot do more than 20 at a time, so loop through requests
   d = [] #init data var

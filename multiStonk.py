@@ -528,15 +528,14 @@ def check2sells(pos,verbose=False):
       #only display/sell if not bought today
       if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'):
         
-        print(f"{algo}\t\t",
+        print(f"{algo}\t",
               f"{int(posList[algo][e['symbol']]['sharesHeld'])}\t",
               f"{e['symbol']}\t",
-              f"{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t",
-              f"{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t",
-              str(round(eval(f'{algo}.sellDn("{e["symbol"]}")'),2)),
-              " & ",
+              f"{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t",
+              f"{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t",
+              str(round(eval(f'{algo}.sellDn("{e["symbol"]}")'),2))+" & "+
               str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'),2))+"\t",
-              f"{posList[algo][e['symbol']]['note']}")
+              f"{posList[algo][e['symbol']]['note']}",sep="")
         
         
         #ensure that the market is open in order to actually place a trade
