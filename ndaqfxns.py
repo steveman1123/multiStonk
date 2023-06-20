@@ -4,7 +4,7 @@
 #TODO: point all url tries/catches as a robreq() fxn like in multiforex
 
 import json,requests,os,time,sys,configparser,threading,re
-import Levenshtein as lev
+#import Levenshtein as lev
 import datetime as dt
 from bs4 import BeautifulSoup as bs
 from statistics import mean

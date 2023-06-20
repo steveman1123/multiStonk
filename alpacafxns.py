@@ -98,12 +98,12 @@ def closeAll(isManual=1):
       print("Orders Cancelled.")
       #close positions (sell longed, buy shorted)
       for p in pos:
-        if(p['qty']>0):
+        if(float(p['qty'])>0):
           print("Selling "+p["qty"]+" share(s) of "+p["symbol"])
-          createOrder("sell",p["qty"],p["symbol"],"market","day")
+          createOrder(side="sell",qty=float(p["qty"]),symb=p["symbol"],orderType="market",time_in_force="day")
         else:
-          print("Buying "+abs(p["qty"])+" share(s) of "+p["symbol"])
-          createOrder("buy",abs(p["qty"]),p["symbol"],"market","day")
+          print(f"Buying {abs(float(p['qty']))} share(s) of {p['symbol']}")
+          createOrder(side="buy",qty=abs(float(p["qty"])),symb=p["symbol"],orderType="market",time_in_force="day")
           
       print("Done trading.")
       return 1

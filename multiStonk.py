@@ -150,7 +150,7 @@ def main(verbose=False):
     if(ask2sell and float(acct['portfolio_value'])<maxPortVal*float(c['account params']['portStopLoss']) and len(pos)>0):
       print(f"Portfolio value of ${acct['portfolio_value']} is less than {c['account params']['portStopLoss']} times the max portfolio value of ${maxPortVal}.")
       if(not isManualSellOff): print("Automatically selling all...")
-      soldAll = a.sellAll(isManual=isManualSellOff) #if the portfolio value falls below our stop loss, automatically sell everything
+      soldAll = a.closeAll(isManual=isManualSellOff) #if the portfolio value falls below our stop loss, automatically sell everything
       if(soldAll): break #stop the program if the selling occured
       if(isManualSellOff): #if the selling is set to manual, then ask if the user wants to keep being asked to sell all or not
         ask2sell = (input("Ask to sell all again today (y/n)? ").lower())!="n"
