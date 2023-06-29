@@ -89,7 +89,7 @@ class bcolor:
 
 #init some gobal vars
 listsUpdatedToday = False #tell everyone whether the list has been updated yet today or not
-closeTime = n.closeTime(estOffset=-1) #get the time in datetime format of when the market closes (reference this when looking at time till close)
+closeTime = n.closeTime() #get the time in datetime format of when the market closes (reference this when looking at time till close)
 
 minCashMargin = float(c['account params']['minCashMargin']) #extra cash to hold above hold value
 if(minCashMargin<1): #minCashMargin MUST BE GREATER THAN 1 in order for it to work correctly
@@ -113,6 +113,11 @@ def main(verbose=False):
   if(len(a.getPos())==0): print(f"Will start buying {c['time params']['buyTime']} minutes before next close")
   
   [posList,cashList] = setPosList(algoList) #initiate/populate the list of positions by algo
+  if(verbose):
+    print("posList:",posList)
+    print("cashList:",cashList)
+
+
   #init the algos
   for algo in algoList:
     exec(f"{algo}.init('{configFile}')")
@@ -131,6 +136,10 @@ def main(verbose=False):
   
   isManualSellOff = not int(c['account params']['portAutoSellOff'])
   
+  if(verbose):
+    print("max portfolio value of last month:",maxPortVal)
+    print("manually close all positions?",isManualSellOff)
+
   ###
   #part to run forever (unless cancelled or an unexpected error occurs)
   ###
@@ -170,6 +179,7 @@ def main(verbose=False):
     ###
     if(n.marketIsOpen()):
       print(f"\nPortfolio Value: ${acct['portfolio_value']}, total cash: ${round(totalCash,2)}, tradable cash: ${round(tradableCash,2)}, port stop loss: {round(maxPortVal*float(c['account params']['portStopLoss']),2)},  {len(posList)} algos | {dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
       #update the lists if not updated yet and that it's not currently updating
       if(not listsUpdatedToday and len([t.name for t in n.threading.enumerate() if t.name.startswith('update')])==0):
         updateListsThread = n.threading.Thread(target=updateLists) #init the thread - note locking is required here
@@ -181,10 +191,12 @@ def main(verbose=False):
       check2sells(pos)
       
       #start checking to buy things if within the buy time frame and lists are not being updated
-      #print(((closeTime-dt.datetime.now()).total_seconds())<60*float(c['time params']['buyTime']))
-      #print(sum([t.name.startswith('update') for t in n.threading.enumerate()])==0)
 
-      if((closeTime-dt.datetime.now()).total_seconds()<=60*float(c['time params']['buyTime']) and sum([t.name.startswith('update') for t in n.threading.enumerate()])==0):
+      if(verbose): 
+        print("current threads:",[t for t in n.threading.enumerate()])
+        print(f"ttc=",n.timeTillClose())
+
+      if(n.timeTillClose()<=60*float(c['time params']['buyTime']) and sum([t.name.startswith('update') for t in n.threading.enumerate()])==0):
         tradableCash = getTradableCash(totalCash, maxPortVal) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
@@ -281,7 +293,7 @@ def main(verbose=False):
       updateListsThread.name = 'updateLists' #set the name to the stock symb
       updateListsThread.start() #start the thread
 
-      closeTime = n.closeTime(estOffset=-1) #get the next closing time
+      closeTime = n.closeTime() #get the next closing time
       time.sleep(a.timeTillOpen())
       
 
@@ -462,7 +474,7 @@ def triggeredUp(symb, algo):
   curPrice = 0.01
   sellUpDn = float(eval(algo+".sellUpDn()"))
   #ensure that current price>0 (getPrice returns 0 if it can't recognize a symbol (eg if a merger happens or a stock is delisted)
-  while(curPrice>0 and curPrice>=sellUpDn*maxPrice and (closeTime-dt.datetime.now()).total_seconds()>60 and not exitFlag):
+  while(curPrice>0 and curPrice>=sellUpDn*maxPrice and n.timeTillClose()>60 and not exitFlag):
     curPrice = n.getInfo(symb)['price']
     maxPrice = max(maxPrice,curPrice)
     print(f"{algo}\t{symb}\t{round(curPrice/maxPrice,2)} : {round(sellUpDn,2)}")
@@ -492,7 +504,7 @@ def checkTriggered(verbose=False):
       curPrice = prices[(e.split("|")[1]+'|stocks').upper()]['price'] #get the current prices of the stocks
       if(curPrice>0): #make sure that the price is valid
         #sell once the current price drops below some % of the maxPrice since watching or within one minute of close
-        if(curPrice>=sellUpDn*maxPrices[(e.split('|')[1]+"|stocks").upper()] and (closeTime-dt.datetime.now()).total_seconds()>60):
+        if(curPrice>=sellUpDn*maxPrices[(e.split('|')[1]+"|stocks").upper()] and n.timeTillClose()>60):
           print(f"{e.split('|')[0]}\t{e.split('|')[1]}\t{round(curPrice/maxPrices[(e.split('|')[1]+'|stocks').upper()],2)} : {sellUpDn}")
         else:
           sell(e.split("|")[1],e.split("|")[0])          
@@ -944,7 +956,7 @@ if __name__ == '__main__':
   exitFlag = False #set to true if the program stopped by ctrl+c
 
   try:
-    main() #start running the program
+    main(verbose=False) #start running the program
   except KeyboardInterrupt: #exit on ctrl+c
     print("Exiting")
     exitFlag=True

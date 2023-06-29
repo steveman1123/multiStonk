@@ -6,6 +6,7 @@
 import json,requests,os,time,sys,configparser,threading,re
 #import Levenshtein as lev
 import datetime as dt
+import pytz
 from bs4 import BeautifulSoup as bs
 from statistics import mean
 from workdays import workday as wd
@@ -23,6 +24,11 @@ stockDir = c['file locations']['stockDataDir']
 HEADERS = json.loads(c['net cfg']['headers'])
 
 BASEURL = "https://api.nasdaq.com/api"
+
+#new york time zone (where the market is located)
+nytz = pytz.timezone("US/Eastern")
+#local timezone of the device running the script
+localtz = pytz.timezone(time.tzname[1])
 
 
 
@@ -661,16 +667,22 @@ def getPrices(symbList,maxTries=3,verbose=False):
   return prices
   
 
+def toutc(localtime,localtz):
+  return localtz.localize(localtime).astimezone(pytz.utc)
+
 #return time till the next market open in seconds
-def timeTillOpen(estOffset=-1,verbose=False):
+def timeTillOpen(verbose=False):
   while True:
     try:
       r = json.loads(robreq(f"{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
-      tto = r['data']['marketOpeningTime'][:-3] #get the close time and strip off the timezone (" ET")
-      if(verbose): print(tto)
-      tto = dt.datetime.strptime(tto,"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)
-      if(verbose): print(tto)
-      tto = int((tto-dt.datetime.now()).total_seconds())
+      opentime = r['data']['marketOpeningTime'][:-3] #get the close time and strip off the timezone (" ET")
+      if(verbose): print(opentime)
+
+      #convert to dt object and set to utc
+      opentime = toutc(dt.datetime.strptime(opentime,"%b %d, %Y %I:%M %p"),nytz)
+      if(verbose): print(opentime)
+      
+      tto = int((opentime-toutc(dt.datetime.now(),localtz)).total_seconds())
       if(verbose): print(tto)
       
       break
@@ -679,51 +691,59 @@ def timeTillOpen(estOffset=-1,verbose=False):
       time.sleep(3)
       pass
     
-  if(tto<0): #if it's the evening
+  if(tto<0): #if it's the same day but after opening
     if(verbose): print("Time estimate to nearest minute")
     nextTradeDate = dt.datetime.strptime(r['data']['nextTradeDate'],"%b %d, %Y")
-    thisOpenTime = (dt.datetime.strptime(r['data']['marketOpeningTime'][:-3],"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)).time()
-    nextOpen = dt.datetime.combine(nextTradeDate,thisOpenTime)
-    tto = int((nextOpen-dt.datetime.now()).total_seconds())
+    thisOpenTime = (dt.datetime.strptime(r['data']['marketOpeningTime'][:-3],"%b %d, %Y %I:%M %p")).time()
+    nextOpen = toutc(dt.datetime.combine(nextTradeDate,thisOpenTime),nytz)
+    tto = int((nextOpen-toutc(dt.datetime.now(),localtz)).total_seconds())
     
   return tto
 
-#get the time till the next market close in seconds (argument of EST offset (CST is 1 hour behind, UTC is 5 hours ahead))
-def timeTillClose(estOffset=-1):
+#get the time till the next market close in seconds
+def timeTillClose(verbose=False):
   while True:
     try:
       r = json.loads(robreq(f"{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
-      ttc = r['data']['marketClosingTime'][:-3] #get the close time and strip off the timezone (" ET")
-      ttc = dt.datetime.strptime(ttc,"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)
+      closetime = r['data']['marketClosingTime'][:-3] #get the close time and strip off the timezone (" ET")
+      
+      #convert to dt object and set to utc
+      closetime = toutc(dt.datetime.strptime(closetime,"%b %d, %Y %I:%M %p"),nytz)
+      if(verbose): print(closetime)
+      
+      ttc = int((closetime-toutc(dt.datetime.now(),localtz)).total_seconds())
+      if(verbose): print(ttc)
+
       break
     except Exception:
       print("Error encountered in nasdaq timeTillClose. Trying again...")
       time.sleep(3)
       pass
-  ttc = int((ttc-dt.datetime.now()).total_seconds())
   
-  if(ttc<0):
+  if(ttc<0): #if it's the evening
     print("Time estimate to nearest minute")
     nextTradeDate = dt.datetime.strptime(r['data']['nextTradeDate'],"%b %d, %Y")
-    thisOpenTime = (dt.datetime.strptime(r['data']['marketClosingTime'][:-3],"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)).time()
-    nextClose = dt.datetime.combine(nextTradeDate,thisOpenTime)
-    ttc = int((nextClose-dt.datetime.now()).total_seconds())
+    thisCloseTime = (dt.datetime.strptime(r['data']['marketClosingTime'][:-3],"%b %d, %Y %I:%M %p")).time()
+    nextClose = toutc(dt.datetime.combine(nextTradeDate,thisCloseTime),nytz)
+    ttc = int((nextClose-toutc(dt.datetime.now(),localtz)).total_seconds())
   
   return ttc
 
-#return the next market close time with an EST offset (required)
-def closeTime(estOffset=-1):
+#return the next market close time as dt object with tz=nyc, and time as utc
+def closeTime(verbose=False):
   while True:
     try:
       r = json.loads(robreq(f"{BASEURL}/market-info",headers=HEADERS,timeout=5).text)
-      close = r['data']['marketClosingTime'][:-3] #get the close time and strip off the timezone (" ET")
-      close = dt.datetime.strptime(close,"%b %d, %Y %I:%M %p")+dt.timedelta(hours=estOffset)
+      #get the close time and strip off the timezone (" ET")
+      closetime = r['data']['marketClosingTime'][:-3]
+      #convert to UTC tz
+      closetime = toutc(dt.datetime.strptime(closetime,"%b %d, %Y %I:%M %p"),nytz)
       break
     except Exception:
       print("Error encountered in nasdaq closeTime. Trying again...")
       time.sleep(3)
       pass
-  return close
+  return closetime
 
 
 #determine if the market is currently open or not
