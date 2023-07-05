@@ -19,6 +19,7 @@ colorinit() #allow coloring in Windows terminals
 # ^ this is to prevent buying a bunch of really cheap ones when cash is low
 #TODO: when removing an algo, have the cash from that algo moved proportionally to where the stocks are moved to (so if there's 25 stocks and $100 that need to be moved, then for each stock that moved $4 should also be moved to the new algo (proportionally for invested and returned amounts)
 
+#TODO: fix algo ROI calculations - they are very wrong
 
 #parse args and get the config file
 configFile="./configs/multi.config"
@@ -27,9 +28,9 @@ if(len(sys.argv)>1): #if there's an argument present
     if(arg.lower() in ['-h','--help']): #if there's an argument regarding the config file
       print(("\n"
              "Stockbot\n"
-            "Uses multiple algorithms to trade stocks based on the functions specified in the config file and present in the algos directory.\n\n"
+            "Uses multiple algorithms to trade stocks based on the functions specified in the config file and present in the algos directory. Intended to run in the terminal 24/7\n\n"
             "Syntax:\n"
-            "[ -h | path/to/file.config ]\n"
+            "[ -h/--help | path/to/file.config ]\n"
             "-h\t: displays this help menu\n"
             "path\t: point to the config file containing all settings required to run the program (defaults to "+configFile+")\n\n"
             "How to:\n"
@@ -223,24 +224,34 @@ def main(verbose=False):
       #display the total p/l % of each algo
       print("Algo ROI estimates:") #TODO: these numbers are incorrect for some reason. check math
       for algo in posList:
+        #get all postions
         pos = a.getPos()
-        curPrices = [float(e['current_price']) for e in pos if e['symbol'] in posList[algo]] #get the current prices of all the stocks in a given algo
+        #get the current prices of all the stocks in a given algo
+        curPrices = [float(e['current_price']) for e in pos if e['symbol'] in posList[algo]]
         
-        #alternative non-alpaca call (slower since it needs more requests usually)
-        #curPrices = n.getPrices([e+"|stocks" for e in posList[algo]])
+        #get the equity invested in the algo (shes*price of share)
+        algoEqVal = sum([posList[algo][s]['sharesHeld']*curPrices[s.upper()] for s in posList[algo] if s.upper() in curPrices])
+        #get the cash earned by the algo
+        algoCashVal = cashList[algo]['earned']
+
+        #current value is equity+cash dedicated to algo
+        algoCurVal = algoEqVal+algoCashVal
+
+        if(verbose): print(algo,"current val:",algoCurVal)
         
-        
-        algoCurVal = sum([posList[algo][s]['sharesHeld']*curPrices[s.upper()] for s in posList[algo] if s.upper() in curPrices])+cashList[algo]['earned'] #get the total value of the stocks in a given algo plus the returned cash
-        
-        
-        #update the invested amount (just in case)
+        #update the invested amount and set the buyVal var
         if(cashList[algo]['invested']==0):
           cashList[algo]['invested'] = sum([posList[algo][s]['sharesHeld']*posList[algo][s]['buyPrice'] for s in posList[algo]])
-        algoBuyVal = cashList[algo]['invested'] #set the investment amount (technically could be removed, but easier to just keep it)
+        algoBuyVal = cashList[algo]['invested']
+
+        if(verbose): print(algo,"invested val:",algoBuyVal)
+
         #make sure that we don't div0 if the list is empty
-        if(algoBuyVal>0): roi = round(algoCurVal/algoBuyVal,2)
+        if(algoBuyVal>0):
+          roi = round(algoCurVal/algoBuyVal,2)
         #if the buyVal is 0, then that means either no info or no stocks held, so it's nearly impossible to make a judgement
-        else: roi = 1
+        else:
+          roi = 1
         
         print(f"{algo} - {bcolor.FAIL if roi<1 else bcolor.OKGREEN}{roi}{bcolor.ENDC}") #display the ROI
       

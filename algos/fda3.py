@@ -138,7 +138,7 @@ def goodSell(symb):
 
 #get a list of stocks to be sifted through
 def getUnsortedList(verbose=False):
-  if(verbose): print(f"{algo} getting stocks from biopharmcatalyst.com")
+  if(verbose): print(f"{algo} getting stocks from bpiq.com")
   while True: #get pages of pending stocks
     try:
       params = {"catalyst_date_max":dt.date.today()+dt.timedelta(days=28), #look for a catalyst between now and the specified date - days specified is arbitrary
