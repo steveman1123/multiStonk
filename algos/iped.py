@@ -1,20 +1,22 @@
 #this file contains functions specifically for the stocks that are listed in investopedia - these are probably updated monthly
 # https://www.investopedia.com/updates/top-penny-stocks/
 
-import otherfxns as o
+import ndaqfxns as n
+import os, requests, json, time, re, configparser, threading
+import datetime as dt
 
-algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
+algo = os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
 def init(configFile):
   global posList,c
   #set the multi config file
-  c = o.configparser.ConfigParser()
+  c = configparser.ConfigParser()
   c.read(configFile)
   
   #stocks held by this algo according to the records
-  lock = o.threading.Lock()
+  lock = threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())
+  posList = json.loads(open(c['file locations']['posList'],'r').read())
   if(algo in posList):
     posList = posList[algo]
   else:
@@ -37,23 +39,33 @@ def getList(verbose=True):
 
 #multiplex the goodBuy fxn (symbList should be the output of getUnsortedList)
 #return dict of {symb:t/f}
-def goodBuys(symbList):
+def goodBuys(symbList,verbose=False):
   #TODO: check prices and other info investopedia may have (plus cross reference with other sites)
-  gb = {s:True for s in symbList}
-  return gb
+  if(verbose): print(symbList)
+
+  [minPrice,maxPrice] = [float(c[algo]['minPrice']),float(c[algo]['maxPrice'])] #get the price range
+  if(verbose): print(f"min: {minPrice}, max: {maxPrice}")
+  prices = n.getPrices([e+"|stocks" for e in symbList],verbose=False) #get current prices
+  if(verbose): print(*prices,sep="\n")
+  #make sure that price is within our target range and that the price was actually obtained
+  out = {s:((s+"|stocks").upper() in prices and minPrice<=prices[(s+"|stocks").upper()]['price']<=maxPrice) for s in symbList}
+  
+  return out
+
+
 
 #multiplex the good sell function to return dict of {symb:t/f}
 def goodSells(symbList,verbose=False):
-  lock = o.threading.Lock()
+  lock = threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
+  posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   if(verbose): print(f"stocks in {algo}: {list(posList)}\n")
   symbList = [e.upper() for e in symbList if e.upper() in posList] #make sure they're the ones in the posList only
   buyPrices = {e:float(posList[e]['buyPrice']) for e in symbList} #get the prices each stock was bought at
   if(verbose): print(f"stocks in the buyPrices: {list(buyPrices)}")
-  prices = o.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
+  prices = n.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
   prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
   if(verbose): print(f"stocks in prices: {list(prices)}")
@@ -79,89 +91,54 @@ def goodSells(symbList,verbose=False):
   
   return gs
 
-#get a list of stocks to be sifted through - returns dict of {symb:"date, type"}
 
+#get a list of stocks to be sifted through
+#returns dict of {symb:"date, type"}
 def getUnsortedList(verbose=False,maxTries=3):
   out = {}
   
-  #get the top penny stocks
-  tries=0
-  while tries<maxTries:
-    try:
-      r = o.requests.get("https://www.investopedia.com/updates/top-penny-stocks/",headers=o.HEADERS,timeout=5).text #get the data
-      d = r.split('displayed-date_1-0')[1].split("<")[0].split("Updated ")[1] # isolate the last updated date
-      d = str(o.dt.datetime.strptime(d,"%b %d, %Y").date()) #convert from "mmm d, yyyy" to "yyyy-mm-dd"
-      r = [e for e in r.split("<") if e.startswith("span")] #only use spans (other acronyms can appear in the paragraphs, and we don't want those)
-      symbList = o.re.findall("\([A-Z]+\)", "".join(r)) #convert list back to string and pare down to wanted strings (the acronyms)
-      symbList = {e[1:-1]:d+", top" for e in symbList} #trim off parens and convert to dict {symb:"date, type"}
-      out.update(symbList) #append to output
-      break
-    except Exception:
-      print("Error encoutered getting investopedia top penny stocks. Trying again...")
-      if(verbose): print(f"{tries}/{maxTries}")
-      tries+=1
-      o.time.sleep(3)  
-  
-  
-  #get the technical analysis stocks
-  tries=0
-  while tries<maxTries:
-    try:
-      r = o.requests.get("https://www.investopedia.com/updates/penny-stocks-buy-technical-analysis/",headers=o.HEADERS,timeout=5).text #get the data
-      d = r.split('displayed-date_1-0')[1].split("<")[0].split("Updated ")[1] # isolate the last updated date
-      d = str(o.dt.datetime.strptime(d,"%b %d, %Y").date()) #convert from "mmm d, yyyy" to "yyyy-mm-dd"
-      r = [e for e in r.split("<") if e.startswith("span")] #only use spans (other acronyms can appear in the paragraphs, and we don't want those)
-      symbList = o.re.findall("\([A-Z]+\)", "".join(r)) #convert list back to string and pare down to wanted strings (the acronyms)
-      symbList = {e[1:-1]:d+", techanal" for e in symbList} #trim off parens and convert to dict {symb:"date, type"}
-      out.update(symbList) #append to output
-      break
-    except Exception:
-      print("Error encoutered getting investopedia technical analysis penny stocks. Trying again...")
-      if(verbose): print(f"{tries}/{maxTries}")
-      tries+=1
-      o.time.sleep(3)  
-  
-  
-  #get the oil and gas penny stocks
-  tries=0
-  while tries<maxTries:
-    try:
-      r = o.requests.get("https://www.investopedia.com/investing/oil-gas-penny-stocks/",headers=o.HEADERS,timeout=5).text #get the data
-      d = r.split('displayed-date_1-0')[1].split("<")[0].split("Updated ")[1] # isolate the last updated date
-      d = str(o.dt.datetime.strptime(d,"%b %d, %Y").date()) #convert from "mmm d, yyyy" to "yyyy-mm-dd"
-      rows = o.bs(r.replace("\n",""),'html.parser').find_all('tr') #remove newlines and get the rows
-      rtx = [row.get_text() for row in rows] #remove all html data, just get text
-      symbList = o.re.findall("\([A-Z.]+\)", "".join(rtx)) #get all data in the parens (should only be the symbols)
-      symbList = {e[1:-1]:d+", oilgas" for e in symbList} #trim off parens and convert to dict {symb:"date, type"}
-      out.update(symbList) #append to output
-      break
-    except Exception:
-      print("Error encoutered getting investopedia oil and gas penny stocks. Trying again...")
-      if(verbose): print(f"{tries}/{maxTries}")
-      tries+=1
-      o.time.sleep(3)  
+  #TODO: use robreq instead of straight requests
+
+  #specify the type and the url to get the stocks from
+  stockTypes = {
+    "top":"https://www.investopedia.com/updates/top-penny-stocks/",
+    "t-ana":"https://www.investopedia.com/updates/penny-stocks-buy-technical-analysis/",
+    "oilgas":"https://www.investopedia.com/investing/oil-gas-penny-stocks",
+    "tech":"https://www.investopedia.com/investing/technology-penny-stocks"
+  }
 
 
-  #get the technology penny stocks
-  tries=0
-  while tries<maxTries:
-    try:
-      r = o.requests.get("https://www.investopedia.com/investing/technology-penny-stocks/",headers=o.HEADERS,timeout=5).text #get the data
-      d = r.split('displayed-date_1-0')[1].split("<")[0].split("Updated ")[1] # isolate the last updated date
-      d = str(o.dt.datetime.strptime(d,"%b %d, %Y").date()) #convert from "mmm d, yyyy" to "yyyy-mm-dd"
-      rows = o.bs(r.replace("\n",""),'html.parser').find_all('tr') #remove newlines and get the rows
-      rtx = [row.get_text() for row in rows] #remove all html data, just get text
-      symbList = o.re.findall("\([A-Z.]+\)", "".join(rtx)) #get all data in the parens (should only be the symbols)
-      symbList = {e[1:-1]:d+", techno" for e in symbList} #trim off parens and convert to dict {symb:"date, type"}
-      out.update(symbList) #append to output
-      break
-    except Exception:
-      print("Error encoutered getting investopedia oil and gas penny stocks. Trying again...")
-      if(verbose): print(f"{tries}/{maxTries}")
-      tries+=1
-      o.time.sleep(3)
+  #get the various stocks
+  for stockType in stockTypes:
+    tries=0
+    while tries<maxTries or maxTries<0:
+      try:
+        r = requests.get(stockTypes[stockType],headers=n.HEADERS,timeout=5).text #get the data
+        #get the date last published/updated (contained within the "mntl..." element, first word is either "updated" or "published", split by spaces, remove first word, and rejoin with spaces)
+        d = " ".join(r.split('"mntl-attribution__item-date">')[1].split("<")[0].split(" ")[1:])
 
+        #convert from "Month dd, yyyy" to yyyy-mm-dd
+        d = str(dt.datetime.strptime(d,"%B %d, %Y").date())
+        
+        #get the stock symbols
+        s = r.split('"emailtickers" content="')[1].split('" />')[0].split(",")
+        
+        if(verbose): print(d, s)
 
+        #convert to dict of format {symb:"updated-date, type"}
+        symbList = {e:d+", "+stockType for e in s}
+
+        out.update(symbList) #append to output
+        break
+      except Exception as e:
+        print(e)
+        print(f"Error encoutered getting investopedia {stockType} stocks. Trying again...")
+        if(verbose): print(f"{tries}/{maxTries}")
+        tries+=1
+        time.sleep(3)
+
+  #remove any symbol with a "." in it since those aren't usually valid and make sure there's no erroneous whitespace
+  out = {e.strip():out[e] for e in out if "." not in e}
   return out
     
   

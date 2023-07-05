@@ -37,7 +37,12 @@ localtz = pytz.timezone(time.tzname[1])
 def robreq(url,method="get",headers={},jsondata=None,params={},maxTries=3,timeout=5,verbose=False):
   tries=0
   while tries<maxTries or maxTries<0:
-    if(verbose): print(f"requesting {url}")
+    if(verbose):
+      print(f"requesting {url}")
+      print("params:",params)
+      print("headers:",headers)
+      print("jsondata:",jsondata)
+
     try:
       r=requests.request(method,url,headers=headers,json=jsondata,params=params,timeout=timeout)
       if(r is not None and len(r.content)>0):
@@ -633,9 +638,17 @@ def nextTradeDate(verbose=False):
     return str(wd(dt.date.today(),1))
   
 
-#return dict of current prices of assets (symblist is list format of symb|assetclass) output of {symb|assetclass:{price,vol,open}}
-#TODO: this function returns error fairly often (especially in the api endpoint and periodically that the data returned doesn't have anything in it
+#return dict of current prices of assets
+#symblist = list format of symb|assetclass
+#maxTries = number of tries to attempt to connect to api
+#verbose = verbosity
+#output dict {"symb|assetclass":{price,vol,open}}
+#TODO: this function returns errors fairly often (especially in the api endpoint and periodically that the data returned doesn't have anything in it)
 def getPrices(symbList,maxTries=3,verbose=False):
+  #ensure there are no spaces in the query
+  #TODO: should check for other illegal characters using regex
+  symbList = [e.replace(" ","") for e in symbList]
+
   maxSymbs = 20 #cannot do more than 20 at a time, so loop through requests
   d = [] #init data var
   r = {} #init request var
@@ -643,10 +656,13 @@ def getPrices(symbList,maxTries=3,verbose=False):
   for i in range(0,len(symbList),maxSymbs):
     if(verbose): print(f"get prices ({i}-{min(i+maxSymbs,len(symbList))}/{len(symbList)})")
     symbQuery = symbList[i:min(i+maxSymbs,len(symbList))]
-    r = json.loads(robreq(f"{BASEURL}/quote/watchlist",params={'symbol':symbQuery},maxTries=maxTries,headers=HEADERS,timeout=5).text)
-    
+    r = robreq(f"{BASEURL}/quote/watchlist",params={'symbol':symbQuery},maxTries=maxTries,headers=HEADERS,timeout=5,verbose=False).json()
+
+    if(verbose): print(r)
+
     #if the list has data, append it
     if(r['data'] is not None):
+      if(verbose): print(len(r['data']))
       d.extend(r['data']) #append the lists
     else: #else if there's no data, don't append the list and let us know
       print(f"Error getting prices")
