@@ -2,7 +2,7 @@
 #we can see which companies are slated for an FDA drug approval. They almost always gain
 
 import ndaqfxns as n
-import os,json,threading
+import os,json,threading, configparser
 
 algo = os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
@@ -15,7 +15,7 @@ algo = os.path.basename(__file__).split('.')[0] #name of the algo based on the f
 def init(configFile):
   global posList,c
   #set the multi config file
-  c = n.configparser.ConfigParser()
+  c = configparser.ConfigParser()
   c.read(configFile)
   
   #stocks held by this algo according to the records
@@ -50,25 +50,33 @@ def getUnsortedList(verbose=False):
       continue
   
   try:
+    if(verbose): print("Getting company names")
     arr = r.split("Company:</b>") #go down to stock list
     arr = [e.split("<br>")[0].strip() for e in arr][1::] #get list of companies
     if(verbose): print(arr) #company names
+    if(verbose): print("remove dupes, get company symbols, and remove blanks")
     arr = list(set(arr)) #remove duplicates
     arr = [n.getSymb(e) for e in arr] #get the symbols and exchanges of the companies
     arr = [e for e in arr if e is not None] #remove empty ones
     if(verbose): print(arr) #print symbs
     
-    #ensure tradable and prices are within range
-    prices = n.getPrices([e+"|stocks" for e in arr])
-    arr = [e.split("|")[0] for e in prices if(float(c['fda']['minPrice'])<prices[e]['price']<float(c['fda']['maxPrice']))] #ensure we're within the price range
-  
   except Exception:
     print(f"Bad data from drugs.com from {algo}")
     arr = []
-  
-  
+
+  if(verbose): print("ensure prices are within range")
+  #get price range
+  minPrice, maxPrice = float(c[algo]['minPrice']), float(c[algo]['maxPrice'])
+  if(verbose): print("minPrice",minPrice,"maxPrice",maxPrice)
+  #ensure tradable and prices are within range
+  prices = n.getPrices([e+"|stocks" for e in arr])
+  if(verbose): print(prices)
+  #ensure we're within the price range
+  arr = [e.split("|")[0] for e in prices if minPrice<prices[e]['price']<maxPrice]
+
+  if(verbose): print("ensure no dupes again")
   arr = list(set(arr))
-  # arr = list(set(arr+arr1)) #combine lists and remove duplicates  
+  
   return arr
 
 #multiplex the good sell function to return dict of {symb:t/f}
