@@ -2,26 +2,35 @@
 # https://www.investopedia.com/updates/top-penny-stocks/
 
 import ndaqfxns as n
-import os, requests, json, time, re, configparser, threading
+import os,requests,json,time,re,configparser,threading
 import datetime as dt
 
 algo = os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
-def init(configFile):
-  global posList,c
+def init(configFile,verbose=False):
+  global c,posList
+
+  if(verbose): print(f"reading config file {configFile}")
   #set the multi config file
   c = configparser.ConfigParser()
   c.read(configFile)
   
-  #stocks held by this algo according to the records
+  #get the stocks held by this algo according to the records
+  posListFile = c['file locations']['posList']
+  if(verbose): print(f"reading posList file {posListFile}")
   lock = threading.Lock()
   lock.acquire()
-  posList = json.loads(open(c['file locations']['posList'],'r').read())
-  if(algo in posList):
-    posList = posList[algo]
-  else:
-    posList = {}
+  #read the whole file
+  with open(posListFile,'r') as f:
+    algoPos = json.loads(f.read())['algos']
+    f.close()
   lock.release()
+  if(algo in algoPos):
+    if(verbose): print(f"{algo} is in posListFile with {len(algoPos[algo])} stocks")
+    posList = algoPos[algo]
+  else:
+    if(verbose): print(f"{algo} not found in posList, init to empty")
+    posList = {}
 
 
 #return a dict of good buys {symb:note}
@@ -56,40 +65,50 @@ def goodBuys(symbList,verbose=False):
 
 #multiplex the good sell function to return dict of {symb:t/f}
 def goodSells(symbList,verbose=False):
+    #read the currently held positions
   lock = threading.Lock()
   lock.acquire()
+  #currently held positions of this algo
   posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   if(verbose): print(f"stocks in {algo}: {list(posList)}\n")
-  symbList = [e.upper() for e in symbList if e.upper() in posList] #make sure they're the ones in the posList only
-  buyPrices = {e:float(posList[e]['buyPrice']) for e in symbList} #get the prices each stock was bought at
-  if(verbose): print(f"stocks in the buyPrices: {list(buyPrices)}")
-  prices = n.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
-  prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
   
-  if(verbose): print(f"stocks in prices: {list(prices)}")
+  #only get the objects of the symbs that are held in this algo
+  #symblist is now alpaca position objects for stocks held in this algo
+  symbList = [e for e in symbList if e['symbol'] in posList]
+  
   #check that it has exceeded the stopLoss or takeProfit points
-  #ensure recorded prices are >0 (avoid div0)
   gs = {}
   for s in symbList:
-    if(s in prices):
-      if(verbose): print(f"{s}\topen: {round(prices[s]['price']/prices[s]['open'],2)}\tbuy: {round(prices[s]['price']/buyPrices[s],2)}\tsellUp: {sellUp(s)}\tsellDn: {sellDn(s)}")
-      #check if price triggered up
-      if(prices[s]['open']>0 and buyPrices[s]>0):
-        if(prices[s]['price']/prices[s]['open']>=sellUp(s) or prices[s]['price']/buyPrices[s]>=sellUp(s)):
-          gs[s] = 1
-        #check if price triggered down
-        elif(prices[s]['price']/prices[s]['open']<sellDn(s) or prices[s]['price']/buyPrices[s]<sellDn(s)):
-          gs[s] = -1
-        else: #price didn't trigger either side
-          gs[s] = 0
-      else: #TODO: is this correct? Should it sell if it can't find a price?
-        gs[s] = 0
-    else:
-      gs[s] = 0
+    su = sellUp(s['symbol'])
+    sd = sellDn(s['symbol'])
+  
+    daychng = float(s['change_today'])+1 #current price/last close price
+    buychng = float(s['unrealized_plpc'])+1 #current price/buy price
+    
+    if(verbose): 
+      print(f"{s['symbol']}",
+            f"open: {round(daychng,2)}", #change since open
+            f"buy: {round(buychng,2)}", #change since buy
+            f"sellUp: {su}",
+            f"sellDn: {sd}")
+    
+    #check if price triggered up
+    if(daychng>=su or buychng>=su):
+      gs[s['symbol']] = 1
+    #check if price triggered down
+    elif(daychng<sd or buychng<sd):
+      gs[s['symbol']] = -1
+    else: #price didn't trigger either side
+      gs[s['symbol']] = 0
+      
+  #display stocks that have an error
+  for e in [e for e in symbList if e['symbol'] not in gs]:
+    print(f"{e['symbol']} not tradable in {algo}")
   
   return gs
+
 
 
 #get a list of stocks to be sifted through

@@ -631,11 +631,13 @@ def getChart(symb, verbose=False):
 #get the next trade date in datetime date format
 def nextTradeDate(verbose=False):
   try:
-    r = json.loads(robreq(url=f"{BASEURL}/market-info",headers=HEADERS).text)['data']['nextTradeDate']
-    return str(r)
+    r = json.loads(robreq(url=f"{BASEURL}/market-info",headers=HEADERS).text)
+    r = dt.datetime.strptime(r['data']['nextTradeDate'],"%b %d, %Y")
+    # r = dt.datetime.strptime(r['data']['nextTradeDate'],"%Y-%m-%d")
+    return r
   except Exception:
     if(verbose): print("error getting data. Assuming next workday")
-    return str(wd(dt.date.today(),1))
+    return wd(dt.date.today(),1)
   
 
 #return dict of current prices of assets
@@ -709,7 +711,7 @@ def timeTillOpen(verbose=False):
     
   if(tto<0): #if it's the same day but after opening
     if(verbose): print("Time estimate to nearest minute")
-    nextTradeDate = dt.datetime.strptime(r['data']['nextTradeDate'],"%b %d, %Y")
+    nextTradeDate = dt.datetime.strptime(r['data']['nextTradeDate'],"%b %d, %Y") #don't use nextTradeDate() since we already have the data
     thisOpenTime = (dt.datetime.strptime(r['data']['marketOpeningTime'][:-3],"%b %d, %Y %I:%M %p")).time()
     nextOpen = toutc(dt.datetime.combine(nextTradeDate,thisOpenTime),nytz)
     tto = int((nextOpen-toutc(dt.datetime.now(),localtz)).total_seconds())

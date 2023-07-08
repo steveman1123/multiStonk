@@ -2,7 +2,7 @@
 #we can see which companies are slated for an FDA drug approval. They almost always gain
 
 import ndaqfxns as n
-import os,json,threading, configparser
+import os,json,threading,configparser
 
 algo = os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
@@ -12,17 +12,30 @@ algo = os.path.basename(__file__).split('.')[0] #name of the algo based on the f
 # if it still falls significantly despite those, then wait at least a week and then make a decision based on the articles being posted
 #TODO: should check history to make sure that the price isn't consistently decreasing
 
-def init(configFile):
-  global posList,c
+def init(configFile,verbose=False):
+  global c,posList
+
+  if(verbose): print(f"reading config file {configFile}")
   #set the multi config file
   c = configparser.ConfigParser()
   c.read(configFile)
   
-  #stocks held by this algo according to the records
+  #get the stocks held by this algo according to the records
+  posListFile = c['file locations']['posList']
+  if(verbose): print(f"reading posList file {posListFile}")
   lock = threading.Lock()
   lock.acquire()
-  posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
+  #read the whole file
+  with open(posListFile,'r') as f:
+    algoPos = json.loads(f.read())['algos']
+    f.close()
   lock.release()
+  if(algo in algoPos):
+    if(verbose): print(f"{algo} is in posListFile with {len(algoPos[algo])} stocks")
+    posList = algoPos[algo]
+  else:
+    if(verbose): print(f"{algo} not found in posList, init to empty")
+    posList = {}
 
 #get list of stocks pending FDA approvals
 #eturn dict of format {"symb":"-"} (since there's no important info otherwise to report (as of right now), the values can be empty)
@@ -81,16 +94,19 @@ def getUnsortedList(verbose=False):
 
 #multiplex the good sell function to return dict of {symb:t/f}
 def goodSells(symbList,verbose=False):
+  
+  #read the currently held positions
   lock = threading.Lock()
   lock.acquire()
+  #currently held positions of this algo
   posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   if(verbose): print(f"stocks in {algo}: {list(posList)}\n")
   
-  #make sure they're the ones in the posList only
+  #only get the objects of the symbs that are held in this algo
+  #symblist is now alpaca position objects for stocks held in this algo
   symbList = [e for e in symbList if e['symbol'] in posList]
-
   
   #check that it has exceeded the stopLoss or takeProfit points
   gs = {}
@@ -103,8 +119,8 @@ def goodSells(symbList,verbose=False):
     
     if(verbose): 
       print(f"{s['symbol']}",
-            f"open: {round(daychng,2)}",
-            f"buy: {round(buychng,2)}",
+            f"open: {round(daychng,2)}", #change since open
+            f"buy: {round(buychng,2)}", #change since buy
             f"sellUp: {su}",
             f"sellDn: {sd}")
     

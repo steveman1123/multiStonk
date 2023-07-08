@@ -2,24 +2,37 @@
 #when a penny stock gains a significant amount with a large volume then falls with a small volume, then it generally gains a second time
 
 import ndaqfxns as n
-import os,json,threading,time
+import os,json,threading,time,configparser
 import datetime as dt
 
 algo = os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
-def init(configFile):
-  global posList,c
+#TODO: add error if the file doesn't exist.
+#TODO: in otherfxns, from configparser import ConfigParser (since I don't think we use anthing else)
+def init(configFile,verbose=False):
+  global c,posList
+
+  if(verbose): print(f"reading config file {configFile}")
   #set the multi config file
-  #TODO: add error if the file doesn't exist.
-  #TODO: in otherfxns, from configparser import ConfigParser (since I don't think we use anthing else)
-  c = n.configparser.ConfigParser()
+  c = configparser.ConfigParser()
   c.read(configFile)
   
-  #stocks held by this algo according to the records
+  #get the stocks held by this algo according to the records
+  posListFile = c['file locations']['posList']
+  if(verbose): print(f"reading posList file {posListFile}")
   lock = threading.Lock()
   lock.acquire()
-  posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
+  #read the whole file
+  with open(posListFile,'r') as f:
+    algoPos = json.loads(f.read())['algos']
+    f.close()
   lock.release()
+  if(algo in algoPos):
+    if(verbose): print(f"{algo} is in posListFile with {len(algoPos[algo])} stocks")
+    posList = algoPos[algo]
+  else:
+    if(verbose): print(f"{algo} not found in posList, init to empty")
+    posList = {}
 
 #get a list of potential gainers according to this algo
 #return a 
@@ -214,16 +227,21 @@ def jumpedToday(symb,jump):
 #symbList = list of position objects from alpaca that are ready to be sold
 #return dict of {symb:goodSell}
 def goodSells(symbList, verbose=False):
+  
+  #read the currently held positions
   lock = threading.Lock()
   lock.acquire()
-  posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo] #load up the stock data for the algo
+  #currently held positions of this algo
+  posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   if(verbose): print(f"stocks in {algo}: {list(posList)}\n")
   
-  #only look at the stocks that are in the algo
+  #only get the objects of the symbs that are held in this algo
+  #symblist is now alpaca position objects for stocks held in this algo
   symbList = [e for e in symbList if e['symbol'] in posList]
-   
+  
+  #check that it has exceeded the stopLoss or takeProfit points
   gs = {}
   for s in symbList:
     su = sellUp(s['symbol'])
@@ -239,6 +257,7 @@ def goodSells(symbList, verbose=False):
             f"sellUp: {su}",
             f"sellDn: {sd}")
 
+    #TODO: should trigger if it doesn't show up in the price list?
     #check if price triggered up
     if(daychng>=su or buychng>=su):
       gs[s['symbol']] = 1

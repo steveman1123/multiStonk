@@ -503,17 +503,26 @@ def getBuyPrice(symb):
     return 0
 
 
-#get the account history from the startDate going back some time (#D,W,M,A), default to 1 year from today 
-def getProfileHistory(startDate=str(dt.date.today()), period='1A'):
+#get the account value history
+#startDate = latest date to look for
+#period = #D|#W|#M|#A, default to 1 year ago from today (1A)
+#formatted = t|f - True returns dict of format {yyyy-mm-dd-hh-mm:{equity:#,pl:#,plpct:#}}
+def getProfileHistory(startDate=str(dt.date.today()), period='1A', formatted=True, verbose=False):
+  if(verbose): print(f"attempting to get profile history from {startDate} with a period of {period}")
   while True:
     try:
-      html = n.robreq(HISTURL, headers=HEADERS, params={'date_end':startDate,'period':period}, timeout=5, maxTries=-1).text
+      r = n.robreq(HISTURL, headers=HEADERS, params={'date_end':startDate,'period':period}, timeout=5, maxTries=-1).json()
       break
-    except Exception:
+    except Exception as e:
       print("No connection, or other error encountered in getProfileHistory. Trying again...")
+      print(e)
       time.sleep(3)
       continue
-  return json.loads(html)
+
+  if(formatted):
+    if(verbose): print("formatting...")
+    r = {dt.datetime.strftime(dt.datetime.fromtimestamp(r['timestamp'][e]),"%Y-%m-%d-%H-%M"):{"eq":r['equity'][e],"pl":r['profit_loss'][e],"plpct":r['profit_loss_pct'][e]} for e in range(len(r['timestamp']))}
+  return r
 
 
 #get all transactions from a given start date to today

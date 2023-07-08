@@ -62,8 +62,7 @@ print(f"Key file \t{c['file locations']['keyFile']}")
 print(f"posList file\t{c['file locations']['posList']}")
 print(f"buyList file\t{c['file locations']['buyList']}")
 print(f"Error log \t{c['file locations']['errLog']}")
-print("Using the algos: ",end="")
-print(*list(algoList),sep=", ",end="\n\n")
+print("Using the algos: ",", ".join(list(algoList)),end="\n\n")
 
 #init the alpaca functions
 a.init(c['file locations']['keyFile'],int(c['account params']['isPaper']))
@@ -132,8 +131,8 @@ def main(verbose=False):
   ###
   #initiate settings related to the account parameters
   ###
-  portHist = a.getProfileHistory(str(dt.date.today()),'1M')['equity'] #get the closing prices of the portfolio over the last month
-  maxPortVal=max([e for e in portHist if e is not None]) #get the max portfolio value over the last month and remove blank entries
+  portHistM = a.getProfileHistory(str(dt.date.today()),'1M')
+  maxPortVal = sorted(portHistM.items(), key=lambda x: x[1]['eq'])[-1][1]['eq']
   
   isManualSellOff = not int(c['account params']['portAutoSellOff'])
   
@@ -221,8 +220,10 @@ def main(verbose=False):
       ###
       print("market closed\n")
       
+      '''
+      #TODO: these numbers are incorrect for some reason. check math
       #display the total p/l % of each algo
-      print("Algo ROI estimates:") #TODO: these numbers are incorrect for some reason. check math
+      print("Algo ROI estimates:")
       for algo in posList:
         #get all postions
         pos = a.getPos()
@@ -254,31 +255,28 @@ def main(verbose=False):
           roi = 1
         
         print(f"{algo} - {bcolor.FAIL if roi<1 else bcolor.OKGREEN}{roi}{bcolor.ENDC}") #display the ROI
-      
-      #update the max port val
-      portHist = a.getProfileHistory(str(dt.date.today()),'1M')
-      portHist = {str(dt.datetime.fromtimestamp(portHist['timestamp'][i]).date()):portHist['equity'][i] for i in range(len(portHist['timestamp'])) if portHist['equity'][i] is not None}
-      maxPortVal = max(list(portHist.values())) # get the max portfolio value of the last month
+      '''
+
+      #get the histories to calculate max port val and ROI
+      portHistM = a.getProfileHistory(str(dt.date.today()),'1M')
+      portHistY = a.getProfileHistory(str(dt.date.today()),'1A')
+      #get the max port val from the last month
+      maxPortVal = sorted(portHistM.items(), key=lambda x: x[1]['eq'])[-1]
+      #get the current portfolio value
+      curPortVal = portHistM[max(list(portHistM.keys()))]['eq']
+
+      mroi = portHistM[max(list(portHistM))]['eq']/portHistM[min(list(portHistM))]['eq']
+      yroi = portHistY[max(list(portHistY))]['eq']/portHistY[min(list(portHistY))]['eq']
+
+      print("1 Month ROI:",bcolor.FAIL if mroi<1 else bcolor.OKGREEN,round(mroi,3),bcolor.ENDC)
+      print("1 Year ROI:",bcolor.FAIL if yroi<1 else bcolor.OKGREEN,round(yroi,3),bcolor.ENDC)
+
       
       #display max val and date
-      print(f"\nHighest portVal in the last month: ${round(maxPortVal,2)} on {list(portHist.keys())[list(portHist.values()).index(maxPortVal)]}")
-      print(f"Current portVal: ${round(portHist[max(list(portHist.keys()))],2)} ({round(100*portHist[max(list(portHist.keys()))]/maxPortVal,3)}% of highest)")
-      print(f"Port stop-loss: ${round(float(c['account params']['portStopLoss'])*maxPortVal,2)} ({round(100*float(c['account params']['portStopLoss']),2)}% of highest)\n")
+      print(f"\nHighest portVal in the last month: ${round(maxPortVal[1]['eq'],2)} on {maxPortVal[0]}")
+      print(f"Current portVal: ${round(curPortVal,2)} ({round(100*curPortVal/maxPortVal[1]['eq'],3)}% of highest)")
+      print(f"Port stop-loss: ${round(float(c['account params']['portStopLoss'])*maxPortVal[1]['eq'],2)} ({round(100*float(c['account params']['portStopLoss']),2)}% of highest)\n")
       syncPosList() #sync up posList to live data
-
-      '''
-      #TODO: this should be done when the folder reaches a certain size, rather than weekly
-      #if it's friday afternoon
-      if(n.dt.date.today().weekday()==4 and n.dt.datetime.now().time()>n.dt.time(12)):
-        #delete all csv files in stockDataDir
-        print("Removing saved csv files")
-        for f in glob(n.c['file locations']['stockDataDir']+"*.csv"):
-          try: #placed inside a try statement in the event that the file is removed before being removed here
-            n.os.unlink(f)
-          except Exception:
-            pass
-      '''
-      
       
       # clear all lists in algoList
       print("Clearing buyList")
@@ -494,34 +492,49 @@ def triggeredUp(symb, algo):
   if(isSold): print(f"Sold all shares of {symb} for {algo} algo")
 
 #run as long as the len of triggeredStocks>0 (where triggeredStocks is a set of format {"algo|symb"})
-def checkTriggered(verbose=False):
+#TODO: this function really needs to be cleaned up (comments, better variables, more logical running)
+def checkTriggered(verbose=True):
+  #triggeredStocks = format of {"algo|symb"}
   global triggeredStocks
   lock = n.threading.Lock()
   maxPrices = {}
-  while(len(list(triggeredStocks))>0 and not exitFlag): #only run if there's stocks to sell
+  #only run if there's stocks to sell and exit flag isn't triggered
+  while(len(list(triggeredStocks))>0 and not exitFlag):
     if(verbose): print(f"{len(list(triggeredStocks))} stocks triggered for sale")
-    prices = n.getPrices([e.split("|")[1]+"|stocks" for e in list(triggeredStocks)]) #get prices for all stocks to sell
-    maxPrices = {e:max(maxPrices[e],prices[e]['price']) if(e in maxPrices) else prices[e]['price'] for e in prices} #get the max prices of the stocks since watching
+
+    #get prices for all stocks to sell
+    prices = n.getPrices([e.split("|")[1]+"|stocks" for e in list(triggeredStocks)])
+    #get the max prices of the stocks since watching
+    maxPrices = {e:max(maxPrices[e],prices[e]['price']) if(e in maxPrices) else prices[e]['price'] for e in prices}
     #check for stocks in triggeredStocks that aren't in prices (some error occured that we hold it but it can't be traded)
     lock.acquire()
     for e in [e for e in list(triggeredStocks) if (e.split("|")[1]+"|stocks").upper() not in prices]:
+      if(verbose): print(f"{e} stored locally and in alpaca, but not in nasdaq. Removing from sellable stocks")
       triggeredStocks.discard(e)
     lock.release()
       
     print()
     
+
     for e in list(triggeredStocks):
-      sellUpDn = eval(f"{e.split('|')[0]}.sellUpDn()") #get the sellUpDn % - TODO: this should probably be moved out of this for loop and generate a dict {algo:sellUpDn} since it doesn't depend on the individual stock (this would reduce function calls)
-      curPrice = prices[(e.split("|")[1]+'|stocks').upper()]['price'] #get the current prices of the stocks
-      if(curPrice>0): #make sure that the price is valid
+      #get the sellUpDn % - TODO: this should probably be moved out of this for loop and generate a dict {algo:sellUpDn} since it doesn't depend on the individual stock (this would reduce function calls)
+      sellUpDn = eval(f"{e.split('|')[0]}.sellUpDn()")
+      #get the current prices of the stocks
+      curPrice = prices[(e.split("|")[1]+'|stocks').upper()]['price']
+      #make sure that the price is valid
+      if(curPrice>0):
         #sell once the current price drops below some % of the maxPrice since watching or within one minute of close
         if(curPrice>=sellUpDn*maxPrices[(e.split('|')[1]+"|stocks").upper()] and n.timeTillClose()>60):
-          print(f"{e.split('|')[0]}\t{e.split('|')[1]}\t{round(curPrice/maxPrices[(e.split('|')[1]+'|stocks').upper()],2)} : {sellUpDn}")
+          print(f"{e.split('|')[0]}\t{e.split('|')[1]}\t{round(curPrice/maxPrices[(e.split('|')[1]+'|stocks').upper()],3)} : {sellUpDn}")
         else:
           sell(e.split("|")[1],e.split("|")[0])          
+          #this shouldn't be necessary since it's supposed to be handled in sell(), but it seems to have issues there and not existing the thread
+          # triggeredStocks.discard(e)
       else:
         print(f"{e} current price is $0. Selling")
         sell(e.split("|")[1],e.split("|")[0])
+        # triggeredStocks.discard(e)
+
     print()
     time.sleep(max(5,len(list(triggeredStocks))/5)) #wait at least 5 seconds between checks, and if there are more, wait longer
     
@@ -577,21 +590,31 @@ def check2sells(pos,verbose=False):
   
   
 #basically just a market order for the stock and then record it into an order info file
-def sell(stock, algo):
+def sell(stock, algo, verbose=True):
   global posList, cashList,triggeredStocks
-  if(posList[algo][stock]['sharesHeld']>0):
-    r = a.createOrder(side="sell",qty=float(posList[algo][stock]['sharesHeld']),symb=stock)
+
+  #determine the current price and the number of shares to sell (they should already be floats, but recasting just in case)
+  sellPrice = float(n.getInfo(stock)['price'])
+  sharesHeld = float(posList[algo][stock]["sharesHeld"])
+
+  #ensure there are sellable shares
+  if(sharesHeld>0):
+    if(verbose): print(f"Attempting to sell {sharesHeld} shares of {symb} at ${round(sellPrice,2)}/share")
+    #sell them
+    r = a.createOrder(side="sell",qty=sharesHeld,symb=stock,verbose=False)
   else:
     print(f"No shares held of {stock}")
     triggeredStocks.discard(algo+"|"+stock)
     return False
   
-  #TODO: this is an incorrect check
   #see how it looks in here: https://alpaca.markets/docs/trading-on-alpaca/orders/#order-lifecycle
-  if('status' in r and r['status'] == "accepted"): #check that it actually sold
+  #TODO: not sure what else to check for in status?
+  if('status' in r and r['status'] in ["accepted",'pending_new','filled','done_for_day','new']): #check that it actually sold
+    if(verbose): print(f"status is {r['status']}")
+
     lock = n.threading.Lock()
     lock.acquire()
-    cashList[algo]['earned'] += n.getInfo(stock)['price']*posList[algo][stock]["sharesHeld"] #update the cash earned by the sale
+    cashList[algo]['earned'] += sellPrice*sharesHeld #update the cash earned by the sale
     posList[algo][stock] = { #update the entry in posList
         "sharesHeld":0,
         "lastTradeDate":str(dt.date.today()),
@@ -608,6 +631,7 @@ def sell(stock, algo):
     return True
   else:
     print(f"Order to sell {posList[algo][stock]['sharesHeld']} shares of {stock} for {algo} not accepted")
+    print(r)
     return False
 
 #basically just a market buy of this many shares of this stock for this algo
@@ -974,5 +998,11 @@ if __name__ == '__main__':
     
   except Exception: #record unhandled exceptions
     print("An unhandled error was encountered. Please check the log.")
-    traceback.print_exc(file=open(c['file locations']['errLog'],"a"))
-
+    #current time
+    now = dt.datetime.now()
+    #get the traceback message
+    tbmsg = traceback.format_exc()
+    #append to error file
+    with open(c['file locations']['errLog'],'a') as f:
+      f.write("\n"+str(now)+tbmsg+"\n")
+      f.close()
