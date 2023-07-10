@@ -155,7 +155,6 @@ def main(verbose=False):
     ###
     #ensure we're still above the threshold to trade (if not, see if we should ask to sell, and if we have anything to be sold in the first place)
     ###
-    
     if(ask2sell and float(acct['portfolio_value'])<maxPortVal*float(c['account params']['portStopLoss']) and len(pos)>0):
       print(f"Portfolio value of ${acct['portfolio_value']} is less than {c['account params']['portStopLoss']} times the max portfolio value of ${maxPortVal}.")
       if(not isManualSellOff): print("Automatically selling all...")
@@ -261,7 +260,9 @@ def main(verbose=False):
       portHistM = a.getProfileHistory(str(dt.date.today()),'1M')
       portHistY = a.getProfileHistory(str(dt.date.today()),'1A')
       #get the max port val from the last month
-      maxPortVal = sorted(portHistM.items(), key=lambda x: x[1]['eq'])[-1]
+      maxPortInf = sorted(portHistM.items(), key=lambda x: x[1]['eq'])[-1]
+      maxPortVal = maxPortInf[1]['eq']
+      maxPortValDate = maxPortInf[0]
       #get the current portfolio value
       curPortVal = portHistM[max(list(portHistM.keys()))]['eq']
 
@@ -273,9 +274,9 @@ def main(verbose=False):
 
       
       #display max val and date
-      print(f"\nHighest portVal in the last month: ${round(maxPortVal[1]['eq'],2)} on {maxPortVal[0]}")
-      print(f"Current portVal: ${round(curPortVal,2)} ({round(100*curPortVal/maxPortVal[1]['eq'],3)}% of highest)")
-      print(f"Port stop-loss: ${round(float(c['account params']['portStopLoss'])*maxPortVal[1]['eq'],2)} ({round(100*float(c['account params']['portStopLoss']),2)}% of highest)\n")
+      print(f"\nHighest portVal in the last month: ${round(maxPortVal,2)} on {maxPortValDate}")
+      print(f"Current portVal: ${round(curPortVal,2)} ({round(100*curPortVal/maxPortVal,3)}% of highest)")
+      print(f"Port stop-loss: ${round(float(c['account params']['portStopLoss'])*maxPortVal,2)} ({round(100*float(c['account params']['portStopLoss']),2)}% of highest)\n")
       syncPosList() #sync up posList to live data
       
       # clear all lists in algoList
@@ -599,7 +600,7 @@ def sell(stock, algo, verbose=True):
 
   #ensure there are sellable shares
   if(sharesHeld>0):
-    if(verbose): print(f"Attempting to sell {sharesHeld} shares of {symb} at ${round(sellPrice,2)}/share")
+    if(verbose): print(f"Attempting to sell {sharesHeld} shares of {stock} at ${round(sellPrice,2)}/share")
     #sell them
     r = a.createOrder(side="sell",qty=sharesHeld,symb=stock,verbose=False)
   else:
