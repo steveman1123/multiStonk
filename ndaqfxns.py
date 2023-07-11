@@ -4,7 +4,12 @@
 #TODO: point all url tries/catches as a robreq() fxn like in multiforex
 
 import json,requests,os,time,sys,configparser,threading,re
-import Levenshtein as lev
+
+try:
+  import Levenshtein as lev
+except Exception:
+  print("levenshtein is not installed. Working in degraded mode. Some errors may occur!")
+
 import datetime as dt
 import pytz
 from bs4 import BeautifulSoup as bs

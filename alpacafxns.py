@@ -422,17 +422,19 @@ def getTrades(startDate,endDate=False, verbose=False, maxTries=3):
     try:
       if(not endDate): #no end date set, just use a single day
         #TODO: may return an error if no trades were made in a day (or the specified date is a weekend)
-        d = json.loads(n.robreq(ACCTURL+"/activities/FILL", headers=HEADERS, params={"date":startDate}, timeout=5, maxTries=-1).text)
+        d = n.robreq(ACCTURL+"/activities/FILL", headers=HEADERS, params={"date":startDate}, timeout=5, maxTries=-1).json()
         if("error" in d.lower()):
           print(d)
           raise ValueError("error returned in normal request.")
       else: #end date is set, make a range
         d=[]
-        r = json.loads(n.robreq(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate,"until":endDate}, timeout=5, maxTries=-1).text)
+        r = n.robreq(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate,"until":endDate}, timeout=5, maxTries=-1)
+        r = r.json()
+        if(verbose): print(len(r))
         d+=r
         while len(r)==100:
           if(verbose): print(len(d))
-          r = json.loads(n.robreq(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate,"until":endDate,"page_token":d[-1]['id']}, timeout=5, maxTries=-1).text)
+          r = n.robreq(ACCTURL+"/activities/FILL", headers=HEADERS, params={"after":startDate,"until":endDate,"page_token":d[-1]['id']}, timeout=5, maxTries=-1).json()
           d+=r
       break
     except Exception:

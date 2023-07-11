@@ -7,7 +7,7 @@ import datetime as dt
 
 
 #set up the info
-startDate = "2022-04-20" #start of range to check
+startDate = "2023-04-20" #start of range to check
 endDate = str(dt.date.today()) #end of range to check
 apikeyfile = "../stockStuff/apikeys/steve.txt" #keyfile for alpaca api
 
@@ -20,8 +20,9 @@ print(f"checking trading from {startDate} to {endDate}")
 
 
 #get the trade data
-trades = a.getTrades(startDate, endDate)[::-1]
+trades = a.getTrades(startDate, endDate,verbose=False)
 
+trades = trades[::-1]
 print("formatting data")
 #formatted as: symbol, date, side, price, qty, cumulative qty, avgBuyPrice (if buy, else blank), win/loss (if sell, else blank)
 
