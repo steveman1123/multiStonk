@@ -90,7 +90,11 @@ def goodBuys_old(symbList, verbose=False):
 #symbList = output of getUnsortedList()
 def goodBuys(symbList,verbose=False):
   minPrice, maxPrice = float(c[algo]['minPrice']), float(c[algo]['maxPrice'])
-  out = {e['ticker']:e['catalyst_date'] for e in symbList if minPrice<=float(e['company']['last_price'])<=maxPrice and e['is_suspected_mover']}
+  for e in symbList:
+    if('company' in e and 'last_price' in e['company'] and e['company']['last_price'] is not None):
+      if(minPrice<=float(e['company']['last_price'])<=maxPrice):
+        if(e['is_suspected_mover']):
+          out = {e['ticker']:e['catalyst_date']}
   return out
 
 #return whether stocks are good sells or not

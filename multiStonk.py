@@ -217,7 +217,7 @@ def main(verbose=False):
       ###
       #execute immediately after close
       ###
-      print("market closed\n")
+      print(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"market closed\n")
       
       '''
       #TODO: these numbers are incorrect for some reason. check math
@@ -287,6 +287,7 @@ def main(verbose=False):
       ask2sell = True
       
       tto = a.timeTillOpen()
+      print(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
       print(f"Market opens in {round(tto/3600,2)} hours")
       #wait some time before the market opens      
       if(tto>60*float(c['time params']['updateLists'])):
@@ -298,7 +299,7 @@ def main(verbose=False):
       #execute some time before the market opens
       ###
       #update stock lists
-      print("Updating buyList") #TODO: move this into the thread or within the thread have a "done updating buylist"
+      print(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"Updating buyList") #TODO: move this into the thread or within the thread have a "done updating buylist"
       updateListsThread = n.threading.Thread(target=updateLists) #init the thread - note locking is required here
       updateListsThread.name = 'updateLists' #set the name to the stock symb
       updateListsThread.start() #start the thread
@@ -327,7 +328,8 @@ def getTradableCash(totalCash, maxPortVal,verbose=False):
 #update all lists to be bought (this should be run as it's own thread)
 def updateLists(verbose=False):
   global algoList, listsUpdatedToday
-  
+  print(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+
   #check that the buyfile is present and if it was updated today: if it was, then read directly from it, else generate lists
   errored = False
   if(verbose): print("Checking if buyList file is present")
@@ -478,7 +480,7 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
           
     
 #a stock has reached a trigger point and should begin to be checked more often (it will be sold in this function)
-#this function is now depreciated - replaced by checkTriggered
+#this function is depreciated - replaced by checkTriggered
 def triggeredUp(symb, algo):
   maxPrice = 0.01 #init vars to be slightly above 0
   curPrice = 0.01
@@ -730,7 +732,7 @@ def setPosList(algoList, verbose=True):
 def syncPosList(verbose=False):
   global posList, cashList
   lock = n.threading.Lock() #locking is needed to write to the file and edit the posList var (will have to see how threads and globals work with each other)
-  print("Syncing posList...")
+  print(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"Syncing posList...")
   
   #check if an algo in the posList is removed from the algoList
   for inactiveAlgo in [algo for algo in posList if algo not in algoList]:
@@ -982,7 +984,7 @@ def syncPosList(verbose=False):
     if(verbose): print("Writing to posList file")
     f.write(json.dumps({'algos':posList,'cash':cashList},indent=2))
   lock.release()
-  print("Done syncing posList")
+  print(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"Done syncing posList")
 
 
 
@@ -1004,6 +1006,6 @@ if __name__ == '__main__':
     #get the traceback message
     tbmsg = traceback.format_exc()
     #append to error file
-    with open(c['file locations']['errLog'],'a') as f:
+    with open(c['file locations']['errLog'],'a+') as f:
       f.write("\n"+str(now)+tbmsg+"\n")
       f.close()

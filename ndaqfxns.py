@@ -744,7 +744,7 @@ def timeTillClose(verbose=False):
       pass
   
   if(ttc<0): #if it's the evening
-    print("Time estimate to nearest minute")
+    if(verbose): print("Time estimate to nearest minute")
     nextTradeDate = dt.datetime.strptime(r['data']['nextTradeDate'],"%b %d, %Y")
     thisCloseTime = (dt.datetime.strptime(r['data']['marketClosingTime'][:-3],"%b %d, %Y %I:%M %p")).time()
     nextClose = toutc(dt.datetime.combine(nextTradeDate,thisCloseTime),nytz)

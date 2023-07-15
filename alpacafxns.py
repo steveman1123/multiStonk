@@ -523,7 +523,7 @@ def getProfileHistory(startDate=str(dt.date.today()), period='1A', formatted=Tru
 
   if(formatted):
     if(verbose): print("formatting...")
-    r = {dt.datetime.strftime(dt.datetime.fromtimestamp(r['timestamp'][e]),"%Y-%m-%d-%H-%M"):{"eq":r['equity'][e],"pl":r['profit_loss'][e],"plpct":r['profit_loss_pct'][e]} for e in range(len(r['timestamp']))}
+    r = {dt.datetime.strftime(dt.datetime.fromtimestamp(r['timestamp'][e]),"%Y-%m-%d %H:%M"):{"eq":r['equity'][e],"pl":r['profit_loss'][e],"plpct":r['profit_loss_pct'][e]} for e in range(len(r['timestamp']))}
   return r
 
 
