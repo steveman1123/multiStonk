@@ -680,11 +680,12 @@ def getPrices(symbList,maxTries=3,verbose=False):
     #ensure that all data is present and valid
     if(e['volume'] is not None and len(e['volume'])>0 and e['lastSalePrice'] is not None and len(e['lastSalePrice'])>0 and e['netChange'] is not None and len(e['netChange'])>0):
       # if(verbose): print(e)
-      
+      #TODO: maybe store lastSalePrice and vol as variables?
       prices[f"{e['symbol']}|{e['assetClass']}"] = {
-                                                'price':float(e['lastSalePrice'].replace("$","")),
+                                                'price':float(e['lastSalePrice'].replace("$","").replace(",","")),
                                                 'vol':int(e['volume'].replace(",","")),
-                                                'open':float(e['lastSalePrice'].replace("$",""))-(float(e['netChange']) if e['netChange']!='UNCH' else 0)
+                                                'open':float(e['lastSalePrice'].replace("$","").replace(",",""))-(float(e['netChange']) if 
+                                                e['netChange']!='UNCH' else 0)
                                                 }
 
   return prices

@@ -20,6 +20,7 @@ colorinit() #allow coloring in Windows terminals
 #TODO: when removing an algo, have the cash from that algo moved proportionally to where the stocks are moved to (so if there's 25 stocks and $100 that need to be moved, then for each stock that moved $4 should also be moved to the new algo (proportionally for invested and returned amounts)
 
 #TODO: fix algo ROI calculations - they are very wrong
+#TODO: when attempting to sell, try selling some number of times, if it doesn't work (returns err code 403*) every time, then mark it as untradable)
 
 #parse args and get the config file
 configFile="./configs/multi.config"
