@@ -58,15 +58,29 @@ def getList(verbose=True):
 #determine if a list of stocks are good to sell or not
 #where symblist is a list of stocks and the function returns the same stocklist as a dict of {symb:goodsell(t/f)}
 def goodSells(symbList, verbose=False):
+  if(verbose): print("reading posListFile")
   lock = threading.Lock()
   lock.acquire()
   posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
-  
-  buyPrices = {e:posList[e]['buyPrice'] for e in posList} #get the prices each were bought at
-  symbList = [e for e in symbList if e in posList] #make sure they're the ones in the posList only
-  prices = n.getPrices([e+"|stocks" for e in symbList]) #get the vol, current and opening prices
-  prices = {e.split("|")[0]:prices[e] for e in prices} #convert from symb|assetclass to symb
+
+  if(verbose):
+    print("posList:",posList)
+    print()
+    print("symbList:",symbList)
+
+  if(verbose): print("ensuring symbols in requested list are available in the posList")
+  #make sure they're the ones in the posList only
+  symbList = [e for e in symbList if e in posList]
+  if(verbose): print("getting buy prices")
+  #get the prices each were bought at
+  buyPrices = {e:posList[e]['buyPrice'] for e in posList}
+  if(verbose): print("getting current prices")
+  #get the vol, current and opening prices
+  prices = n.getPrices([e+"|stocks" for e in symbList])
+  if(verbose): print("converting price data")
+  #convert from symb|assetclass to symb
+  prices = {e.split("|")[0]:prices[e] for e in prices}
   
   gs = {}
   for s in symbList:

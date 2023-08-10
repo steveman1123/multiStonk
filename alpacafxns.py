@@ -170,6 +170,7 @@ def createOrder(symb, #stock ticker symbol
                 take_profit=None, #specify a take profit price
                 stop_loss=None, #specify a stop loss price
                 
+                enabled=True, #don't actually execute a trade if this is false (just display it)
                 maxTries=3,
                 verbose=False):
   
@@ -255,7 +256,12 @@ def createOrder(symb, #stock ticker symbol
   tries=0
   while tries<maxTries:
     try:
-      r = n.robreq(ORDERSURL, method="post", jsondata=order, headers=HEADERS, timeout=5, maxTries=-1)
+      if(enabled):
+        r = n.robreq(ORDERSURL, method="post", jsondata=order, headers=HEADERS, timeout=5, maxTries=-1).json()
+      else:
+        print("TRADING DISABLED. Order requested:",json.dumps(order))
+        r = order
+        r['status'] = "FAKE TRADE"
       break
     except Exception:
       print(f"No connection, or other error encountered in createOrder. Trying again ({tries+1}/{maxTries})...")
@@ -263,7 +269,6 @@ def createOrder(symb, #stock ticker symbol
       time.sleep(3)
       continue
 
-  r = json.loads(r.text)
   if(verbose): print(json.dumps(r,indent=2))
   try:
     #TODO: add trade info here?

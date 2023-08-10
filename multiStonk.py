@@ -306,7 +306,11 @@ def main(verbose=False):
       updateListsThread.start() #start the thread
 
       closeTime = n.closeTime() #get the next closing time
-      time.sleep(a.timeTillOpen())
+      #wait until market is open is open before continuing
+      #plus a few seconds since it's been having issues jumping the gun just before the market opens
+      #TODO: not sure if this will work as of 2023-07-31. Wait and see
+      time.sleep(a.timeTillOpen()+30)
+      
       
 
 #given the total cash and cash parameters, return the tradable cash
@@ -542,7 +546,7 @@ def checkTriggered(verbose=True):
     print()
     time.sleep(max(5,len(list(triggeredStocks))/5)) #wait at least 5 seconds between checks, and if there are more, wait longer
     
-#multiplex check2sell where pos is the output of n.getPos
+#multiplex check2sell where pos is the output of a.getPos()
 #determine if the stocks in the algo are good sells (return dict of {symb:goodSell(t/f)})
 def check2sells(pos,verbose=False):
   global triggeredStocks
