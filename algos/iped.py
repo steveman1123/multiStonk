@@ -135,7 +135,7 @@ def getUnsortedList(verbose=False,maxTries=3):
         r = requests.get(stockTypes[stockType],headers=n.HEADERS,timeout=5).text #get the data
         #get the date last published/updated (contained within the "mntl..." element, first word is either "updated" or "published", split by spaces, remove first word, and rejoin with spaces)
         d = " ".join(r.split('"mntl-attribution__item-date">')[1].split("<")[0].split(" ")[1:])
-        # print(d)
+        print(d)
 
         #convert from "Month dd, yyyy" to yyyy-mm-dd
         d = str(dt.datetime.strptime(d,"%B %d, %Y").date())

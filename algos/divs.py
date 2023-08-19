@@ -66,7 +66,7 @@ def goodSells(symbList, verbose=False):
 
   if(verbose): print("ensuring symbols in requested list are available in the posList")
   #make sure they're the ones in the posList only
-  symbList = [e for e in symbList if e in posList]
+  symbList = [e for e in symbList if e['symbol'] in posList]
 
 
   gs = {}
@@ -78,27 +78,22 @@ def goodSells(symbList, verbose=False):
     buychng = float(s['unrealized_plpc'])+1 #current price/buy price
     
   
-    if(s in prices):
+    if(verbose):
       print(f"{s['symbol']}",
               f"open: {round(daychng,2)}", #change since open
               f"buy: {round(buychng,2)}", #change since buy
               f"sellUp: {su}",
               f"sellDn: {sd}")
 
-      #check if price triggered up
-      if(prices[s]['open']>0 and buyPrices[s]>0):
-        if(daychng>=su or buychng>=su):
-          gs[s] = 1
-        #check if price triggered down
-        elif(daychng<sd or buychng<sd):
-          gs[s] = -1
-        else: #price didn't trigger either side
-          gs[s] = 0
-      else:
-        gs[s] = 0
-    else:
-      gs[s] = 0
-  
+    #check if price triggered up
+    if(daychng>=su or buychng>=su):
+      gs[s['symbol']] = 1
+    #check if price triggered down
+    elif(daychng<sd or buychng<sd):
+      gs[s['symbol']] = -1
+    else: #price didn't trigger either side
+      gs[s['symbol']] = 0
+
   
   return gs
 

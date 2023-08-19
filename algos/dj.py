@@ -257,7 +257,6 @@ def goodSells(symbList, verbose=False):
             f"sellUp: {su}",
             f"sellDn: {sd}")
 
-    #TODO: should trigger if it doesn't show up in the price list?
     #check if price triggered up
     if(daychng>=su or buychng>=su):
       gs[s['symbol']] = 1
