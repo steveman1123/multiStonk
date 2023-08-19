@@ -73,7 +73,15 @@ def goodSells(symbList, verbose=False):
 
   if(verbose): print("ensuring symbols in requested list are available in the posList")
   #make sure they're the ones in the posList only
-  symbList = [e for e in symbList if e in posList]
+  symbList = []
+  for e in symbList:
+    print(type(e))
+    if e in posList:
+      print(e)
+      symbList += [e]
+  #symbList = [e for e in symbList if e in posList]
+
+
   if(verbose): print("getting buy prices")
   #get the prices each were bought at
   buyPrices = {e:posList[e]['buyPrice'] for e in posList}

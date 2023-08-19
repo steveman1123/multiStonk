@@ -55,7 +55,7 @@ for algo in posList:
     #get whether the stocks are good sells or not
     gs = eval(f"{algo}.goodSells(symbList,verbose=False)")
     
-    
+    print("posList",posList[algo])
     
     #go through the stocks of the algo
     for e in symbList:
@@ -75,6 +75,8 @@ for algo in posList:
         #ensure that the market is open in order to actually place a trade
         #this check is here in the event that the program is suspended while open, then restarted while closed
         # if(n.marketIsOpen()): #TODO: confirm that this is needed first and not a setting that can be changed outside of this script
+        print("gs",gs)
+        #mismatch between symblist (what's going into gs) and poslist (what's being displayed)
         if(gs[e['symbol']]==1): #if the stock is a good sell (sellUp)
           print("good to sell")
 
