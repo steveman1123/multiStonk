@@ -64,44 +64,33 @@ def goodSells(symbList, verbose=False):
   posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
 
-  if(verbose):
-    print("posList:",posList)
-    print()
-    print("symbList:",symbList)
-
-  print(symbList)
-
   if(verbose): print("ensuring symbols in requested list are available in the posList")
   #make sure they're the ones in the posList only
-  symbList = []
-  for e in symbList:
-    print(type(e))
-    if e in posList:
-      print(e)
-      symbList += [e]
-  #symbList = [e for e in symbList if e in posList]
+  symbList = [e for e in symbList if e in posList]
 
 
-  if(verbose): print("getting buy prices")
-  #get the prices each were bought at
-  buyPrices = {e:posList[e]['buyPrice'] for e in posList}
-  if(verbose): print("getting current prices")
-  #get the vol, current and opening prices
-  prices = n.getPrices([e+"|stocks" for e in symbList])
-  if(verbose): print("converting price data")
-  #convert from symb|assetclass to symb
-  prices = {e.split("|")[0]:prices[e] for e in prices}
-  
   gs = {}
   for s in symbList:
+    su = sellUp(s['symbol'])
+    sd = sellDn(s['symbol'])
+    
+    daychng = float(s['change_today'])+1 #current price/last close price
+    buychng = float(s['unrealized_plpc'])+1 #current price/buy price
+    
+  
     if(s in prices):
-      if(verbose): print(f"{s}\topen: {round(prices[s]['price']/prices[s]['open'],2)}\tbuy: {round(prices[s]['price']/buyPrices[s],2)}\tsellUp: {sellUp(s)}\tsellDn: {sellDn(s)}")
+      print(f"{s['symbol']}",
+              f"open: {round(daychng,2)}", #change since open
+              f"buy: {round(buychng,2)}", #change since buy
+              f"sellUp: {su}",
+              f"sellDn: {sd}")
+
       #check if price triggered up
       if(prices[s]['open']>0 and buyPrices[s]>0):
-        if(prices[s]['price']/prices[s]['open']>=sellUp(s) or prices[s]['price']/buyPrices[s]>=sellUp(s)):
+        if(daychng>=su or buychng>=su):
           gs[s] = 1
         #check if price triggered down
-        elif(prices[s]['price']/prices[s]['open']<sellDn(s) or prices[s]['price']/buyPrices[s]<sellDn(s)):
+        elif(daychng<sd or buychng<sd):
           gs[s] = -1
         else: #price didn't trigger either side
           gs[s] = 0
