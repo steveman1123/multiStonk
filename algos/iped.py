@@ -135,15 +135,19 @@ def getUnsortedList(verbose=False,maxTries=3):
         r = requests.get(stockTypes[stockType],headers=n.HEADERS,timeout=5).text #get the data
         #get the date last published/updated (contained within the "mntl..." element, first word is either "updated" or "published", split by spaces, remove first word, and rejoin with spaces)
         d = " ".join(r.split('"mntl-attribution__item-date">')[1].split("<")[0].split(" ")[1:])
+        # print(d)
 
         #convert from "Month dd, yyyy" to yyyy-mm-dd
         d = str(dt.datetime.strptime(d,"%B %d, %Y").date())
         
         #get the stock symbols
-        s = r.split('"emailtickers" content="')[1].split('" />')[0].split(",")
-        
-        if(verbose): print(d, s)
+        #symbols used to be in an email header
+        # s = r.split('"emailtickers" content="')[1].split('" />')[0].split(",")
+        #pull symbols from tables
+        s = r.split("\n")
+        s = set([l.split("tvwidgetsymbol=")[1].split('"')[0] for l in s if l.startswith("<td>") and "tvwidgetsymbol=" in l])
 
+        
         #convert to dict of format {symb:"updated-date, type"}
         symbList = {e:d+", "+stockType for e in s}
 

@@ -9,6 +9,8 @@ import random, time, json, sys, os, traceback
 from glob import glob
 from operator import eq
 import datetime as dt
+
+#TODO: detect OS as this should only be needed in Windows
 from colorama import init as colorinit
 
 colorinit() #allow coloring in Windows terminals

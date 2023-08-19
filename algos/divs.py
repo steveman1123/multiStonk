@@ -69,6 +69,8 @@ def goodSells(symbList, verbose=False):
     print()
     print("symbList:",symbList)
 
+  print(symbList)
+
   if(verbose): print("ensuring symbols in requested list are available in the posList")
   #make sure they're the ones in the posList only
   symbList = [e for e in symbList if e in posList]
