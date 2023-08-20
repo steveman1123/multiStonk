@@ -1,0 +1,7 @@
+#required pkgs
+beautifulsoup4
+colorama
+Levenshtein
+pytz
+requests
+workdays

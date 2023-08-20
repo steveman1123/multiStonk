@@ -3,7 +3,8 @@
 #TODO: https://findwork.dev/blog/advanced-usage-python-requests-timeouts-retries-hooks/
 #TODO: point all url tries/catches as a robreq() fxn like in multiforex
 
-import json,requests,os,time,sys,configparser,threading,re
+import json,os,time,sys,threading,re
+import configparser,requests
 
 try:
   import Levenshtein as lev
