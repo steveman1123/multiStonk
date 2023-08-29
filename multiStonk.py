@@ -45,6 +45,9 @@ colorinit() #allow coloring in Windows terminals
 #TODO: fix algo ROI calculations - they are very wrong
 #TODO: when attempting to sell, try selling some number of times, if it doesn't work (returns err code 403*) every time, then mark it as untradable)
 
+#init the api key file var
+keyfile = None
+
 #parse args and get the config file
 configFile="./configs/multi.config"
 if(len(sys.argv)>1): #if there's an argument present
@@ -54,19 +57,22 @@ if(len(sys.argv)>1): #if there's an argument present
              "Stockbot\n"
             "Uses multiple algorithms to trade stocks based on the functions specified in the config file and present in the algos directory. Intended to run in the terminal 24/7\n\n"
             "Syntax:\n"
-            "[ -h/--help | path/to/file.config ]\n"
+            "[ -h/--help | path/to/file.config | keyfile=path/to/keyfile.txt ]\n"
             "-h\t: displays this help menu\n"
-            "path\t: point to the config file containing all settings required to run the program (defaults to "+configFile+")\n\n"
-            "How to:\n"
-            "- specify config file (leave blank for default)\n"
-            "- ensure all packages are installed\n"
-            "- read the README and config file(s) to determine settings, adjust as desired\n"
-            "- run 24/7\n"
+            "configfile\t: point to the config file containing all settings required to run the program (defaults to "+configFile+")\n"
+            "keyfile\t: point to the file containing the api keys. Defaults to the file specified in the config file.\n"
+            "example: python3 ./multiStonk.py keyfile=../stockStuff/apikeys/keys.txt configfile=configs/multi.config\n"
+            "\n"
             "report any errors to https://github.com/steveman1123\n"
             ))
       exit()
-    elif(os.path.isfile(arg) and arg.lower().endswith(".config")): #check that the arg is a valid file and ends with .config
-      configFile = arg
+
+    #check for a keyfile
+    elif(arg.lower().startswith("keyfile=")):
+      keyfile = arg.split("=")[1]
+    #check that the arg is a valid config file
+    elif(arg.lower().startswith("configfile=")):
+      configFile = arg.split("=")[1]
     #if we want to pass more arguments, we can specify them here (also make sure to include them in the help menu)
     else:
       raise ValueError("Invalid argument. Make sure config file is present or use '-h'/'--help' for help.")
@@ -76,20 +82,25 @@ if(len(sys.argv)>1): #if there's an argument present
 c = n.configparser.ConfigParser()
 c.read(configFile)
 
+
+#if no keyfile is specified in args, use default
+if(keyfile is None):
+  keyfile = c['file locations']['keyFile']
+
 #list of algorithms to be used and their corresponding stock lists to be bought (init with none)
 algoList = c['allAlgos']['algoList'].replace(" ","").split(',') #var comes in as a string, remove spaces, and turn into comma separated list
 algoList = {e:{} for e in algoList}
 
 #tell the user general setting information
 print(f"Config file\t{configFile}")
-print(f"Key file \t{c['file locations']['keyFile']}")
+print(f"Key file \t{keyfile}")
 print(f"posList file\t{c['file locations']['posList']}")
 print(f"buyList file\t{c['file locations']['buyList']}")
 print(f"Error log \t{c['file locations']['errLog']}")
 print("Using the algos: ",", ".join(list(algoList)),end="\n\n")
 
 #init the alpaca functions
-a.init(c['file locations']['keyFile'],int(c['account params']['isPaper']))
+a.init(keyfile,int(c['account params']['isPaper']))
 
 #add the algos dir
 sys.path.append(c['file locations']['stockAlgosDir'])
@@ -120,7 +131,8 @@ if(minCashMargin<1): #minCashMargin MUST BE GREATER THAN 1 in order for it to wo
   raise ValueError("Error: cash margin is less than 1. Multiplier must be >=1")
 minCash2hold = float(c['account params']['minCash2hold'])
 maxCash2hold = float(c['account params']['maxCash2hold'])
-
+#set the max number of times to try selling a stock (sometimes a stock get sstuck in an unsellable state and alpaca returns a 403 error)
+maxAttempts = int(c['account params']['maxAttempts'])
 
 #main function to run continuously
 def main(verbose=False):
@@ -130,13 +142,17 @@ def main(verbose=False):
   ###
   #initiate settings, algorithms, variables and ensure proper configuration
   ###
-  triggeredStocks = set() #should contain elements of format algo|stock
+  #should contain elements of format algo|stock of the stocks that have triggered up
+  triggeredStocks = set() 
   ask2sell = True #if this is true, then the program will ask to sell all if portval drops below some % of maxPortVal
   a.checkValidKeys(int(c['account params']['isPaper'])) #check that the keys being used are valid
   #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
   if(len(a.getPos())==0): print(f"Will start buying {c['time params']['buyTime']} minutes before next close")
   
-  [posList,cashList] = setPosList(algoList) #initiate/populate the list of positions by algo
+  #initiate/populate the list of positions by algo
+  [posList,cashList] = setPosList(algoList)
+
+
   if(verbose):
     print("posList:",posList)
     print("cashList:",cashList)
@@ -422,34 +438,6 @@ def updateList(algo,lock,rm=[],verbose=False):
     algoList[algo] = algoBuys
     lock.release() #then unlock
 
-'''
-#check to sell positions from a given algo (where algo is an aglo name, and pos is the output of a.getPos())
-# this function is depreciated, replaced by check2sells
-def check2sell(algo, pos):
-  global triggeredStocks
-  for e in pos:
-    if(e['symbol'] in posList[algo] and posList[algo][e['symbol']]['sharesHeld']>0):
-      print(f"{algo}\t{int(posList[algo][e['symbol']]['sharesHeld'])}\t{e['symbol']}\t{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t{posList[algo][e['symbol']]['note']}")
-
-      if(posList[algo][e['symbol']]['shouldSell']): #if marked to sell, get rid of it immediately
-        print(f"{e['symbol']} marked for immediate sale.")
-        sell(e['symbol'],algo) #record and everything in the sell function
-        
-      else:
-        goodSell = eval(f"{algo}.goodSell('{e['symbol']}')")
-        if(goodSell):
-          if(algo+"|"+e['symbol'] not in triggeredStocks):
-            triggeredStocks.add(algo+"|"+e['symbol'])
-          if("triggered" not in [t.name for t in n.threading.enumerate()]):
-            triggerThread = n.threading.Thread(target=checkTriggered) #init the thread - note locking is required here
-            triggerThread.name = "triggered" #set the name to the algo and stock symb
-            triggerThread.start() #start the thread
-          
-          if(f"{algo}-{e['symbol']}" not in [t.name for t in n.threading.enumerate()]): #make sure that the thread isn't already running
-            triggerThread = n.threading.Thread(target=triggeredUp, args=(e['symbol'],algo)) #init the thread - note locking is required here
-            triggerThread.name = f"{algo}-{e['symbol']}" #set the name to the algo and stock symb
-            triggerThread.start() #start the thread
-'''
 
 
 #TODO: check2buy should run more continuously/should be it's own thread (rather than a single loop through, it should repeat until cash is spent per algo) <- this might already be addressed?
@@ -474,6 +462,7 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
             "lastTradeType":"NA",
             "buyPrice":0,
             "shouldSell":False,
+            'sellAttempts':0,
             "note":""
           }
       
@@ -640,9 +629,8 @@ def sell(stock, algo, verbose=True):
   
   #see how it looks in here: https://alpaca.markets/docs/trading-on-alpaca/orders/#order-lifecycle
   #TODO: not sure what else to check for in status?
-  if('status' in r and r['status'] in ["accepted",'pending_new','filled','done_for_day','new']): #check that it actually sold
+  if(posList[algo][stock]['sellAttempts']<maxAttempts and 'status' in r and r['status'] in ["accepted",'pending_new','filled','done_for_day','new']): #check that it actually sold
     if(verbose): print(f"status is {r['status']}")
-
     lock = n.threading.Lock()
     lock.acquire()
     cashList[algo]['earned'] += sellPrice*sharesHeld #update the cash earned by the sale
@@ -652,6 +640,7 @@ def sell(stock, algo, verbose=True):
         "lastTradeType":"sell",
         "buyPrice":0,
         "shouldSell":False,
+        'sellAttempts':0,
         "note":""
       }
       
@@ -660,8 +649,17 @@ def sell(stock, algo, verbose=True):
     lock.release()
     print(f"Sold {algo}'s shares of {stock}")
     return True
+
+  #check specifically for if the stock cannot be sold due to a 403 error
+  elif('code' in r and str(r['code']).startswith("403")):
+    posList[algo][stock]['sellAttempts'] += 1
+    print(f"failed to sell {posList[algo][stock]['sharesHeld']} shares of {stock}. (attempt {posList[algo][stock]['sellAttempt']} of {maxAttempts})")
+    return False
+
+  #check for any other reason
   else:
-    print(f"Order to sell {posList[algo][stock]['sharesHeld']} shares of {stock} for {algo} not accepted")
+    posList[algo][stock]['sellAttempts'] += 1
+    print(f"Order to sell {posList[algo][stock]['sharesHeld']} shares of {stock} for {algo} not accepted (attempt {posList[algo][stock]['sellAttempt']} of {maxAttempts})")
     print(r)
     return False
 
@@ -680,6 +678,7 @@ def buy(shares, stock, algo, buyPrice):
         #running avg = (prevAvg*n+newAvg*m)/(n+m)
         "buyPrice":(posList[algo][stock]['buyPrice']*posList[algo][stock]['sharesHeld']+buyPrice*float(r['qty']))/(posList[algo][stock]['sharesHeld']+float(r['qty'])) if stock in posList[algo] else buyPrice,
         "shouldSell":False,
+        "sellAttempts":0,
         "note":algoList[algo][stock] if stock in algoList[algo] else ""
       }
       
@@ -762,6 +761,39 @@ def syncPosList(verbose=False):
   lock = n.threading.Lock() #locking is needed to write to the file and edit the posList var (will have to see how threads and globals work with each other)
   print(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"Syncing posList...")
   
+  if(verbose): print("getting actually held positions")
+  p = a.getPos()
+  heldPos = {e['symbol']:float(e['qty']) for e in p} #actually held positions
+  heldBuyPrices = {e['symbol']:float(e['avg_entry_price']) for e in p} #get the actual buy prices for each stock
+
+  if(verbose): print("Adding any missing fields to current records")
+  for algo in posList:
+    for symb in posList[algo]:
+      lock.acquire()      
+      if('sharesHeld' not in posList[algo][symb]):
+        if(verbose): print(f"{algo} {symb} missing sharesHeld")
+        posList[algo][symb]['sharesHeld'] = 0
+      if('lastTradeDate' not in posList[algo][symb]):
+        if(verbose): print(f"{algo} {symb} missing lastTradeDate")
+        posList[algo][symb]['lastTradeDate'] = "NA"
+      if('lastTradeType' not in posList[algo][symb]):
+        if(verbose): print(f"{algo} {symb} missing lastTradeType")
+        posList[algo][symb]['lastTradeType'] = "NA"
+      if('buyPrice' not in posList[algo][symb]):
+        if(verbose): print(f"{algo} {symb} missing buyPrice")
+        posList[algo][symb]['buyPrice'] = heldBuyPrices[symb] if symb in heldBuyPrices else 0
+      if('shouldSell' not in posList[algo][symb]):
+        if(verbose): print(f"{algo} {symb} missing shouldSell")
+        posList[algo][symb]['shouldSell'] = False
+      if('sellAttempts' not in posList[algo][symb]):
+        if(verbose): print(f"{algo} {symb} missing sellAttempts")
+        posList[algo][symb]['sellAttempts'] = 0
+      if('note' not in posList[algo][symb]):
+        if(verbose): print(f"{algo} {symb} missing note")
+        posList[algo][symb]['note'] = algoList[algo][symb] if(algo in algoList and symb in algoList[algo]) else ""
+      lock.release()
+
+
   #check if an algo in the posList is removed from the algoList
   for inactiveAlgo in [algo for algo in posList if algo not in algoList]:
     if(verbose): print(f"Looking at inactive algo {inactiveAlgo}")
@@ -797,6 +829,7 @@ def syncPosList(verbose=False):
                                   'lastTradeType':posList[inactiveAlgo][symb]['lastTradeType'],
                                   'buyPrice':posList[inactiveAlgo][symb]['buyPrice'],
                                   'shouldSell':posList[inactiveAlgo][symb]['shouldSell'],
+                                  'sellAttempts':posList[inactiveAlgo][symb]['sellAttempts'],
                                   'note':posList[inactiveAlgo][symb]['note']
                                 }
         
@@ -805,35 +838,7 @@ def syncPosList(verbose=False):
         
     del posList[inactiveAlgo] #remove the inactive algo from the 
   
-  if(verbose): print("getting actually held positions")
-  p = a.getPos()
-  heldPos = {e['symbol']:float(e['qty']) for e in p} #actually held positions
-  heldBuyPrices = {e['symbol']:float(e['avg_entry_price']) for e in p} #get the actual buy prices for each stock
-
-
-  if(verbose): print("Adding any missing fields to current records")
-  for algo in posList:
-    for symb in posList[algo]:
-      lock.acquire()      
-      if('sharesHeld' not in posList[algo][symb]):
-        if(verbose): print(f"{algo} {symb} missing sharesHeld")
-        posList[algo][symb]['sharesHeld'] = 0
-      if('lastTradeDate' not in posList[algo][symb]):
-        if(verbose): print(f"{algo} {symb} missing lastTradeDate")
-        posList[algo][symb]['lastTradeDate'] = "NA"
-      if('lastTradeType' not in posList[algo][symb]):
-        if(verbose): print(f"{algo} {symb} missing lastTradeType")
-        posList[algo][symb]['lastTradeType'] = "NA"
-      if('buyPrice' not in posList[algo][symb]):
-        if(verbose): print(f"{algo} {symb} missing buyPrice")
-        posList[algo][symb]['buyPrice'] = heldBuyPrices[symb] if symb in heldBuyPrices else 0
-      if('shouldSell' not in posList[algo][symb]):
-        if(verbose): print(f"{algo} {symb} missing shouldSell")
-        posList[algo][symb]['shouldSell'] = False
-      if('note' not in posList[algo][symb]):
-        if(verbose): print(f"{algo} {symb} missing note")
-        posList[algo][symb]['note'] = algoList[algo][symb] if(algo in algoList and symb in algoList[algo]) else ""
-      lock.release()
+  
   
   #total stocks in posList
   if(verbose): print("getting recorded positions...")
@@ -940,8 +945,9 @@ def syncPosList(verbose=False):
         posList[maxAlgo[0]][symb] = {'lastTradeDate':'NA',
                                      'lastTradeType':'NA',
                                      'sharesHeld':heldPos[symb],
-                                     'shouldSell':False,
                                      'buyPrice':heldBuyPrices[symb],
+                                     'shouldSell':False,
+                                     'sellAttempts':0,
                                      'note':algoList[maxAlgo[0]][symb]
                                     }
         lock.release()
@@ -960,6 +966,7 @@ def syncPosList(verbose=False):
                                      'sharesHeld':heldPos[symb],
                                      'buyPrice':heldBuyPrices[symb],
                                      'shouldSell':False,
+                                     'sellAttempts':0,
                                      'note':algoList[minAlgo[0]][symb] if symb in algoList[minAlgo[0]] else ""
                                     }
         lock.release()
@@ -992,15 +999,24 @@ def syncPosList(verbose=False):
       lock.release()
   
   for algo in posList:
-    if(verbose): print(f"Calculating invested amount in {algo}... ",end="")
-    cashList[algo]['invested'] = sum([posList[algo][s]['sharesHeld']*posList[algo][s]['buyPrice'] for s in posList[algo]])
-    if(verbose): print(round(cashList[algo]['invested'],2))
+    if(verbose): print(f"Calculating invested amount in {algo}... ")
+    algoamt = 0
+    for s in posList[algo]:
+      #calcuate amount per stock
+      stockamt = posList[algo][s]['sharesHeld']*posList[algo][s]['buyPrice']
+      if(verbose): print("  ",s,round(stockamt,2))
+      #add to the algo total
+      algoamt += stockamt
+    #store the algo total in the amount invested
+    cashList[algo]['invested'] = algoamt
+
+    if(verbose): print(algo,round(cashList[algo]['invested'],2),"\n")
   
   if(verbose): print("Marking to be sold")
   revSplits = n.reverseSplitters()
   for algo in posList:
     for symb in posList[algo]:
-      if(symb in revSplits):
+      if(posList[algo][symb]['sellAttempts']<maxAttempts and symb in revSplits):
         if(verbose): print(f"{algo} - {symb} marked for sale")
         lock.acquire()
         posList[algo][symb]['shouldSell'] = True
@@ -1034,6 +1050,8 @@ if __name__ == '__main__':
     now = dt.datetime.now()
     #get the traceback message
     tbmsg = traceback.format_exc()
+    #display it
+    print(tbmsg)
     #append to error file
     with open(c['file locations']['errLog'],'a+') as f:
       f.write("\n"+str(now)+tbmsg+"\n")

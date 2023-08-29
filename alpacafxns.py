@@ -1,5 +1,5 @@
 import ndaqfxns as n
-import json,time
+import json,time,sys
 import datetime as dt
 
 #required parameters are where the keyfile is stored, and whether it's paper trading or not
@@ -409,16 +409,16 @@ def checkValidKeys(isPaper):
   try:
     test = test["status"]
     if(test=="ACTIVE"):
-      print(f"Valid keys - active account - {'paper' if isPaper else 'live'} trading")
+      print(f"Valid keys - active account - {'paper' if isPaper else 'live'} trading\n")
     else:
-      print("Valid keys - inactive account")
+      print("Valid keys - inactive account\n")
   except Exception:
     try:
       test = test['message']
-      print("Invalid keys")
+      print("Invalid keys\n")
     except Exception:
-      raise ValueError(f"Unknown issue encountered: {test}")
-    n.sys.exit()
+      raise ValueError(f"Unknown issue encountered: {test}\n")
+    sys.exit()
 
 #get the trades made on a specified date or date range where the dates are formatted as "yyyy-mm-dd"
 def getTrades(startDate,endDate=False, verbose=False, maxTries=3):
