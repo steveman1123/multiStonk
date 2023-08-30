@@ -44,7 +44,7 @@ colorinit() #allow coloring in Windows terminals
 
 #TODO: fix algo ROI calculations - they are very wrong
 #TODO: when attempting to sell, try selling some number of times, if it doesn't work (returns err code 403*) every time, then mark it as untradable)
-#TODO: if the change from buy or change from sell is > than some limit, then sell immediately (usually means reverse split)
+#TODO: if the change from buy or change from sell is > than some limit (like 4.0), then sell immediately (usually means reverse split)
 
 
 #init the api key file var
@@ -515,7 +515,8 @@ def triggeredUp(symb, algo):
 
 #run as long as the len of triggeredStocks>0 (where triggeredStocks is a set of format {"algo|symb"})
 #TODO: this function really needs to be cleaned up (comments, better variables, more logical running)
-def checkTriggered(verbose=True):
+#TODO: also add other checks for if a stock shouldn't be traded (like if price change is too high or sell attempts are too high)
+def checkTriggered(verbose=False):
   #triggeredStocks = format of {"algo|symb"}
   global triggeredStocks
   lock = n.threading.Lock()
@@ -526,20 +527,29 @@ def checkTriggered(verbose=True):
 
     #get prices for all stocks to sell
     prices = n.getPrices([e.split("|")[1]+"|stocks" for e in list(triggeredStocks)])
-    #get the max prices of the stocks since watching
-    maxPrices = {e:max(maxPrices[e],prices[e]['price']) if(e in maxPrices) else prices[e]['price'] for e in prices}
+
     #check for stocks in triggeredStocks that aren't in prices (some error occured that we hold it but it can't be traded)
     lock.acquire()
-    for e in [e for e in list(triggeredStocks) if (e.split("|")[1]+"|stocks").upper() not in prices]:
-      if(verbose): print(f"{e} stored locally and in alpaca, but not in nasdaq. Removing from sellable stocks")
-      triggeredStocks.discard(e)
+    for trigstock in list(triggeredStocks):
+      if((trigstock.split("|")[1]+"|stocks").upper() not in prices):
+        if(verbose): print(f"{trigstock} stored locally and in alpaca, but not in nasdaq. Removing from sellable stocks")
+        triggeredStocks.discard(trigstock)
+
+      sellAttempts = posList[trigstock.split("|")[0]][trigstock.split("|")[1]]['sellAttempts']
+      if(sellAttempts>maxAttempts):
+        if(verbose): print(f"{trigstock} attempted to sell too many times ({sellAttempts}/{maxAttempts}). Removing from sellable stocks")
+        triggeredStocks.discard(trigstock)
+
     lock.release()
       
     print()
     
 
+    #get the max prices of the stocks since watching
+    maxPrices = {e:max(maxPrices[e],prices[e]['price']) if(e in maxPrices) else prices[e]['price'] for e in prices}
+
     for e in list(triggeredStocks):
-      #get the sellUpDn % - TODO: this should probably be moved out of this for loop and generate a dict {algo:sellUpDn} since it doesn't depend on the individual stock (this would reduce function calls)
+      #get the sellUpDn %
       sellUpDn = eval(f"{e.split('|')[0]}.sellUpDn()")
       #get the current prices of the stocks
       curPrice = prices[(e.split("|")[1]+'|stocks').upper()]['price']
@@ -583,8 +593,10 @@ def check2sells(pos,verbose=False):
     
     #go through the stocks of the algo
     for e in symbList:
-      #only display/sell if not bought today
-      if(posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or posList[algo][e['symbol']]['lastTradeType']!='buy'):
+      #only display/sell if not bought today and it hasn't tried to sell more than the max times already
+      if((posList[algo][e['symbol']]['lastTradeDate']<str(dt.date.today()) or 
+      posList[algo][e['symbol']]['lastTradeType']!='buy') and
+      posList[algo][e['symbol']]['sellAttempts']<maxAttempts):
         
         print(f"{algo}\t",
               f"{int(posList[algo][e['symbol']]['sharesHeld'])}\t",
@@ -599,42 +611,43 @@ def check2sells(pos,verbose=False):
         #ensure that the market is open in order to actually place a trade
         #this check is here in the event that the program is suspended while open, then restarted while closed
         # if(n.marketIsOpen()): #TODO: confirm that this is needed first and not a setting that can be changed outside of this script
-        if(gs[e['symbol']]==1): #if the stock is a good sell (sellUp)
+        if(gs[e['symbol']]==-1): #if it sells down (stop-loss)
+          #sell immediately
+          sell(e['symbol'],algo)
+        elif(gs[e['symbol']]==1): #else if the stock is a good sell (sellUp)
           if(algo+"|"+e['symbol'] not in triggeredStocks): #make sure that it's not already present
             triggeredStocks.add(algo+"|"+e['symbol']) #if not, then add it to the triggered list
           if("triggered" not in [t.name for t in n.threading.enumerate()]): #make sure that the triggered list isn't already running
             triggerThread = n.threading.Thread(target=checkTriggered) #init the thread - note locking is required here
             triggerThread.name = "triggered" #set the name to the algo and stock symb
             triggerThread.start() #start the thread
-        elif(gs[e['symbol']]==-1): #else if it sells down (stop-loss)
-          #sell immediately
-          sell(e['symbol'],algo)
   
   
 #basically just a market order for the stock and then record it into an order info file
-def sell(stock, algo, verbose=True):
+#return True if it sells, False if it doesn't
+def sell(stock, algo, verbose=False):
   global posList, cashList,triggeredStocks
 
   #determine the current price and the number of shares to sell (they should already be floats, but recasting just in case)
   sellPrice = float(n.getInfo(stock)['price'])
   sharesHeld = float(posList[algo][stock]["sharesHeld"])
+  sellAttempts = int(posList[algo][stock]['sellAttempts'])
 
   #ensure there are sellable shares
-  if(sharesHeld>0):
+  if(sharesHeld>0 and sellAttempts<maxAttempts):
     if(verbose): print(f"Attempting to sell {sharesHeld} shares of {stock} at ${round(sellPrice,2)}/share")
     #sell them
     r = a.createOrder(side="sell",qty=sharesHeld,symb=stock,verbose=False)
   else:
-    print(f"No shares held of {stock}")
+    print(f"No shares held of {stock} or too many sell attempts made ({sellAttempts}/{maxAttempts})")
     triggeredStocks.discard(algo+"|"+stock)
     return False
   
   #see how it looks in here: https://alpaca.markets/docs/trading-on-alpaca/orders/#order-lifecycle
   #TODO: not sure what else to check for in status?
-  if(posList[algo][stock]['sellAttempts']<maxAttempts and 'status' in r and r['status'] in ["accepted",'pending_new','filled','done_for_day','new']): #check that it actually sold
+  #check that it actually sold
+  if(sellAttempts<maxAttempts and 'status' in r and r['status'] in ["accepted",'pending_new','filled','done_for_day','new']):
     if(verbose): print(f"status is {r['status']}")
-    lock = n.threading.Lock()
-    lock.acquire()
     cashList[algo]['earned'] += sellPrice*sharesHeld #update the cash earned by the sale
     posList[algo][stock] = { #update the entry in posList
         "sharesHeld":0,
@@ -645,27 +658,47 @@ def sell(stock, algo, verbose=True):
         'sellAttempts':0,
         "note":""
       }
-      
-    open(c['file locations']['posList'],'w').write(json.dumps({'algos':posList,'cash':cashList},indent=2)) #update the posList file
     triggeredStocks.discard(algo+"|"+stock)
-    lock.release()
+
     print(f"Sold {algo}'s shares of {stock}")
-    return True
+    isSold = True
 
   #check specifically for if the stock cannot be sold due to a 403 error
   elif('code' in r and str(r['code']).startswith("403")):
-    posList[algo][stock]['sellAttempts'] += 1
-    print(f"failed to sell {posList[algo][stock]['sharesHeld']} shares of {stock}. (attempt {posList[algo][stock]['sellAttempts']} of {maxAttempts})")
-    return False
+    if(sellAttempts<maxAttempts):
+      posList[algo][stock]['sellAttempts'] += 1
+      print(f"failed to sell {sharesHeld} shares of {stock}. (attempt {sellAttempts+1} of {maxAttempts})")
+      isSold = False
+    else:
+      print(f"max attempts exceeded trying to sell {stock} - {sellAttempts+1}/{maxAttempts}. Removing from sellable stocks")
+      posList[algo][stock]['shouldSell'] = False
+      posList[algo][stock]['lastTradeType'] = 'sell'
+      posList[algo][stock]['lastTradeDate'] = str(dt.date.today())
+      triggeredStocks.discard(algo+"|"+stock)
+      isSold = False
 
   #check for any other reason
   else:
     posList[algo][stock]['sellAttempts'] += 1
-    print(f"Order to sell {posList[algo][stock]['sharesHeld']} shares of {stock} for {algo} not accepted (attempt {posList[algo][stock]['sellAttempts']} of {maxAttempts})")
+    print(f"Order to sell {sharesHeld} shares of {stock} for {algo} not accepted (attempt {sellAttempts+1} of {maxAttempts})")
     print(r)
-    return False
+    isSold = False
+
+
+  #update the poslist file
+  lock = n.threading.Lock()
+  lock.acquire()
+  with open(c['file locations']['posList'],'w') as f:
+    f.write(json.dumps({'algos':posList,'cash':cashList},indent=2))
+    f.close()
+  lock.release()
+
+  return isSold
+
+
 
 #basically just a market buy of this many shares of this stock for this algo
+#return True if it buys successfully, false if not
 def buy(shares, stock, algo, buyPrice):
   r = a.createOrder(side="buy",qty=shares,symb=stock) #this needs to happen first so that it can be as accurate as possible
   global posList, cashList

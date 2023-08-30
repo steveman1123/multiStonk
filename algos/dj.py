@@ -252,21 +252,22 @@ def goodSells(symbList, verbose=False):
     
     if(verbose):
       print(f"{s['symbol']}",
-            f"open: {round(daychng,2)}", #change since open
-            f"buy: {round(buychng,2)}", #change since buy
+            f"daychng: {round(daychng,2)}", #change since open
+            f"buychng: {round(buychng,2)}", #change since buy
             f"sellUp: {su}",
             f"sellDn: {sd}")
 
-    #check if price triggered up
-    if(daychng>=su or buychng>=su):
-      gs[s['symbol']] = 1
     #check if price triggered down
-    elif(daychng<sd or buychng<sd):
+    if(daychng<sd or buychng<sd):
       gs[s['symbol']] = -1
+    #check if price triggered up
+    elif(daychng>=su or buychng>=su):
+      gs[s['symbol']] = 1
     else: #price didn't trigger either side
       gs[s['symbol']] = 0
 
-  
+    if(verbose): print("gs?",gs[s['symbol']])
+    
   #display stocks that have an error
   for e in [e for e in symbList if e['symbol'] not in gs]:
     print(f"{e['symbol']} not tradable in {algo}")
@@ -387,8 +388,8 @@ def sellUp(symb=""):
       lastJump = dt.date.today()-dt.timedelta(1)
 
     #after some weeks since the initial jump, the sell values should reach 1 after some more weeks
-    #piecewise function: if less than time to start squeezing, remain constant, else start squeezing linearily per day
-    sellUp = round(mainSellUp if(dt.date.today()<lastJump+dt.timedelta(startSqueeze*7)) else mainSellUp-(mainSellUp-1)*(dt.date.today()-(lastJump+dt.timedelta(startSqueeze*7))).days/(squeezeTime*7),2)
+    #piecewise function: if less than time to start squeezing, remain constant, else start squeezing linearily per day until it reaches 1
+    sellUp = round(mainSellUp if(dt.date.today()<lastJump+dt.timedelta(startSqueeze*7)) else max(mainSellUp-(mainSellUp-1)*(dt.date.today()-(lastJump+dt.timedelta(startSqueeze*7))).days/(squeezeTime*7),1),2)
   else:
     sellUp = mainSellUp
   return sellUp
@@ -411,8 +412,9 @@ def sellDn(symb=""):
       lastJump = dt.date.today()-dt.timedelta(1)
 
     #after some weeks since the initial jump, the sell values should reach 1 after some more weeks
-    #piecewise function: if less than time to start squeezing, remain constant, else start squeezing linearily per day
-    sellDn = round(mainSellDn if(dt.date.today()<lastJump+dt.timedelta(startSqueeze*7)) else mainSellDn-(mainSellDn-1)*(dt.date.today()-(lastJump+dt.timedelta(startSqueeze*7))).days/(squeezeTime*7),2)
+    #piecewise function: if less than time to start squeezing, remain constant, else start squeezing linearily per day until it reaches 1
+    
+    sellDn = round(mainSellDn if(dt.date.today()<lastJump+dt.timedelta(startSqueeze*7)) else min(mainSellDn-(mainSellDn-1)*(dt.date.today()-(lastJump+dt.timedelta(startSqueeze*7))).days/(squeezeTime*7),1),2)
 
   else:
     sellDn = mainSellDn
