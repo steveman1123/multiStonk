@@ -44,6 +44,8 @@ colorinit() #allow coloring in Windows terminals
 
 #TODO: fix algo ROI calculations - they are very wrong
 #TODO: when attempting to sell, try selling some number of times, if it doesn't work (returns err code 403*) every time, then mark it as untradable)
+#TODO: if the change from buy or change from sell is > than some limit, then sell immediately (usually means reverse split)
+
 
 #init the api key file var
 keyfile = None
@@ -653,13 +655,13 @@ def sell(stock, algo, verbose=True):
   #check specifically for if the stock cannot be sold due to a 403 error
   elif('code' in r and str(r['code']).startswith("403")):
     posList[algo][stock]['sellAttempts'] += 1
-    print(f"failed to sell {posList[algo][stock]['sharesHeld']} shares of {stock}. (attempt {posList[algo][stock]['sellAttempt']} of {maxAttempts})")
+    print(f"failed to sell {posList[algo][stock]['sharesHeld']} shares of {stock}. (attempt {posList[algo][stock]['sellAttempts']} of {maxAttempts})")
     return False
 
   #check for any other reason
   else:
     posList[algo][stock]['sellAttempts'] += 1
-    print(f"Order to sell {posList[algo][stock]['sharesHeld']} shares of {stock} for {algo} not accepted (attempt {posList[algo][stock]['sellAttempt']} of {maxAttempts})")
+    print(f"Order to sell {posList[algo][stock]['sharesHeld']} shares of {stock} for {algo} not accepted (attempt {posList[algo][stock]['sellAttempts']} of {maxAttempts})")
     print(r)
     return False
 
