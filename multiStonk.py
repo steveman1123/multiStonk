@@ -358,12 +358,15 @@ def main(verbose=False):
 def getTradableCash(totalCash, maxPortVal,verbose=False):
   if(totalCash<minCash2hold): #0-999
     if(verbose): print(1)
+    if(verbose): print(totalCash)
     return totalCash
   elif(minCash2hold<=totalCash<=minCash2hold*minCashMargin): #1000-1100
     if(verbose): print(2)
+    if(verbose): print(0)
     return 0
   elif(minCash2hold*minCashMargin<totalCash<maxPortVal*maxCash2hold): #1101-.25*max
     if(verbose): print(3)
+    if(verbose): print(totalCash-minCash2hold*minCashMargin)
     return totalCash-minCash2hold*minCashMargin
   else: #.25*max-inf
     if(verbose): print(4)
