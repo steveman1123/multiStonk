@@ -308,8 +308,14 @@ def main(verbose=False):
       #get the current portfolio value
       curPortVal = portHistM[max(list(portHistM.keys()))]['eq']
 
-      mroi = portHistM[max(list(portHistM))]['eq']/portHistM[min(list(portHistM))]['eq']
-      yroi = portHistY[max(list(portHistY))]['eq']/portHistY[min(list(portHistY))]['eq']
+      if(portHistM[min(list(portHistM))]['eq'] != 0):
+        mroi = portHistM[max(list(portHistM))]['eq']/portHistM[min(list(portHistM))]['eq']
+      else:
+        mroi = 1
+      if(portHistY[min(list(portHistY))]['eq'] != 0):
+        yroi = portHistY[max(list(portHistY))]['eq']/portHistY[min(list(portHistY))]['eq']
+      else:
+        yroi = 1
 
       print("1 Month ROI:",bcolor.FAIL if mroi<1 else bcolor.OKGREEN,round(mroi,3),bcolor.ENDC)
       print("1 Year ROI:",bcolor.FAIL if yroi<1 else bcolor.OKGREEN,round(yroi,3),bcolor.ENDC)
