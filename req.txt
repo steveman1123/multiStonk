@@ -3,5 +3,6 @@ beautifulsoup4
 colorama
 Levenshtein
 pytz
+tzlocal
 requests
 workdays

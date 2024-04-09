@@ -534,9 +534,18 @@ def checkTriggered(verbose=False):
   while(len(list(triggeredStocks))>0 and not exitFlag):
     if(verbose): print(f"{len(list(triggeredStocks))} stocks triggered for sale")
 
-    #get prices for all stocks to sell
-    prices = n.getPrices([e.split("|")[1]+"|stocks" for e in list(triggeredStocks)])
-
+    #attempt to get prices for all stocks to sell
+    prices = {}
+    while "error" in prices:
+      prices = n.getPrices([e.split("|")[1]+"|stocks" for e in list(triggeredStocks)],verbose=False)
+      print("prices: ",prices)
+      if("error" in prices):
+        #remove all triggered stocks that end with the errored stock
+        #TODO: there's probably a more elegant way of doing this with .discard
+        triggeredStocks = {e for e in triggeredStocks if not e.endswith(prices['error'])}
+        print("error in prices, new triggeredstocks: ",triggeredStocks)
+    
+    
     #check for stocks in triggeredStocks that aren't in prices (some error occured that we hold it but it can't be traded)
     lock.acquire()
     for trigstock in list(triggeredStocks):
@@ -551,7 +560,7 @@ def checkTriggered(verbose=False):
 
     lock.release()
       
-    print()
+    #print("should be a list of valid stocks: ",prices)
     
 
     #get the max prices of the stocks since watching

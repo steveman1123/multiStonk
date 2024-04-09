@@ -13,6 +13,7 @@ except Exception:
 
 import datetime as dt
 import pytz
+import tzlocal
 from bs4 import BeautifulSoup as bs
 from statistics import mean
 from workdays import workday as wd
@@ -34,7 +35,7 @@ BASEURL = "https://api.nasdaq.com/api"
 #new york time zone (where the market is located)
 nytz = pytz.timezone("US/Eastern")
 #local timezone of the device running the script
-localtz = pytz.timezone(time.tzname[1])
+localtz = pytz.timezone(tzlocal.get_localzone_name())
 
 
 
@@ -666,14 +667,22 @@ def getPrices(symbList,maxTries=3,verbose=False):
     symbQuery = symbList[i:min(i+maxSymbs,len(symbList))]
     r = robreq(f"{BASEURL}/quote/watchlist",params={'symbol':symbQuery},maxTries=maxTries,headers=HEADERS,timeout=5,verbose=False).json()
 
-    if(verbose): print(r)
+    if(verbose): print("raw: ",r)
 
     #if the list has data, append it
     if(r['data'] is not None):
       if(verbose): print(len(r['data']))
       d.extend(r['data']) #append the lists
     else: #else if there's no data, don't append the list and let us know
-      print(f"Error getting prices")
+      print(f"Error getting prices: ",r['status'])
+
+    errormsg = r['status']['bCodeMessage'][0]['errorMessage']
+    #check if the last word in the error message is all caps bc that means that the last word is the stock symbol that's bad and causing an error
+    if(len(errormsg)>0):
+      badstk = errormsg.split(" ")[-1]
+      #print("badstk: ",badstk)
+      if(badstk == badstk.upper()):
+        return {"error":badstk}
 
   #isolate the symbols and prices and remove any that are none's
   prices={}
@@ -689,6 +698,7 @@ def getPrices(symbList,maxTries=3,verbose=False):
                                                 e['netChange']!='UNCH' else 0)
                                                 }
 
+  if(verbose): print("output: ",prices)
   return prices
   
 
