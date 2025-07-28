@@ -111,18 +111,6 @@ sys.path.append(c['file locations']['stockAlgosDir'])
 for algo in algoList: exec(f"import {algo}")
 
 
-#change display text color
-class bcolor:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
 
 #init some gobal vars
 listsUpdatedToday = False #tell everyone whether the list has been updated yet today or not
@@ -259,7 +247,7 @@ def main(verbose=False):
       ###
       #execute immediately after close
       ###
-      print(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"market closed\n")
+      print(n.now(),"market closed\n")
       
       '''
       #TODO: these numbers are incorrect for some reason. check math
@@ -295,7 +283,7 @@ def main(verbose=False):
         else:
           roi = 1
         
-        print(f"{algo} - {bcolor.FAIL if roi<1 else bcolor.OKGREEN}{roi}{bcolor.ENDC}") #display the ROI
+        print(f"{algo} - {n.tcol.red if roi<1 else n.tcol.green}{roi}{n.tcol.end}") #display the ROI
       '''
 
       #get the histories to calculate max port val and ROI
@@ -317,8 +305,8 @@ def main(verbose=False):
       else:
         yroi = 1
 
-      print("1 Month ROI:",bcolor.FAIL if mroi<1 else bcolor.OKGREEN,round(mroi,3),bcolor.ENDC)
-      print("1 Year ROI:",bcolor.FAIL if yroi<1 else bcolor.OKGREEN,round(yroi,3),bcolor.ENDC)
+      print("1 Month ROI:",n.tcol.red if mroi<1 else n.tcol.green,round(mroi,3),n.tcol.end)
+      print("1 Year ROI:",n.tcol.red if yroi<1 else n.tcol.green,round(yroi,3),n.tcol.end)
 
       
       #display max val and date
@@ -335,8 +323,7 @@ def main(verbose=False):
       ask2sell = True
       
       tto = a.timeTillOpen()
-      print(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-      print(f"Market opens in {round(tto/3600,2)} hours")
+      print(n.now(),f"Market opens in {round(tto/3600,2)} hours")
       #wait some time before the market opens      
       if(tto>60*float(c['time params']['updateLists'])):
         print(f"Updating stock lists in {round((tto-60*float(c['time params']['updateLists']))/3600,2)} hours\n")
@@ -347,7 +334,7 @@ def main(verbose=False):
       #execute some time before the market opens
       ###
       #update stock lists
-      print(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"Updating buyList") #TODO: move this into the thread or within the thread have a "done updating buylist"
+      print(n.now(),"Updating buyList") #TODO: move this into the thread or within the thread have a "done updating buylist"
       updateListsThread = n.threading.Thread(target=updateLists) #init the thread - note locking is required here
       updateListsThread.name = 'updateLists' #set the name to the stock symb
       updateListsThread.start() #start the thread
@@ -383,7 +370,7 @@ def getTradableCash(totalCash, maxPortVal,verbose=False):
 #update all lists to be bought (this should be run as it's own thread)
 def updateLists(verbose=False):
   global algoList, listsUpdatedToday
-  print(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+  print(n.now(),"updating lists")
 
   #check that the buyfile is present and if it was updated today: if it was, then read directly from it, else generate lists
   errored = False
@@ -619,8 +606,8 @@ def check2sells(pos,verbose=False):
         print(f"{algo}\t",
               f"{int(posList[algo][e['symbol']]['sharesHeld'])}\t",
               f"{e['symbol']}\t",
-              f"{bcolor.FAIL if round(float(e['unrealized_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_plpc'])+1,2)}{bcolor.ENDC}\t\t",
-              f"{bcolor.FAIL if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else bcolor.OKGREEN}{round(float(e['unrealized_intraday_plpc'])+1,2)}{bcolor.ENDC}\t\t",
+              f"{n.tcol.red if round(float(e['unrealized_plpc'])+1,2)<1 else n.tcol.green}{round(float(e['unrealized_plpc'])+1,2)}{n.tcol.end}\t\t",
+              f"{n.tcol.red if round(float(e['unrealized_intraday_plpc'])+1,2)<1 else n.tcol.green}{round(float(e['unrealized_intraday_plpc'])+1,2)}{n.tcol.end}\t\t",
               str(round(eval(f'{algo}.sellDn("{e["symbol"]}")'),2))+" & "+
               str(round(eval(f'{algo}.sellUp("{e["symbol"]}")'),2))+"\t",
               f"{posList[algo][e['symbol']]['note']}",sep="")
@@ -812,7 +799,7 @@ def setPosList(algoList, verbose=True):
 def syncPosList(verbose=False):
   global posList, cashList
   lock = n.threading.Lock() #locking is needed to write to the file and edit the posList var (will have to see how threads and globals work with each other)
-  print(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"Syncing posList...")
+  print(n.now(),"Syncing posList...")
   
   if(verbose): print("getting actually held positions")
   p = a.getPos()
@@ -1081,7 +1068,7 @@ def syncPosList(verbose=False):
     if(verbose): print("Writing to posList file")
     f.write(json.dumps({'algos':posList,'cash':cashList},indent=2))
   lock.release()
-  print(dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),"Done syncing posList")
+  print(n.now(),"Done syncing posList")
 
 
 

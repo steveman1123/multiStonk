@@ -2,20 +2,34 @@
 #for analyzing win & loss rates
 
 import alpacafxns as a
-import json, csv
+import json, csv, sys
 import datetime as dt
 
 
 #set up the info
-startDate = "2023-04-20" #start of range to check
+startDate = "2023-01-01" #start of range to check
 endDate = str(dt.date.today()) #end of range to check
-apikeyfile = "../stockStuff/apikeys/steve.txt" #keyfile for alpaca api
+isPaper = True
+
+if(len(sys.argv)>1):
+  for arg in sys.argv[1:]:
+    if(arg.lower() in ['-h','--help']):
+      print("supply the keyfile with the argument \"keyfile=./path/to/keyfile\"")
+      exit()
+    elif(arg.lower().startswith("keyfile=")):
+      #keyfile for alpaca api
+      apikeyfile = arg.split("=")[1]
+  
+else:
+  raise ValueError("Invalid argument. Make sure keyfile file is present or use '-h'/'--help' for help.")
 
 
-a.init(apikeyfile,1)
+
+a.init(keyFile=apikeyfile,isPaper=isPaper)
 
 print("\ngetting trade data")
 print("key file:",apikeyfile)
+print("is paper:",isPaper)
 print(f"checking trading from {startDate} to {endDate}")
 
 
@@ -36,7 +50,7 @@ for t in trades:
     xtnDate = str(dt.datetime.strptime(t['transaction_time'],"%Y-%m-%dT%H:%M:%SZ").date())
   
   #get the numeric values of qty and price
-  qty = int(t['qty'])
+  qty = float(t['qty'])
   price = float(t['price'])
   
   #if it's a buy, then set the params

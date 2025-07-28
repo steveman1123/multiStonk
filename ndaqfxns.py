@@ -4,6 +4,7 @@
 #TODO: point all url tries/catches as a robreq() fxn like in multiforex
 
 import json,os,time,sys,threading,re
+from tcolors import tcol
 import configparser,requests
 
 try:
@@ -36,6 +37,12 @@ BASEURL = "https://api.nasdaq.com/api"
 nytz = pytz.timezone("US/Eastern")
 #local timezone of the device running the script
 localtz = pytz.timezone(tzlocal.get_localzone_name())
+
+
+
+#return a formatted "now" datetime with a specific color
+def now(format="%Y-%m-%d %H:%M:%S",color=tcol.cyan):
+  return color+dt.datetime.strftime(dt.datetime.now(),format)+tcol.end
 
 
 
@@ -651,8 +658,7 @@ def nextTradeDate(verbose=False):
 #symblist = list format of symb|assetclass
 #maxTries = number of tries to attempt to connect to api
 #verbose = verbosity
-#output dict {"symb|assetclass":{price,vol,open}}
-#TODO: this function returns errors fairly often (especially in the api endpoint and periodically that the data returned doesn't have anything in it)
+#output dict {"goodassets":{"symb|assetclass":{price,vol,open}}, "badassets":[symb,...]}
 def getPrices(symbList,maxTries=3,verbose=False):
   #ensure there are no spaces in the query
   #TODO: should check for other illegal characters using regex
@@ -661,13 +667,15 @@ def getPrices(symbList,maxTries=3,verbose=False):
   maxSymbs = 20 #cannot do more than 20 at a time, so loop through requests
   d = [] #init data var
   r = {} #init request var
+  badassets = [] #init the bad assets var
   #loop through the symbols by breaking them into managable chunks for the api
+  
   for i in range(0,len(symbList),maxSymbs):
     if(verbose): print(f"get prices ({i}-{min(i+maxSymbs,len(symbList))}/{len(symbList)})")
     symbQuery = symbList[i:min(i+maxSymbs,len(symbList))]
     r = robreq(f"{BASEURL}/quote/watchlist",params={'symbol':symbQuery},maxTries=maxTries,headers=HEADERS,timeout=5,verbose=False).json()
 
-    if(verbose): print("raw: ",r)
+    if(verbose): print("raw: ",json.dumps(r,indent=2))
 
     #if the list has data, append it
     if(r['data'] is not None):
@@ -675,29 +683,33 @@ def getPrices(symbList,maxTries=3,verbose=False):
       d.extend(r['data']) #append the lists
     else: #else if there's no data, don't append the list and let us know
       print(f"Error getting prices: ",r['status'])
+    
+    #print(json.dumps(r['status'],indent=2))
+    if(r['status']['bCodeMessage'] is not None):
+      #loop through all error status reported, and append them to the badasset list if they're the right error code
+      for err in r['status']['bCodeMessage']:
+        #err code 1011 is unlisted asset
+        if(err['code'] == 1011):
+          badassets += [err['errorMessage'].split(" ")[-1]]
 
-    errormsg = r['status']['bCodeMessage'][0]['errorMessage']
-    #check if the last word in the error message is all caps bc that means that the last word is the stock symbol that's bad and causing an error
-    if(len(errormsg)>0):
-      badstk = errormsg.split(" ")[-1]
-      #print("badstk: ",badstk)
-      if(badstk == badstk.upper()):
-        return {"error":badstk}
-
-  #isolate the symbols and prices and remove any that are none's
-  prices={}
+  #init output var, empty goods, bad with the bad assets
+  prices={"goodassets":{},"badassets":badassets}
+  
+  #isolate the symbols and prices and add any incomplete to the bad assets
   for e in d: #for every symb in the data
     #ensure that all data is present and valid
     if(e['volume'] is not None and len(e['volume'])>0 and e['lastSalePrice'] is not None and len(e['lastSalePrice'])>0 and e['netChange'] is not None and len(e['netChange'])>0):
       # if(verbose): print(e)
       #TODO: maybe store lastSalePrice and vol as variables?
-      prices[f"{e['symbol']}|{e['assetClass']}"] = {
+      prices['goodassets'][f"{e['symbol']}|{e['assetClass']}"] = {
                                                 'price':float(e['lastSalePrice'].replace("$","").replace(",","")),
                                                 'vol':int(e['volume'].replace(",","")),
                                                 'open':float(e['lastSalePrice'].replace("$","").replace(",",""))-(float(e['netChange']) if 
                                                 e['netChange']!='UNCH' else 0)
                                                 }
-
+    else:
+      prices['badassets'] += [e['symbol']]
+  
   if(verbose): print("output: ",prices)
   return prices
   

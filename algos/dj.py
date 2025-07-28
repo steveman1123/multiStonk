@@ -149,9 +149,28 @@ def goodBuys(symbList, days2look=-1, verbose=False):
   start = str(dt.date.today()-dt.timedelta(days=(volAvgDays+days2look)))
   end = str(dt.date.today())
   
+  if(verbose):
+    print("days to wait for fall:",days2wait4fall)
+    print("first jump amt:",firstJumpAmt)
+    print("sellUp:",sellUp)
+    print("sellDn:",sellDn)
+    print("vol avg days:",volAvgDays)
+    print("check price days:",checkPriceDays)
+    print("check price amt:",checkPriceAmt)
+    print("vol gain:", volGain)
+    print("volLoss:",volLoss)
+    print("price drop:",priceDrop)
+    print("start date:",start)
+    print("end date:",end)
+    
+  
   #get the vol, current and opening prices of all valid stocks (invalid ones will not be returned by getPrices) - using as a filter to get rid of not tradable stocks
-  prices = n.getPrices([e+"|stocks" for e in symbList],maxTries=-1)
+  prices = n.getPrices([e+"|stocks" for e in symbList],maxTries=-1)['goodassets']
   symbList = [e.split("|")[0] for e in prices] #only look at the valid stocks
+  
+  if(verbose):
+    print("\nsymb list:")
+    print(symbList)
   
   out = {} #data to be returned
   
