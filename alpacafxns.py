@@ -77,9 +77,8 @@ def closeAll(isManual=1):
   orders = getOrders()
   if(len(pos)+len(orders)>0):
     if(isManual):
-      doit = input('Sell and cancel all positions and orders (y/n)? ')
-    else:
-      doit="y"
+      doit = input('Sell and cancel all positions and orders (y/N)? ')
+      if(len(doit)): doit=doit.lower()
 
     if(doit=="y"): #user consents
       print("Removing Orders...")
