@@ -265,9 +265,14 @@ def goodSells(symbList, verbose=False):
   for s in symbList:
     su = sellUp(s['symbol'])
     sd = sellDn(s['symbol'])
-    
-    daychng = float(s['change_today'])+1 #current price/last close price
-    buychng = float(s['unrealized_plpc'])+1 #current price/buy price
+    if(s['change_today']):
+      daychng = float(s['change_today'])+1 #current price/last close price
+    else:
+      daychng = 1
+    if(s['unrealized_plpc']):
+      buychng = float(s['unrealized_plpc'])+1 #current price/buy price
+    else:
+      buychng = 1
     
     if(verbose):
       print(f"{s['symbol']}",
