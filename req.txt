@@ -1,8 +1,10 @@
 #required pkgs
 beautifulsoup4
 colorama
-#Levenshtein
 pytz
 tzlocal
 requests
 workdays
+
+#only needed if using getSymb() in ndaqfxns
+Levenshtein

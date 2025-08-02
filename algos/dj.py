@@ -4,6 +4,7 @@
 import ndaqfxns as n
 import os,json,threading,time,configparser
 import datetime as dt
+from otherfxns import *
 
 algo = os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
@@ -362,6 +363,8 @@ def getUnsortedList(verbose=False, maxTries=3):
     
   if(verbose): print("Removing Duplicates...")
   symbList = list(dict.fromkeys(symbList)) #combine and remove duplicates
+  #remove any symbs that contain numbers, those are a bit too sketchy for me
+  symbList = [e for e in symbList if not hasnum(e)]
 
   return symbList
 

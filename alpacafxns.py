@@ -39,10 +39,14 @@ def getAcct():
 
 # return currently held positions/stocks/whatever
 def getPos():
-  html = n.robreq(POSURL, headers=HEADERS, timeout=5, maxTries=-1).text
-  if("error" in html.lower()):
-    print("error in data from getPos")
-  return json.loads(html)
+  r = n.robreq(POSURL, headers=HEADERS, timeout=5, maxTries=-1).json()
+  #print(json.dumps(r,indent=2))
+  #clean so "None"s are "0"
+  for i,p in enumerate(r):
+    for k,v in p.items():
+      if v == None:
+        r[i][k] = 0
+  return r
 
 # return orders for a specified param
 #valid 
