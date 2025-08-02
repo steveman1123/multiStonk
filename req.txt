@@ -1,7 +1,7 @@
 #required pkgs
 beautifulsoup4
 colorama
-Levenshtein
+#Levenshtein
 pytz
 tzlocal
 requests

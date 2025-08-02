@@ -15,13 +15,13 @@ def getinstalled(verbose=False):
 
 def installpkg(pkg,verbose=False):
   try:
-    subprocess.check_call([sys.executable, '-m', 'pip', 'install', package_name],
-      stdout=subprocess.DEVNULL # Optionally hide output
+    subprocess.check_call([sys.executable, '-m', 'pip', 'install', pkg],
+      #stdout=subprocess.DEVNULL
     )
-    print(f"Successfully installed {package_name}")
+    print(f"Successfully installed {pkg}")
   except subprocess.CalledProcessError as e:
-    print(f"Error installing {package_name}: {e}")
-    sys.exit(1)  # Exit if installation fails
+    print(f"Error installing {pkg}: {e}")
+    sys.exit()
 
 
 def installreq(reqfile,verbose=False):
