@@ -6,24 +6,8 @@ print("\nStarting up...")
 verbose=False
 
 #install any missing packages
-# print("Checking for missing packages")
-from pip._internal.operations import freeze
-#get installed pkgs
-installedpkgs = [e.split('==')[0].lower() for e in freeze.freeze()]
-if(verbose): print('installed',installedpkgs)
-#get required pkgs
-pkgs = open("./req.txt",'r').read().split("\n")
-#remove blank lines and comments
-pkgs = [e.lower() for e in pkgs if len(e)>0 and not e.startswith("#")]
-if(verbose): print('required',pkgs)
-#compare
-neededpkgs = [e for e in pkgs if e not in installedpkgs]
-if(verbose): print('needed',neededpkgs)
-#install any missing ones
-for e in neededpkgs:
-  print("installing",e)
-  pip.main(['install',e])
-
+from installpkgs import installreq
+installreq("./req.txt")
 
 
 import ndaqfxns as n

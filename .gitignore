@@ -2,3 +2,5 @@
 *.json
 configs/steve.config
 */__pycache__/*
+__pycache*
+*.swp
