@@ -7,7 +7,7 @@ verbose=True
 
 #install any missing packages
 from installpkgs import installreq
-installreq("./req.txt")
+installreq("./req.txt",verbose=verbose)
 
 
 import ndaqfxns as n
@@ -16,9 +16,7 @@ import random, time, json, sys, os, traceback
 import datetime as dt
 from glob import glob
 from operator import eq
-from colorama import init as colorinit
 
-colorinit() #allow coloring in Windows terminals
 
 #TODO: should add the ability to store a global unsorted list that multiple algos pull from (eg define a price and vol range, then pass that to every algo that requests it)
 
@@ -511,7 +509,7 @@ def checkTriggered(verbose=False):
     #attempt to get prices for all stocks to sell
     prices = {}
     while "error" in prices:
-      prices = n.getPrices([e.split("|")[1]+"|stocks" for e in list(triggeredStocks)],verbose=False)
+      prices = n.getPrices([e.split("|")[1]+"|stocks" for e in list(triggeredStocks)],verbose=verbose)
       print("prices: ",prices)
       if("error" in prices):
         #remove all triggered stocks that end with the errored stock
@@ -579,9 +577,9 @@ def check2sells(pos,verbose=False):
     #TODO: in each algo, add an error report if there's a stock that doesn't appear to be tradable (that is, it's in symbList but doesn't show up in getPrices)
     
     #get whether the stocks are good sells or not
-    gs = eval(f"{algo}.goodSells(symbList,verbose=False)")
+    gs = eval(f"{algo}.goodSells(symbList,verbose={verbose})")
     
-    
+    if(verbose): print(json.dumps(gs,indent=2))
     
     #go through the stocks of the algo
     for e in symbList:

@@ -291,7 +291,7 @@ def goodSells(symbList, verbose=False):
     else: #price didn't trigger either side
       gs[s['symbol']] = 0
 
-    if(verbose): print("gs?",gs[s['symbol']])
+    if(verbose): print(f"goodsell: {gs[s['symbol']]}")
     
   #display stocks that have an error
   for e in [e for e in symbList if e['symbol'] not in gs]:
@@ -304,43 +304,21 @@ def goodSells(symbList, verbose=False):
 #TODO: should make this an otherfxns fxn with params so multiple algos can pull from the same code
 def getUnsortedList(verbose=False, maxTries=3):
   symbList = list()
-  url = "https://www.marketwatch.com/tools/screener/stock"
-  
-  params = {
-    "exchange" : "nasdaq",
-    "visiblecolumns" : "Symbol",
-    "pricemin" : str(c[algo]['simMinPrice']),
-    "pricemax" : str(c[algo]['simMaxPrice']),
-    "volumemin" : str(c[algo]['simMinVol']),
-    "partial" : "true"
-  }
-  
-  if(verbose): print("Getting MarketWatch data...")
-  skip = 0
-  resultsPerPage = 25 #new screener only returns 25 per page and can't be changed (afaict)
-  pageList = [None] #init to some value so that its not empty for the loop comparison
-  while len(pageList)>0:
-    pageList = [] #reinit once inside of the loop
-    params['skip']=skip
-    tries = 0
-    while tries<maxTries:
-      try:
-        r = n.robreq(url, method="get", params=params,maxTries=1).text
-        pageList = r.split('j-Symbol ">')[1:]
-        pageList = [e.split(">")[1][:-3] for e in pageList]
-        symbList += pageList
-        if(verbose): print(f"MW page {int(skip/resultsPerPage)}")
-        break
-      except Exception:
-        tries+=1
-        print(f"Error getting MW data for {algo}. Trying again...")
-        time.sleep(3)
-        continue
-    skip+=len(pageList)
-  
-  
-  
-  #now that we have the marketWatch list, let's get the stocksunder1 list - essentially the getPennies() fxn from other files
+  #get stocks from MarketWatch
+  #symbList += getMWstocks(verbose,maxTries)
+  #get stocks from stocksunder1
+  symbList += getsu1stocks(verbose,maxTries)
+
+  if(verbose): print("Removing Duplicates...")
+  symbList = list(dict.fromkeys(symbList)) #combine and remove duplicates
+  #remove any symbs that contain numbers, those are a bit too sketchy for me
+  symbList = [e for e in symbList if not hasnum(e)]
+
+  return symbList
+
+
+#return a list of stocks from stocksunder1.org
+def getsu1stocks(verbose=False, maxTries=3):
   if(verbose): print("Getting stocksunder1 data...")
   #TODO: ensure prices and volumes work for all types
   urlList = ['nasdaq']#,'tech','biotech','marijuana','healthcare','energy'] #the ones not labeled for nasdaq are listed on OTC which we want to avoid
@@ -360,44 +338,54 @@ def getUnsortedList(verbose=False, maxTries=3):
         time.sleep(3)
         tries+=1
         continue
-    
-  if(verbose): print("Removing Duplicates...")
-  symbList = list(dict.fromkeys(symbList)) #combine and remove duplicates
-  #remove any symbs that contain numbers, those are a bit too sketchy for me
-  symbList = [e for e in symbList if not hasnum(e)]
-
-  return symbList
 
 
-#determine if a stock is a good sell or not
-#depreciated, replaced with goodSells
-def goodSell(symb):
-  #check if price<sellDn
-  lock = threading.Lock()
-  lock.acquire()
-  stockList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
-  lock.release()
-  buyPrice = float(stockList[symb]['buyPrice'])
-  inf = n.getInfo(symb,['price','open'])
+
+#return a list of stocks from MarketWatch
+#NOTE: MW changed how it operates, and this no longer works
+def getMWstocks(verbose=False, maxTries=3):
+  if(verbose): print("getting MarketWatch stocks")
+  mwsymbs = list()
+
+  url = "https://www.marketwatch.com/tools/screener/stock"
+  params = {
+    "exchange" : "nasdaq",
+    "visiblecolumns" : "Symbol",
+    "pricemin" : str(c[algo]['simMinPrice']),
+    "pricemax" : str(c[algo]['simMaxPrice']),
+    "volumemin" : str(c[algo]['simMinVol']),
+    "partial" : "true"
+  }
   
-  if(inf['open']>0):
-    if(inf['price']/inf['open']<sellDn(symb) or inf['price']/inf['open']>=sellUp(symb)): #if change since open has gone beyond sell params
-      return True
-  else:
-    print(f"{symb} open price is 0")
-    return False
-  
-  if(buyPrice>0): #ensure buyPrice has been initiated/is valid
-    if(inf['price']/buyPrice<sellDn(symb) or inf['price']/buyPrice>=sellUp(symb)): #if change since buy has gone beyond sell params
-      return True
-    elif(inf['price']/inf['open']<sellDn(symb) or inf['price']/inf['open']>=sellUp(symb)): #if change since open has gone beyond sell params
-      return True
-    else: #not enough change yet to consititute a sell
-      return False
-  else:
-    return False
+  if(verbose): print("Getting MarketWatch data...")
+  skip = 0
+  #new screener only returns 25 per page and can't be changed
+  resultsPerPage = 25
+  #init to some value so that its not empty for the loop comparison
+  pageList = [None]
+  while len(pageList)>0:
+    pageList = [] #reinit once inside of the loop
+    params['skip']=skip
+    tries = 0
+    while tries<maxTries:
+      try:
+        r = n.robreq(url, method="get", params=params,maxTries=1).text
+        pageList = r.split('j-Symbol ">')[1:]
+        pageList = [e.split(">")[1][:-3] for e in pageList]
+        mwsymbs += pageList
+        if(verbose): print(f"MW page {int(skip/resultsPerPage)}")
+        break
+      except Exception:
+        tries+=1
+        print(f"Error getting MW data for {algo}. Trying again...")
+        time.sleep(3)
+        continue
+    skip+=len(pageList)
 
-#get the sellUp value for a given symbol (default to the main value)
+  return mwsymbs
+
+
+#get the sellUp value for a given symbol, default to main value
 def sellUp(symb=""):
   lock = threading.Lock()
   lock.acquire()
@@ -409,7 +397,9 @@ def sellUp(symb=""):
   squeezeTime = float(c[algo]['squeezeTime'])
 
   if(symb in stockList):
-    try: #try setting the last jump, if it doesn't work, set it to yesterday TODO: this is logically wrong and should be fixed (something should change in the actual posList file)
+    try:
+    #try setting the last jump, if it doesn't work, set it to yesterday 
+    #TODO: this is logically wrong and should be fixed (something should change in the actual posList file)
       lastJump = dt.datetime.strptime(stockList[symb]['note'],"%Y-%m-%d").date()
     except Exception:
       lastJump = dt.date.today()-dt.timedelta(1)
@@ -421,7 +411,7 @@ def sellUp(symb=""):
     sellUp = mainSellUp
   return sellUp
 
-#get the sellDn value for a given symbol (default to the main value)
+#get the sellDn value for a given symbol, default to main value
 def sellDn(symb=""):
   lock = threading.Lock()
   lock.acquire()

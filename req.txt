@@ -6,5 +6,5 @@ tzlocal
 requests
 workdays
 
-#only needed if using getSymb() in ndaqfxns
-Levenshtein
+#only needed if using getSymb() in ndaqfxns, comment out if it an't be installed (on smaller systems like termux or some ras pi's)
+#Levenshtein
