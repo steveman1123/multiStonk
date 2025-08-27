@@ -9,7 +9,7 @@ import datetime as dt
 #set up the info
 startDate = "2023-01-01" #start of range to check
 endDate = str(dt.date.today()) #end of range to check
-isPaper = True
+isPaper = False
 
 if(len(sys.argv)>1):
   for arg in sys.argv[1:]:
@@ -21,11 +21,11 @@ if(len(sys.argv)>1):
       apikeyfile = arg.split("=")[1]
   
 else:
-  raise ValueError("Invalid argument. Make sure keyfile file is present or use '-h'/'--help' for help.")
+  raise ValueError("Missing argument. Make sure keyfile file is present or use '-h'/'--help' for help.")
 
 
 
-a.init(keyFile=apikeyfile,isPaper=isPaper)
+a.init(keyFile=apikeyfile, isPaper=isPaper)
 
 print("\ngetting trade data")
 print("key file:",apikeyfile)
@@ -110,9 +110,17 @@ tw = len([e for e in out if e[-1]=="w"])
 tl = len([e for e in out if e[-1]=="l"])
 
 avgwamt = [e[3]-e[6] for e in out if e[7]=="w"]
-avgwamt = round(sum(avgwamt)/len(avgwamt),3)
+if(len(avgwamt)!=0):
+  avgwamt = round(sum(avgwamt)/len(avgwamt),3)
+else:
+  avgwamt = 0
+
 avglamt = [e[3]-e[6] for e in out if e[7]=="l"]
-avglamt = round(sum(avglamt)/len(avglamt),3)
+if(len(avglamt)!=0):
+  avglamt = round(sum(avglamt)/len(avglamt),3)
+else:
+  avglamt = 0
+
 
 print(f"total wins:\t{tw}")
 print(f"total loses:\t{tl}")

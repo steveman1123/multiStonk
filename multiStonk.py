@@ -3,7 +3,7 @@
 
 print("\nStarting up...")
 
-verbose=False
+verbose=True
 
 #install any missing packages
 from installpkgs import installreq
@@ -35,7 +35,7 @@ colorinit() #allow coloring in Windows terminals
 keyfile = None
 
 #parse args and get the config file
-configFile="./configs/multi.config"
+configfile="./configs/multi.config"
 if(len(sys.argv)>1): #if there's an argument present
   for arg in sys.argv[1:]:
     if(arg.lower() in ['-h','--help']): #if there's an argument regarding the config file
@@ -45,7 +45,7 @@ if(len(sys.argv)>1): #if there's an argument present
             "Syntax:\n"
             "[ -h/--help | path/to/file.config | keyfile=path/to/keyfile.txt ]\n"
             "-h\t: displays this help menu\n"
-            "configfile\t: point to the config file containing all settings required to run the program (defaults to "+configFile+")\n"
+            "configfile\t: point to the config file containing all settings required to run the program (defaults to "+configfile+")\n"
             "keyfile\t: point to the file containing the api keys. Defaults to the file specified in the config file.\n"
             "example: python3 ./multiStonk.py keyfile=../stockStuff/apikeys/keys.txt configfile=configs/multi.config\n"
             "\n"
@@ -56,9 +56,13 @@ if(len(sys.argv)>1): #if there's an argument present
     #check for a keyfile
     elif(arg.lower().startswith("keyfile=")):
       keyfile = arg.split("=")[1]
+      if(not os.path.isfile(keyfile)):
+        raise ValueError(f"Supplied key file \"{keyfile}\" does not exist");
     #check that the arg is a valid config file
     elif(arg.lower().startswith("configfile=")):
-      configFile = arg.split("=")[1]
+      configfile = arg.split("=")[1]
+      if(not os.path.isfile(configfile)):
+        raise ValueError(f"Supplied config file \"{configfile}\" does not exist");
     #if we want to pass more arguments, we can specify them here (also make sure to include them in the help menu)
     else:
       raise ValueError("Invalid argument. Make sure config file is present or use '-h'/'--help' for help.")
@@ -66,8 +70,7 @@ if(len(sys.argv)>1): #if there's an argument present
 
 #set the multi config file
 c = n.configparser.ConfigParser()
-c.read(configFile)
-
+c.read(configfile)
 
 #if no keyfile is specified in args, use default
 if(keyfile is None):
@@ -78,7 +81,7 @@ algoList = c['allAlgos']['algoList'].replace(" ","").split(',') #var comes in as
 algoList = {e:{} for e in algoList}
 
 #tell the user general setting information
-print(f"Config file\t{configFile}")
+print(f"Config file\t{configfile}")
 print(f"Key file \t{keyfile}")
 print(f"posList file\t{c['file locations']['posList']}")
 print(f"buyList file\t{c['file locations']['buyList']}")
@@ -134,7 +137,7 @@ def main(verbose=False):
 
   #init the algos
   for algo in algoList:
-    exec(f"{algo}.init('{configFile}')")
+    exec(f"{algo}.init('{configfile}')")
   updateLists()
   
   syncPosList() #in the event that something changed during the last run, this should catch it
@@ -359,7 +362,7 @@ def updateLists(verbose=False):
   #check that the buyfile is present and if it was updated today: if it was, then read directly from it, else generate lists
   errored = False
   if(verbose): print("Checking if buyList file is present")
-  if(n.os.path.isfile(c['file locations']['buyList'])):
+  if(os.path.isfile(c['file locations']['buyList'])):
     if(verbose): print("File is present. Checking mod date")
     try:
       modDate = dt.datetime.strptime(time.strftime("%Y-%m-%d",time.localtime(os.stat(c['file locations']['buyList']).st_mtime)),"%Y-%m-%d").date() #if ANYONE knows of a better way to get the modified date into a date format, for the love of god please let me know
@@ -626,7 +629,7 @@ def sell(stock, algo, verbose=False):
   if(sharesHeld>0 and sellAttempts<maxAttempts):
     if(verbose): print(f"Attempting to sell {sharesHeld} shares of {stock} at ${round(sellPrice,2)}/share")
     #sell them
-    r = a.createOrder(side="sell",qty=sharesHeld,symb=stock,verbose=False)
+    r = a.createOrder(side="sell",qty=sharesHeld,symb=stock,verbose=True)
   else:
     print(f"No shares held of {stock} or too many sell attempts made ({sellAttempts}/{maxAttempts})")
     triggeredStocks.discard(algo+"|"+stock)
@@ -689,7 +692,7 @@ def sell(stock, algo, verbose=False):
 #basically just a market buy of this many shares of this stock for this algo
 #return True if it buys successfully, false if not
 def buy(shares, stock, algo, buyPrice):
-  r = a.createOrder(side="buy",qty=shares,symb=stock) #this needs to happen first so that it can be as accurate as possible
+  r = a.createOrder(side="buy",qty=shares,symb=stock,verbose=True) #this needs to happen first so that it can be as accurate as possible
   global posList, cashList
 
   if('status' in r and r['status'] == "accepted"): #check to make sure that it actually bought - TODO: does the presence of 'status' indicate that it bought or not?
@@ -1063,7 +1066,7 @@ if __name__ == '__main__':
   exitFlag = False #set to true if the program stopped by ctrl+c
 
   try:
-    main(verbose=False) #start running the program
+    main(verbose) #start running the program
   except KeyboardInterrupt: #exit on ctrl+c
     print("Exiting")
     exitFlag=True

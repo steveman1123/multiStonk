@@ -276,9 +276,12 @@ def createOrder(symb, #stock ticker symbol
   try:
     #TODO: add trade info here?
     if(verbose): print(f"Order to {r['side']} {r['qty']} share(s) of {r['symbol']} - {r['status']}")
+    print(r)
     return r
   except Exception:
-    if(verbose): print(f"Error {side}ing {symb}")
+    if(verbose):
+      print(f"Error {side}ing {symb}")
+      print(r)
     return r
   # else:
     # return {'symbol':symb,'status':'error'}
