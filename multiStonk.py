@@ -55,12 +55,12 @@ if(len(sys.argv)>1): #if there's an argument present
     elif(arg.lower().startswith("keyfile=")):
       keyfile = arg.split("=")[1]
       if(not os.path.isfile(keyfile)):
-        raise ValueError(f"Supplied key file \"{keyfile}\" does not exist");
+        raise ValueError(f"Supplied key file \"{keyfile}\" does not exist")
     #check that the arg is a valid config file
     elif(arg.lower().startswith("configfile=")):
       configfile = arg.split("=")[1]
       if(not os.path.isfile(configfile)):
-        raise ValueError(f"Supplied config file \"{configfile}\" does not exist");
+        raise ValueError(f"Supplied config file \"{configfile}\" does not exist")
     #if we want to pass more arguments, we can specify them here (also make sure to include them in the help menu)
     else:
       raise ValueError("Invalid argument. Make sure config file is present or use '-h'/'--help' for help.")
@@ -101,8 +101,10 @@ for algo in algoList: exec(f"import {algo}")
 listsUpdatedToday = False #tell everyone whether the list has been updated yet today or not
 closeTime = n.closeTime() #get the time in datetime format of when the market closes (reference this when looking at time till close)
 
-minCashMargin = float(c['account params']['minCashMargin']) #extra cash to hold above hold value
-if(minCashMargin<1): #minCashMargin MUST BE GREATER THAN 1 in order for it to work correctly
+#extra cash to hold above hold value
+minCashMargin = float(c['account params']['minCashMargin'])
+#minCashMargin MUST BE GREATER THAN 1 in order for it to work correctly
+if(minCashMargin<1):
   raise ValueError("Error: cash margin is less than 1. Multiplier must be >=1")
 minCash2hold = float(c['account params']['minCash2hold'])
 maxCash2hold = float(c['account params']['maxCash2hold'])
@@ -186,7 +188,7 @@ def main(verbose=False):
     #calculate tradable cash
     ###
     totalCash = float(acct['cash'])
-    tradableCash = getTradableCash(totalCash, maxPortVal)
+    tradableCash = getTradableCash(totalCash, maxPortVal, verbose=verbose)
       
     ###
     #execute when the market is open
@@ -211,7 +213,7 @@ def main(verbose=False):
         print(f"ttc=",n.timeTillClose())
 
       if(n.timeTillClose()<=60*float(c['time params']['buyTime']) and sum([t.name.startswith('update') for t in n.threading.enumerate()])==0):
-        tradableCash = getTradableCash(totalCash, maxPortVal) #account for withholding a certain amount of cash+margin
+        tradableCash = getTradableCash(totalCash, maxPortVal, verbose=verbose) #account for withholding a certain amount of cash+margin
         cashPerAlgo = tradableCash/len(algoList) #evenly split available cash across all algos
         #start buying things
         #print(tradableCash,cashPerAlgo,algoList,sep="\n")
@@ -334,25 +336,30 @@ def main(verbose=False):
 
 #given the total cash and cash parameters, return the tradable cash
 def getTradableCash(totalCash, maxPortVal,verbose=False):
-  if(totalCash<minCash2hold): #0-999
-    if(verbose): print(1)
-    if(verbose): print(totalCash)
-    return totalCash
-  elif(minCash2hold<=totalCash<=minCash2hold*minCashMargin): #1000-1100
-    if(verbose): print(2)
-    if(verbose): print(0)
-    return 0
-  elif(minCash2hold*minCashMargin<totalCash<maxPortVal*maxCash2hold): #1101-.25*max
-    if(verbose): print(3)
-    if(verbose): print(totalCash-minCash2hold*minCashMargin)
-    return totalCash-minCash2hold*minCashMargin
-  else: #.25*max-inf
-    if(verbose): print(4)
-    if(verbose): print(maxPortVal*maxCash2hold,minCash2hold*minCashMargin)
-    return totalCash-max(maxPortVal*maxCash2hold,minCash2hold*minCashMargin)
+  #eg mincash = 1000, totalcash < 1000 = trade the totalcash
+  if(totalCash<minCash2hold):
+    if(verbose): print(n.now(),f"total cash < min cash ({totalCash} < {minCash2hold})")
+    tradablec = totalCash
+  #eg mincash=1000, mincashmarginn=1.1, 1000 <= totalcash <= 1100 = don't trade
+  elif(minCash2hold<=totalCash<=minCash2hold*minCashMargin):
+    if(verbose): print(n.now(),f"min cash < total cash < mincash wi margin ({minCash2hold} < {totalCash} < {minCash2hold*minCashMargin})")
+    tradablec = 0
+  #eg mincash=30, mincashmargin=1.1, maxcash2hold=0.2, maxportval=260, 33 < totalcash < 52 = trade up to $19
+  elif(minCash2hold*minCashMargin<totalCash<maxPortVal*maxCash2hold):
+    if(verbose): print(n.now(),f"min cash wi margin < total cash < max cash ({minCash2hold*minCashMargin} < {totalCash} < {maxPortVal*maxCash2Hold})")
+    tradablec = totalCash-minCash2hold*minCashMargin
+  #eg maxportval=260, maxcash2hold=0.2, totalcash>52 = trade totalcash-52
+  else:
+    if(verbose): print(n.now(),f"total cash > max cash ({totalCash} > {maxPortVal*maxCash2hold}")
+    tradablec = totalCash-max(maxPortVal*maxCash2hold,minCash2hold*minCashMargin)
+
+  if(verbose): print(n.now(),f"tradable cash: {tradablec}")
+  return tradablec
+
 
 
 #update all lists to be bought (this should be run as it's own thread)
+#multiplex updateList()
 def updateLists(verbose=False):
   global algoList, listsUpdatedToday
   print(n.now(),"updating lists")
@@ -363,7 +370,8 @@ def updateLists(verbose=False):
   if(os.path.isfile(c['file locations']['buyList'])):
     if(verbose): print("File is present. Checking mod date")
     try:
-      modDate = dt.datetime.strptime(time.strftime("%Y-%m-%d",time.localtime(os.stat(c['file locations']['buyList']).st_mtime)),"%Y-%m-%d").date() #if ANYONE knows of a better way to get the modified date into a date format, for the love of god please let me know
+      #if ANYONE knows of a better way to get the modified date into a date format, for the love of god please let me know
+      modDate = dt.datetime.strptime(time.strftime("%Y-%m-%d",time.localtime(os.stat(c['file locations']['buyList']).st_mtime)),"%Y-%m-%d").date()
     except Exception:
       modDate = dt.date.today()-dt.timedelta(1)
     if(modDate==dt.date.today()):
@@ -593,7 +601,7 @@ def check2sells(pos,verbose=False):
           if(algo+"|"+e['symbol'] not in triggeredStocks): #make sure that it's not already present
             triggeredStocks.add(algo+"|"+e['symbol']) #if not, then add it to the triggered list
           if("triggered" not in [t.name for t in n.threading.enumerate()]): #make sure that the triggered list isn't already running
-            triggerThread = n.threading.Thread(target=checkTriggered,args=(verbose)) #init the thread - note locking is required here
+            triggerThread = n.threading.Thread(target=checkTriggered,args=(verbose,)) #init the thread - note locking is required here
             triggerThread.name = "triggered" #set the name to the algo and stock symb
             triggerThread.start() #start the thread
   
