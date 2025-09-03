@@ -118,7 +118,7 @@ def main(verbose=False):
   #initiate settings, algorithms, variables and ensure proper configuration
   ###
   #should contain elements of format algo|stock of the stocks that have triggered up
-  triggeredStocks = set() 
+  triggeredStocks = set()
   ask2sell = True #if this is true, then the program will ask to sell all if portval drops below some % of maxPortVal
   a.checkValidKeys(int(c['account params']['isPaper'])) #check that the keys being used are valid
   #if the trader doesn't have any stocks (i.e. they've not used this algo yet), then give them a little more info
@@ -202,11 +202,11 @@ def main(verbose=False):
 
       
       #look to sell things
-      check2sells(pos)
+      check2sells(pos,verbose=verbose)
       
       #start checking to buy things if within the buy time frame and lists are not being updated
 
-      if(verbose): 
+      if(verbose):
         print("current threads:",[t for t in n.threading.enumerate()])
         print(f"ttc=",n.timeTillClose())
 
@@ -477,22 +477,7 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
           else:
             print(f"could not buy {stock}")
 
-          
-    
-#a stock has reached a trigger point and should begin to be checked more often (it will be sold in this function)
-#this function is depreciated - replaced by checkTriggered
-def triggeredUp(symb, algo):
-  maxPrice = 0.01 #init vars to be slightly above 0
-  curPrice = 0.01
-  sellUpDn = float(eval(algo+".sellUpDn()"))
-  #ensure that current price>0 (getPrice returns 0 if it can't recognize a symbol (eg if a merger happens or a stock is delisted)
-  while(curPrice>0 and curPrice>=sellUpDn*maxPrice and n.timeTillClose()>60 and not exitFlag):
-    curPrice = n.getInfo(symb)['price']
-    maxPrice = max(maxPrice,curPrice)
-    print(f"{algo}\t{symb}\t{round(curPrice/maxPrice,2)} : {round(sellUpDn,2)}")
-    time.sleep(len(n.threading.enumerate())+2) #slow it down proportional to the number of threads running to not barage with requests
-  isSold = sell(symb, algo)
-  if(isSold): print(f"Sold all shares of {symb} for {algo} algo")
+
 
 #run as long as the len of triggeredStocks>0 (where triggeredStocks is a set of format {"algo|symb"})
 #TODO: this function really needs to be cleaned up (comments, better variables, more logical running)
@@ -503,9 +488,9 @@ def checkTriggered(verbose=False):
   lock = n.threading.Lock()
   maxPrices = {}
   #only run if there's stocks to sell and exit flag isn't triggered
-  while(len(list(triggeredStocks))>0 and not exitFlag):
-    if(verbose): print(f"{len(list(triggeredStocks))} stocks triggered for sale")
+  if(verbose): print(f"{len(list(triggeredStocks))} stocks triggered for sale")
 
+  while(len(list(triggeredStocks))>0 and not exitFlag):
     #attempt to get prices for all stocks to sell
     prices = {}
     while "error" in prices:
@@ -608,7 +593,7 @@ def check2sells(pos,verbose=False):
           if(algo+"|"+e['symbol'] not in triggeredStocks): #make sure that it's not already present
             triggeredStocks.add(algo+"|"+e['symbol']) #if not, then add it to the triggered list
           if("triggered" not in [t.name for t in n.threading.enumerate()]): #make sure that the triggered list isn't already running
-            triggerThread = n.threading.Thread(target=checkTriggered) #init the thread - note locking is required here
+            triggerThread = n.threading.Thread(target=checkTriggered,args=(verbose)) #init the thread - note locking is required here
             triggerThread.name = "triggered" #set the name to the algo and stock symb
             triggerThread.start() #start the thread
   
@@ -616,7 +601,7 @@ def check2sells(pos,verbose=False):
 #basically just a market order for the stock and then record it into an order info file
 #return True if it sells, False if it doesn't
 def sell(stock, algo, verbose=False):
-  global posList, cashList,triggeredStocks
+  global posList, cashList, triggeredStocks
 
   #determine the current price and the number of shares to sell (they should already be floats, but recasting just in case)
   sellPrice = float(n.getInfo(stock)['price'])

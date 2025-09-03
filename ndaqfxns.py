@@ -659,6 +659,7 @@ def nextTradeDate(verbose=False):
 #maxTries = number of tries to attempt to connect to api
 #verbose = verbosity
 #output dict {"goodassets":{"symb|assetclass":{price,vol,open}}, "badassets":[symb,...]}
+#TODO: change symblist to be a dict of format {assetclass:[symbs]}
 def getPrices(symbList,maxTries=3,verbose=False):
   #ensure there are no spaces in the query
   #TODO: should check for other illegal characters using regex
