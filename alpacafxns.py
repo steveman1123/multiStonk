@@ -255,7 +255,9 @@ def createOrder(symb, #stock ticker symbol
       order['take_profit']=take_profit
     else:
       raise ValueError("oto requires either sl OR tp to be specified")
-  
+
+
+  #execute the order
   tries=0
   while tries<maxTries:
     try:
@@ -271,6 +273,8 @@ def createOrder(symb, #stock ticker symbol
       tries+=1
       time.sleep(3)
       continue
+  if(tries>=maxTries):
+    raise ValueError("Error executing an order:",r)
 
   if(verbose): print(json.dumps(r,indent=2))
   try:

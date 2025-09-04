@@ -1,24 +1,14 @@
-in poslistmulti.json:
-  lasttradedate and lasttradetype are NA, why?
+
+ndaqfxn:
+  getprices() to use a dict instead of list, then update uses of it in other files (format of {"asset":[symb,symb,symb]})
 
 
-things apear to be selling periodically, but not triggering up, why?
-
-multistonk ~line 440, add verbosity for showing when a stock is added to the stock info
-
-~510: don't jusr discard, attempt to sell firs for a few times, and after some attempts, then discard, and before attempting to sell, make sure it's tradable on alpaca, logic should be:
-not in ndaq:
-  if isAlpacaTradable:
-    get price from alpaca
-  else:
-    remove from tradable stocks
-
-ndaqfxn - getprices to use a dict instead of list, then update uses of it in other files
-
-add more verbosity to more functions
 
 
-still attempts to buy stocks even though cash is less than mincash2hold and then that buying_power < cost_basis
 
+multistonk:
+  checktriggered to be cleaned up 
+  
 
-throwing an error when buying that the order is not accepted, why? Probably related to the previous problem too
+  check2buy still attempts to buy stocks even though cash is less than mincash2hold and then that buying_power < cost_basis
+

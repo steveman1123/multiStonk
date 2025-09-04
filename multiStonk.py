@@ -1,4 +1,4 @@
-#Steven Williams (2021)
+#Steven Williams (2025)
 #Stock trading program to use multiple algorithms/strategies as defined in the config file and present in the algos directory to perform low frequency shortterm trades
 
 print("\nStarting up...")
@@ -105,7 +105,7 @@ closeTime = n.closeTime() #get the time in datetime format of when the market cl
 minCashMargin = float(c['account params']['minCashMargin'])
 #minCashMargin MUST BE GREATER THAN 1 in order for it to work correctly
 if(minCashMargin<1):
-  raise ValueError("Error: cash margin is less than 1. Multiplier must be >=1")
+  raise ValueError(f"Error: cash margin is less than 1. Multiplier must be >=1. Adjust in {configFile}")
 minCash2hold = float(c['account params']['minCash2hold'])
 maxCash2hold = float(c['account params']['maxCash2hold'])
 #set the max number of times to try selling a stock (sometimes a stock get sstuck in an unsellable state and alpaca returns a 403 error)
@@ -143,7 +143,7 @@ def main(verbose=False):
   syncPosList() #in the event that something changed during the last run, this should catch it
   print("\n") #leave a space between startup and main sequence
     
-  if(verbose): print(json.dumps(algoList,indent=2))
+  #if(verbose): print(json.dumps(algoList,indent=2))
 
   ###
   #initiate settings related to the account parameters
@@ -435,8 +435,14 @@ def updateList(algo,lock,rm=[],verbose=False):
 #look to buy stocks from the stocks2buy list with the available funds for the algo
 def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
   global posList, cashList
-  if(verbose): print(stocks2buy)
-  random.shuffle(stocks2buy) #shuffle the stocks2buy to avoid front loading
+  if(verbose):
+    print("check2buy algo:",algo)
+    print("check2buy stocks2buy:",stocks2buy)
+    print("check2buy cashAvailable:",cashAvailable)
+  
+  #shuffle the stocks2buy to avoid front loading
+  random.shuffle(stocks2buy)
+
   #calculate the cash to be put towards various stocks in the algo (shouldn't be more than the cash available, but shouldn't be less than than the minDolPerStock (unless mindol > cashAvail))
   if(len(stocks2buy)>0):
     cashPerStock = min(cashAvailable,max(float(c['account params']['minDolPerStock']),cashAvailable/len(stocks2buy)))
@@ -490,6 +496,7 @@ def check2buy(algo, cashAvailable, stocks2buy, verbose=False):
 #run as long as the len of triggeredStocks>0 (where triggeredStocks is a set of format {"algo|symb"})
 #TODO: this function really needs to be cleaned up (comments, better variables, more logical running)
 #TODO: also add other checks for if a stock shouldn't be traded (like if price change is too high or sell attempts are too high)
+#TODO: refactor instead of using getPrices use getPos for price and it might also have if it's alpaca tradable
 def checkTriggered(verbose=False):
   #triggeredStocks = format of {"algo|symb"}
   global triggeredStocks
@@ -512,11 +519,13 @@ def checkTriggered(verbose=False):
     
     
     #check for stocks in triggeredStocks that aren't in prices (some error occured that we hold it but it can't be traded)
+    #this isn't always accurate, sometimes a stock will be tradable in alpaca but not ndaq, so double check that it can be traded in alpaca, and if not, only then discard it
     lock.acquire()
     for trigstock in list(triggeredStocks):
       if((trigstock.split("|")[1]+"|stocks").upper() not in prices):
-        if(verbose): print(f"{trigstock} stored locally and in alpaca, but not in nasdaq. Removing from sellable stocks")
-        triggeredStocks.discard(trigstock)
+        if(not a.isAplacaTradable(trigstock.split("|")[1])):
+          if(verbose): print(f"{trigstock} stored locally and in alpaca, but not in nasdaq and not tradable in alpaca. Removing from sellable stocks")
+          triggeredStocks.discard(trigstock)
 
       sellAttempts = posList[trigstock.split("|")[0]][trigstock.split("|")[1]]['sellAttempts']
       if(sellAttempts>maxAttempts):
@@ -534,7 +543,7 @@ def checkTriggered(verbose=False):
     for e in list(triggeredStocks):
       #get the sellUpDn %
       sellUpDn = eval(f"{e.split('|')[0]}.sellUpDn()")
-      #get the current prices of the stocks
+      #get the current prices of the stocks from the prices if present, else from alpaca
       curPrice = prices[(e.split("|")[1]+'|stocks').upper()]['price']
       #make sure that the price is valid
       if(curPrice>0):
@@ -542,7 +551,7 @@ def checkTriggered(verbose=False):
         if(curPrice>=sellUpDn*maxPrices[(e.split('|')[1]+"|stocks").upper()] and n.timeTillClose()>60):
           print(f"{e.split('|')[0]}\t{e.split('|')[1]}\t{round(curPrice/maxPrices[(e.split('|')[1]+'|stocks').upper()],3)} : {sellUpDn}")
         else:
-          sell(e.split("|")[1],e.split("|")[0])          
+          sell(e.split("|")[1],e.split("|")[0])
           #this shouldn't be necessary since it's supposed to be handled in sell(), but it seems to have issues there and not existing the thread
           # triggeredStocks.discard(e)
       else:
@@ -668,12 +677,18 @@ def sell(stock, algo, verbose=False):
     isSold = False
 
 
-  #update the poslist file
   lock = n.threading.Lock()
   lock.acquire()
+
+  #update the poslist file
   with open(c['file locations']['posList'],'w') as f:
     f.write(json.dumps({'algos':posList,'cash':cashList},indent=2))
     f.close()
+
+  #update trades file
+  tradedata = [str(round(time.time(),4)),"sell",sharesHeld,stock,algo,r['status']]
+  open(c['file locations']['tradeLog'],'a').write(",".join(tradedata)+"\n")
+
   lock.release()
 
   return isSold
@@ -686,9 +701,12 @@ def buy(shares, stock, algo, buyPrice):
   r = a.createOrder(side="buy",qty=shares,symb=stock,verbose=True) #this needs to happen first so that it can be as accurate as possible
   global posList, cashList
 
-  if('status' in r and r['status'] == "accepted"): #check to make sure that it actually bought - TODO: does the presence of 'status' indicate that it bought or not?
-    lock = n.threading.Lock()
-    lock.acquire()
+  #check to make sure that it actually bought
+  #TODO: does the presence of 'status' indicate that it bought or not?
+  isgoodtrade = 'status' in r and r['status'] in ["accepted","pending_new"]
+  lock = n.threading.Lock()
+  lock.acquire()
+  if(isgoodtrade):
     posList[algo][stock] = { #update the entry in posList
         "sharesHeld":float(posList[algo][stock]['sharesHeld'])+float(r['qty']) if stock in posList[algo] else float(r['qty']),
         "lastTradeDate":str(dt.date.today()),
@@ -701,12 +719,21 @@ def buy(shares, stock, algo, buyPrice):
       }
       
     cashList[algo]['invested'] += buyPrice*shares
-    open(c['file locations']['posList'],'w').write(json.dumps({'algos':posList,'cash':cashList},indent=2)) #update posList file
-    lock.release()
-    return True
+
+    #update posList file
+    open(c['file locations']['posList'],'w').write(json.dumps({'algos':posList,'cash':cashList},indent=2))
+
   else: #it didn't actually buy
     print(f"Order to buy {shares} shares of {stock} not accepted")
-    return False
+
+  #update trades file
+  tradedata = [str(round(time.time(),4)),"buy",stock,algo,r['status']]
+  open(c['file locations']['tradeLog'],'a').write(",".join(tradedata)+"\n")
+
+  lock.release()
+
+  return isgoodtrade
+
 
 
 #set up the position list and do some error checking to make sure it's correct (take list of algos as arg in the event the pos list needs to be populated)
@@ -1030,7 +1057,7 @@ def syncPosList(verbose=False):
 
     if(verbose): print(algo,round(cashList[algo]['invested'],2),"\n")
   
-  if(verbose): print("Marking to be sold")
+  if(verbose): print("Marking stocks to be sold")
   revSplits = n.reverseSplitters()
   for algo in posList:
     for symb in posList[algo]:

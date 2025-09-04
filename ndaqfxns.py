@@ -48,7 +48,7 @@ def now(format="%Y-%m-%d %H:%M:%S",color=tcol.cyan):
 
 #robust request, standard request but simplified and made more robust
 #return request object
-def robreq(url,method="get",headers={},jsondata=None,params={},maxTries=3,timeout=5,verbose=False):
+def robreq(url,method="get",headers={},jsondata=None,params={},maxTries=-1,timeout=5,verbose=False):
   tries=0
   while tries<maxTries or maxTries<0:
     if(verbose):
@@ -62,7 +62,7 @@ def robreq(url,method="get",headers={},jsondata=None,params={},maxTries=3,timeou
       if(r is not None and len(r.content)>0):
         return r
     except Exception:
-      print(f"No connection or other error encountered for {url}")
+      print(now(),f"No connection or other error encountered for {url}")
       if(verbose):
         print("headers:",headers)
         print("params:",params)
@@ -659,13 +659,13 @@ def nextTradeDate(verbose=False):
 #maxTries = number of tries to attempt to connect to api
 #verbose = verbosity
 #output dict {"goodassets":{"symb|assetclass":{price,vol,open}}, "badassets":[symb,...]}
-#TODO: change symblist to be a dict of format {assetclass:[symbs]}
-def getPrices(symbList,maxTries=3,verbose=False):
+#TODO: change symblist in and out to be a dict of format {assetclass:[symbs]}
+def getPrices(symbList,maxTries=-1,verbose=False):
   #ensure there are no spaces in the query
   #TODO: should check for other illegal characters using regex
-  symbList = [e.replace(" ","") for e in symbList]
+  #symbList = [e.replace(" ","") for e in symbList]
 
-  maxSymbs = 20 #cannot do more than 20 at a time, so loop through requests
+  maxSymbs = 20 #api cannot do more than 20 at a time, so loop through requests
   d = [] #init data var
   r = {} #init request var
   badassets = [] #init the bad assets var
@@ -808,7 +808,7 @@ def marketIsOpen():
   return isOpen
 
 #get the earning calls for the last year (date, forecasted, and actual) - dict of {date(mm/dd/yyyy):{forecast,actual}}
-def getEarnSurp(symb, maxTries=3):
+def getEarnSurp(symb, maxTries=-1):
   tries=0
   out = {}
   while tries<maxTries:
@@ -820,7 +820,7 @@ def getEarnSurp(symb, maxTries=3):
         print(r['status']['bCodeMessage'][0]['errorMessage'])
       break
     except Exception:
-      print(f"No connection or other error encountered in getEarnSurp for {symb}. Trying again...")
+      print(now(),f"No connection or other error encountered in getEarnSurp for {symb}. Trying again...")
       tries += 1
       time.sleep(3)
       continue
@@ -829,7 +829,7 @@ def getEarnSurp(symb, maxTries=3):
 
 #get institutional activity for a given stock
 #returns dict of format {"increased":{"holders":#,"shares":#},"decreased":{},"held":{}}
-def getInstAct(symb, maxTries=3):
+def getInstAct(symb, maxTries=-1):
   tries=0
   out = {"increased":{"holders":0,"shares":0},"decreased":{"holders":0,"shares":0},"held":{"holders":0,"shares":0}} #init to 0 values
   while tries<maxTries:
@@ -843,7 +843,7 @@ def getInstAct(symb, maxTries=3):
         print(f"getInstAct Error {symb}: "+r['status']['bCodeMessage'][0]['errorMessage'])
       break
     except Exception:
-      print(f"No connection or other error occured in getInstAct for {symb}. Trying again ({tries+1}/{maxTries})...")
+      print(now(),f"No connection or other error occured in getInstAct for {symb}. Trying again ({tries+1}/{maxTries})...")
       tries+=1
       time.sleep(3)
       continue
@@ -851,7 +851,7 @@ def getInstAct(symb, maxTries=3):
 
 #get previous 4 quarters and upcoming 4 quarters eps for a given stock
 #return dict of format {date:eps}
-def getEPS(symb, maxTries=3):
+def getEPS(symb, maxTries=-1):
   tries=0
   out = {}
   while tries<maxTries:
@@ -866,7 +866,7 @@ def getEPS(symb, maxTries=3):
         print(r['status']['bCodeMessage'][0]['errorMessage'])
       break
     except Exception:
-      print(f"No connection or other error encountered in getEPS for {symb}. Trying again...")
+      print(now(),f"No connection or other error encountered in getEPS for {symb}. Trying again...")
       tries += 1
       time.sleep(3)
       continue
@@ -879,7 +879,7 @@ def getEPS(symb, maxTries=3):
   return out
 
 #get upcoming earning forecasts
-def getEarnFcast(symb, maxTries=3):
+def getEarnFcast(symb, maxTries=-1):
   tries=0
   out = {}
   while tries<maxTries:
@@ -894,7 +894,7 @@ def getEarnFcast(symb, maxTries=3):
         print(r['status']['bCodeMessage'][0]['errorMessage'])
       break
     except Exception:
-      print(f"No connection or other error encountered in getEarnFcast for {symb}. Trying again...")
+      print(now(),f"No connection or other error encountered in getEarnFcast for {symb}. Trying again...")
       tries += 1
       time.sleep(3)
       continue
@@ -907,7 +907,7 @@ def getEarnFcast(symb, maxTries=3):
 
 
 #get the shorting interest of a given stock
-def getShortInt(symb, maxTries=3):
+def getShortInt(symb, maxTries=-1):
   tries=0
   out = {}
   while tries<maxTries:
@@ -919,7 +919,7 @@ def getShortInt(symb, maxTries=3):
         print(r['status']['bCodeMessage'][0]['errorMessage'])
       break
     except Exception:
-      print(f"No connection or other error encountered in getEarnFcast for {symb}. Trying again...")
+      print(now(),f"No connection or other error encountered in getEarnFcast for {symb}. Trying again...")
       tries += 1
       time.sleep(3)
       continue
@@ -933,7 +933,7 @@ def getShortInt(symb, maxTries=3):
 
 #get the company financials for the quarters of the last year
 # TODO: this is incomplete. data should be formatted as {sheetName:{date:{rows}}}
-def getFinancials(symb,maxTries=3):
+def getFinancials(symb,maxTries=-1):
   tries=0
   out = {}
   while tries<maxTries:
@@ -948,7 +948,7 @@ def getFinancials(symb,maxTries=3):
         print(r['status']['bCodeMessage'][0]['errorMessage'])
       break
     except Exception:
-      print(f"No connection or other error encountered in getFinancials for {symb}. Trying again...")
+      print(now(),f"No connection or other error encountered in getFinancials for {symb}. Trying again...")
       tries += 1
       time.sleep(3)
       continue
@@ -963,7 +963,7 @@ def getFinancials(symb,maxTries=3):
 
 #get the insider trades of a company
 #returns the data part of the request (no modifications)
-def getInsideTrades(symb, maxTries=3):
+def getInsideTrades(symb, maxTries=-1):
   tries=0
   out = {}
   while tries<maxTries:
@@ -975,7 +975,7 @@ def getInsideTrades(symb, maxTries=3):
         print(r['status'])
       break
     except Exception:
-      print(f"No connection or other error encountered in getInsideTrades for {symb}. Trying again...")
+      print(now(),f"No connection or other error encountered in getInsideTrades for {symb}. Trying again...")
       tries += 1
       time.sleep(3)
       continue
@@ -984,7 +984,7 @@ def getInsideTrades(symb, maxTries=3):
 
 #get the analyst ratings of a given stock
 # returns a list of format [meanRating(text), #ofBrokers(#)]
-def getRating(symb, maxTries=3):
+def getRating(symb, maxTries=-1):
   tries=0
   rate = []
   while tries<maxTries:
@@ -995,7 +995,7 @@ def getRating(symb, maxTries=3):
       break
     except Exception:
       tries+=1
-      print(f"No connection or other error encountered in getRating for {symb}. Trying again...")
+      print(now(),f"No connection or other error encountered in getRating for {symb}. Trying again...")
       time.sleep(3)
       continue
   
