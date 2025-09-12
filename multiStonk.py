@@ -507,7 +507,7 @@ def checkTriggered(verbose=False):
 
   while(len(list(triggeredStocks))>0 and not exitFlag):
     #attempt to get prices for all stocks to sell
-    prices = {}
+    prices = {"error":""}
     while "error" in prices:
       prices = n.getPrices([e.split("|")[1]+"|stocks" for e in list(triggeredStocks)],verbose=verbose)
       print("prices: ",prices)
@@ -516,14 +516,15 @@ def checkTriggered(verbose=False):
         #TODO: there's probably a more elegant way of doing this with .discard
         triggeredStocks = {e for e in triggeredStocks if not e.endswith(prices['error'])}
         print("error in prices, new triggeredstocks: ",triggeredStocks)
-    
+
+    prices = prices['goodassets']
     
     #check for stocks in triggeredStocks that aren't in prices (some error occured that we hold it but it can't be traded)
     #this isn't always accurate, sometimes a stock will be tradable in alpaca but not ndaq, so double check that it can be traded in alpaca, and if not, only then discard it
     lock.acquire()
     for trigstock in list(triggeredStocks):
       if((trigstock.split("|")[1]+"|stocks").upper() not in prices):
-        if(not a.isAplacaTradable(trigstock.split("|")[1])):
+        if(not a.isAlpacaTradable(trigstock.split("|")[1])):
           if(verbose): print(f"{trigstock} stored locally and in alpaca, but not in nasdaq and not tradable in alpaca. Removing from sellable stocks")
           triggeredStocks.discard(trigstock)
 
@@ -544,6 +545,7 @@ def checkTriggered(verbose=False):
       #get the sellUpDn %
       sellUpDn = eval(f"{e.split('|')[0]}.sellUpDn()")
       #get the current prices of the stocks from the prices if present, else from alpaca
+      if(verbose): print(prices)
       curPrice = prices[(e.split("|")[1]+'|stocks').upper()]['price']
       #make sure that the price is valid
       if(curPrice>0):
@@ -609,10 +611,12 @@ def check2sells(pos,verbose=False):
         elif(gs[e['symbol']]==1): #else if the stock is a good sell (sellUp)
           if(algo+"|"+e['symbol'] not in triggeredStocks): #make sure that it's not already present
             triggeredStocks.add(algo+"|"+e['symbol']) #if not, then add it to the triggered list
-          if("triggered" not in [t.name for t in n.threading.enumerate()]): #make sure that the triggered list isn't already running
-            triggerThread = n.threading.Thread(target=checkTriggered,args=(verbose,)) #init the thread - note locking is required here
-            triggerThread.name = "triggered" #set the name to the algo and stock symb
-            triggerThread.start() #start the thread
+
+
+    if(len(triggeredStocks) and "triggered" not in [t.name for t in n.threading.enumerate()]): #make sure that the triggered list isn't already running
+      triggerThread = n.threading.Thread(target=checkTriggered,args=(verbose,)) #init the thread - note locking is required here
+      triggerThread.name = "triggered" #set the name to the algo and stock symb
+      triggerThread.start() #start the thread
   
   
 #basically just a market order for the stock and then record it into an order info file
@@ -686,7 +690,7 @@ def sell(stock, algo, verbose=False):
     f.close()
 
   #update trades file
-  tradedata = [str(round(time.time(),4)),"sell",sharesHeld,stock,algo,r['status']]
+  tradedata = [str(round(time.time(),4)),"sell",str(sharesHeld),stock,algo,str(r['status'])]
   open(c['file locations']['tradeLog'],'a').write(",".join(tradedata)+"\n")
 
   lock.release()
