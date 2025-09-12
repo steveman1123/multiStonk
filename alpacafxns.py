@@ -38,18 +38,24 @@ def getAcct():
   return json.loads(html)
 
 # return currently held positions/stocks/whatever
-def getPos():
-  r = n.robreq(POSURL, headers=HEADERS, timeout=5, maxTries=-1).json()
-  #print(json.dumps(r,indent=2))
-  #clean so "None"s are "0"
-  for i,p in enumerate(r):
-    for k,v in p.items():
-      if v == None:
-        r[i][k] = 0
-  return r
+def getPos(verbose=True):
+  r = n.robreq(POSURL, headers=HEADERS, timeout=5, maxTries=-1)
+  if(r.status_code==200):
+    r = r.json()
+    #print(json.dumps(r,indent=2))
+    #clean so "None"s are "0"
+    for i,p in enumerate(r):
+      for k,v in p.items():
+        if v == None:
+          r[i][k] = 0
+    return r
+  else:
+    if(verbose):
+      print("error in getPos:",r.status_code)
+      print(r.content)
+    return getPos(verbose)
 
 # return orders for a specified param
-#valid 
 #status=open|closed|all (which orders to return) - default to open
 #limit=max number of orders per response - default to 50
 #after=only orders after this timestamp (format yyyy-mm-ddThh:mm:ssZ)
