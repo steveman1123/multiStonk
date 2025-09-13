@@ -60,3 +60,18 @@ look for a flat area of (20 day) ema, especially after rallying, then look for s
 
 https://www.investopedia.com/terms/s/swingtrading.asp
 https://stockstotrade.com/swing-trading-strategies/
+
+
+
+
+
+
+
+following the crowd:
+n.getShortInt()
+n.getRating()
+n.getEarnSurp()
+n.getTargetPrice()
+n.getInstAct()
+n.getInsiderTrades()
+

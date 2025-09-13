@@ -529,7 +529,7 @@ def getAllSymbs(verbose=False):
     r = requests.get(f"http://www.advfn.com/nasdaq/nasdaq.asp?companies={chr(i)}",headers={"User-Agent":'test/1.0'},timeout=500).text
 
     table = r.split("Info</th>")[1].split("</table")[0]
-    s = BeautifulSoup(table, features="html.parser")
+    s = bs(table, features="html.parser")
 
 
     for r in s.find_all('tr'):
@@ -715,6 +715,8 @@ def getPrices(symbList,maxTries=-1,verbose=False):
   return prices
   
 
+#localtime = datetime object
+#localtz = pytz.timezone("tzstring")
 def toutc(localtime,localtz):
   return localtz.localize(localtime).astimezone(pytz.utc)
 
@@ -811,7 +813,7 @@ def marketIsOpen():
 def getEarnSurp(symb, maxTries=-1):
   tries=0
   out = {}
-  while tries<maxTries:
+  while tries<maxTries or maxTries<0:
     try:
       r = json.loads(robreq(f"{BASEURL}/company/{symb}/earnings-surprise",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
@@ -832,7 +834,7 @@ def getEarnSurp(symb, maxTries=-1):
 def getInstAct(symb, maxTries=-1):
   tries=0
   out = {"increased":{"holders":0,"shares":0},"decreased":{"holders":0,"shares":0},"held":{"holders":0,"shares":0}} #init to 0 values
-  while tries<maxTries:
+  while tries<maxTries or maxTries<0:
     try:
       # could also look here for more info: https://www.holdingschannel.com/
       r = json.loads(robreq(f"{BASEURL}/company/{symb}/institutional-holdings",headers=HEADERS,timeout=5).content)
@@ -854,7 +856,7 @@ def getInstAct(symb, maxTries=-1):
 def getEPS(symb, maxTries=-1):
   tries=0
   out = {}
-  while tries<maxTries:
+  while tries<maxTries or maxTries<0:
     try:
       r = json.loads(robreq(f"{BASEURL}/quote/{symb}/eps",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
@@ -882,7 +884,7 @@ def getEPS(symb, maxTries=-1):
 def getEarnFcast(symb, maxTries=-1):
   tries=0
   out = {}
-  while tries<maxTries:
+  while tries<maxTries or maxTries<0:
     try:
       r = json.loads(robreq(f"{BASEURL}/analyst/{symb}/earnings-forecast",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
@@ -907,17 +909,21 @@ def getEarnFcast(symb, maxTries=-1):
 
 
 #get the shorting interest of a given stock
-def getShortInt(symb, maxTries=-1):
+def getShortInt(symb, assetclass="stocks", maxTries=-1):
   tries=0
   out = {}
-  while tries<maxTries:
+  r = {}
+  while tries<maxTries or maxTries<0:
     try:
-      r = json.loads(robreq(f"{BASEURL}/quote/{symb}/short-interest?assetclass=stocks",headers=HEADERS,timeout=5).content)
-      if(r['status']['bCodeMessage'] is None): #valid response
-        r = r['data']['shortInterestTable']['rows']
-      else: #got a valid return, but bad data was passed
-        print(r['status']['bCodeMessage'][0]['errorMessage'])
-      break
+      r = robreq(f"{BASEURL}/quote/{symb}/short-interest?assetclass={assetclass}",headers=HEADERS,timeout=5)
+      #valid response and valid data
+      if(r.status_code == 200):
+        r = r.json()
+        if(r['status']['bCodeMessage'] is None):
+          r = r['data']['shortInterestTable']['rows']
+        else: #got a valid return, but bad data was passed
+          print(r['status']['bCodeMessage'][0]['errorMessage'])
+        break
     except Exception:
       print(now(),f"No connection or other error encountered in getEarnFcast for {symb}. Trying again...")
       tries += 1
@@ -932,14 +938,15 @@ def getShortInt(symb, maxTries=-1):
 
 
 #get the company financials for the quarters of the last year
-# TODO: this is incomplete. data should be formatted as {sheetName:{date:{rows}}}
+# TODO: what does the frequency mean in the url?
 def getFinancials(symb,maxTries=-1):
   tries=0
   out = {}
-  while tries<maxTries:
+  while tries<maxTries or maxTries<0:
     try:
       r = json.loads(robreq(f"{BASEURL}/company/{symb}/financials?frequency=2",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
+        #get the tables
         out['income'] = r['data']['incomeStatementTable']
         out['balance'] = r['data']['balanceSheetTable']
         out['cashflow'] = r['data']['cashFlowTable']
@@ -948,14 +955,12 @@ def getFinancials(symb,maxTries=-1):
         print(r['status']['bCodeMessage'][0]['errorMessage'])
       break
     except Exception:
-      print(now(),f"No connection or other error encountered in getFinancials for {symb}. Trying again...")
       tries += 1
+      print(now(),f"No connection or other error encountered in getFinancials for {symb}. Trying again ({tries}/{maxTries})...")
       time.sleep(3)
       continue
-  
-  #for every element in the list
-  for e in out:
-    out[e] = {out[e]['headers']['value2']}
+
+  #TODO: format the tables to be {date:{header:{data}}}
   
   return out
 
@@ -966,7 +971,7 @@ def getFinancials(symb,maxTries=-1):
 def getInsideTrades(symb, maxTries=-1):
   tries=0
   out = {}
-  while tries<maxTries:
+  while tries<maxTries or maxTries<0:
     try:
       r = json.loads(robreq(f"{BASEURL}/company/{symb}/insider-trades",headers=HEADERS,timeout=5).content)
       if(r['status']['bCodeMessage'] is None): #valid response
@@ -986,29 +991,37 @@ def getInsideTrades(symb, maxTries=-1):
 # returns a list of format [meanRating(text), #ofBrokers(#)]
 def getRating(symb, maxTries=-1):
   tries=0
+  r = None
   rate = []
-  while tries<maxTries:
+  while tries<maxTries or maxTries<0:
     try:
-      r = json.loads(robreq(f"{BASEURL}/analyst/{symb}/ratings",headers=HEADERS,timeout=5).text)['data']
-      if(r is not None and len(r['brokerNames'])>0):
-        rate = [r['meanRatingType'],len(r['brokerNames'])]
+      r = robreq(f"{BASEURL}/analyst/{symb}/ratings",headers=HEADERS,timeout=5).json()['data']
       break
     except Exception:
       tries+=1
       print(now(),f"No connection or other error encountered in getRating for {symb}. Trying again...")
       time.sleep(3)
       continue
+
+  if(r is not None and len(r['brokerNames'])>0):
+    rate = [r['meanRatingType'],len(r['brokerNames'])]
+  else:
+    print("bad response in getRating")
   
   return rate
 
 
 #calculate the rsi (relative strength index) based on the most recent history of lenth per (hist is output of getHistory)
 def getRSI(hist,per=14):
-  if(per<len(hist)): #ensure that there's enough info to calculate it
-    difs = [float(hist[i][1])/float(hist[i+1][1]) for i in range(per)] #get the daily changes
+  #ensure that there's enough info to calculate it
+  if(per<len(hist)):
+    dates = sorted(hist.keys())
+    #get the daily changes
+    difs = [hist[dates[i+1]]['close']/hist[dates[i]]['close'] for i in range(per)]
     avgGain = mean([e for e in difs if e>1])
     avgLoss = mean([e for e in difs if e<1])
-    rsi = 1-(1/(1+avgGain/avgLoss)) #value between 0 and 1
+    #value between 0 and 1
+    rsi = 1-(1/(1+avgGain/avgLoss))
     return rsi
   else:
     print("not enough info to calculate rsi")
