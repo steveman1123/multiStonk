@@ -193,8 +193,8 @@ def getHistory(symb,startDate,endDate,assetclass="stocks",verbose=False):
         for e in reqdata:
           tmp = {}
           for f in e:
-            if(f=="volume"): tmp[f] = int(e[f].replace(",","").replace("N/A","0"))
-            elif(f!="date"): tmp[f] = float(e[f].replace("$","").replace("N/A","0"))
+            if(f=="volume"): tmp[f[0]] = int(e[f].replace(",","").replace("N/A","0"))
+            elif(f!="date"): tmp[f[0]] = float(e[f].replace("$","").replace("N/A","0"))
           
           hist[str(dt.datetime.strptime(e['date'],"%m/%d/%Y").date())] = tmp
           
@@ -278,8 +278,8 @@ def getHistory(symb,startDate,endDate,assetclass="stocks",verbose=False):
             for e in data:
               tmp = {}
               for f in e:
-                if(f=="volume"): tmp[f] = int(e[f].replace(",","").replace("N/A","0"))
-                elif(f!="date"): tmp[f] = float(e[f].replace("$","").replace("N/A","0"))
+                if(f=="volume"): tmp[f[0]] = int(e[f].replace(",","").replace("N/A","0"))
+                elif(f!="date"): tmp[f[0]] = float(e[f].replace("$","").replace("N/A","0"))
               
               hist[str(dt.datetime.strptime(e['date'],"%m/%d/%Y").date())] = tmp
           
@@ -324,8 +324,8 @@ def getHistory(symb,startDate,endDate,assetclass="stocks",verbose=False):
             for e in data:
               tmp = {}
               for f in e:
-                if(f=="volume"): tmp[f] = int(e[f].replace(",","").replace("N/A","0"))
-                elif(f!="date"): tmp[f] = float(e[f].replace("$","").replace("N/A","0"))
+                if(f=="volume"): tmp[f[0]] = int(e[f].replace(",","").replace("N/A","0"))
+                elif(f!="date"): tmp[f[0]] = float(e[f].replace("$","").replace("N/A","0"))
               
               hist[str(dt.datetime.strptime(e['date'],"%m/%d/%Y").date())] = tmp
               
@@ -378,8 +378,8 @@ def getHistory(symb,startDate,endDate,assetclass="stocks",verbose=False):
             for e in data:
               tmp = {}
               for f in e:
-                if(f=="volume"): tmp[f] = int(e[f].replace(",","").replace("N/A","0"))
-                elif(f!="date"): tmp[f] = float(e[f].replace("$","").replace("N/A","0"))
+                if(f=="volume"): tmp[f[0]] = int(e[f].replace(",","").replace("N/A","0"))
+                elif(f!="date"): tmp[f[0]] = float(e[f].replace("$","").replace("N/A","0"))
               
               hist[str(dt.datetime.strptime(e['date'],"%m/%d/%Y").date())] = tmp
         
@@ -428,8 +428,8 @@ def getHistory(symb,startDate,endDate,assetclass="stocks",verbose=False):
           for e in data:
             tmp = {}
             for f in e:
-              if(f=="volume"): tmp[f] = int(e[f].replace(",","").replace("N/A","0"))
-              elif(f!="date"): tmp[f] = float(e[f].replace("$","").replace("N/A","0"))
+              if(f=="volume"): tmp[f[0]] = int(e[f].replace(",","").replace("N/A","0"))
+              elif(f!="date"): tmp[f[0]] = float(e[f].replace("$","").replace("N/A","0"))
             
             hist[str(dt.datetime.strptime(e['date'],"%m/%d/%Y").date())] = tmp
         
@@ -521,30 +521,55 @@ def getSymb(company,verbose=False):
 
 #get all nasdaq symbols and company names into a json object and save to a json file
 #format of {"symb":"company name"}
+#read from a file if it exists and is less than a week old, else update it
+
 def getAllSymbs(verbose=False):
-  cs = {}
+  allsymbsfile = c['file locations']['allSymbsFile']
+  if(verbose): print("useing allsymbs file = ",allsymbsfile)
+  pullflag = 0
 
-  for i in range(65,91): #ASCII A-Z
-    if(verbose): print(chr(i),end=" - ",flush=True)
-    r = requests.get(f"http://www.advfn.com/nasdaq/nasdaq.asp?companies={chr(i)}",headers={"User-Agent":'test/1.0'},timeout=500).text
+  #if file exists and it was modified in the last week, then pull from there
+  if(os.path.isfile(allsymbsfile)):
+    if(verbose): print("allsymbs file exists")
+    moddate = dt.datetime.strptime(time.strftime("%Y-%m-%d",time.localtime(os.stat(allsymbsfile).st_mtime)),"%Y-%m-%d").date()
+    if((dt.date.today()-moddate).days<7):
+      if(verbose): print("allsymbsfile modified in last 7 days, returning file contents")
+      symbs = json.loads(open(allsymbsfile,'r').read())
+      return symbs
+    else:
+      if(verbose): print("allsymbs file exists, but modified more than one week ago, pulling new data")
+      pullflag = 1
+  else:
+    if(verbose): print("allsymbs file does not exist, pulling new data")
+    pullflag = 1
 
-    table = r.split("Info</th>")[1].split("</table")[0]
-    s = bs(table, features="html.parser")
+
+  if(pullflag):
+    cs = {}
+    for i in range(65,91): #ASCII A-Z
+      if(verbose): print(chr(i),end=" - ",flush=True)
+      r = requests.get(f"http://www.advfn.com/nasdaq/nasdaq.asp?companies={chr(i)}",headers={"User-Agent":'test/1.0'},timeout=500).text
+
+      table = r.split("Info</th>")[1].split("</table")[0]
+      s = bs(table, features="html.parser")
 
 
-    for r in s.find_all('tr'):
-      o = []
-      for d in r.find_all('td'):
-        o.append(d.get_text())
-      cs[o[1]] = o[0]
+      for r in s.find_all('tr'):
+        o = []
+        for d in r.find_all('td'):
+          o.append(d.get_text())
+        cs[o[1]] = o[0]
 
-    if(verbose): print(f"total: {len(cs)}")
+      if(verbose): print(f"total: {len(cs)}")
 
-  if(verbose): print(len(cs))
-  with open(c['file locations']['allSymbsFile'],'w') as f:
-    f.write(json.dumps(cs))
-    f.close()
-  return cs
+    if(verbose): print(len(cs))
+    with open(c['file locations']['allSymbsFile'],'w') as f:
+      f.write(json.dumps(cs))
+      f.close()
+    return cs
+
+  else:
+    if(verbose): print("Read from allsymbs file, but this message shouldn't be displayed")
 
 
 
@@ -1024,7 +1049,7 @@ def getRSI(hist,per=14):
   if(per<len(hist)):
     dates = sorted(hist.keys())
     #get the daily changes
-    difs = [hist[dates[i+1]]['close']/hist[dates[i]]['close'] for i in range(per)]
+    difs = [hist[dates[i+1]]['c']/hist[dates[i]]['c'] for i in range(per)]
     avgGain = mean([e for e in difs if e>1])
     avgLoss = mean([e for e in difs if e<1])
     #value between 0 and 1

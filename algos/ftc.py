@@ -45,8 +45,13 @@ def goodBuys(symbList, days2look=-1, verbose=False):
   #earnings consistsntly increasing
   #rating is good
   #institution activity has more increases thsn decreases
-  #EMA is increasing
+  #EMA is increasing?
   #
+
+  ### get stocks in the price limit
+  #get all stocks
+  allstocks = n.getAllSymbs()
+  
   return out
 
 #perform the same checks as goodSell but multiplexed for fewer requests

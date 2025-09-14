@@ -108,31 +108,31 @@ def goodBuys(symbList, days2look=-1, verbose=False):
       validBuy = "Few data points available"
     else:
       validBuy = "initial jump not found"
-      while(startDate<min(days2look, len(dateData)-2) and dateData[dates[startDate]]['close']/dateData[dates[startDate+1]]['close']<firstJumpAmt):
+      while(startDate<min(days2look, len(dateData)-2) and dateData[dates[startDate]]['c']/dateData[dates[startDate+1]]['c']<firstJumpAmt):
         startDate += 1
         
         #if the price has jumped sufficiently for the first time
-        if(dateData[dates[startDate]]['close']/dateData[dates[startDate+1]]['close']>=firstJumpAmt):
+        if(dateData[dates[startDate]]['c']/dateData[dates[startDate+1]]['c']>=firstJumpAmt):
           if(verbose): print(f"{symb}\tinitial price jumped on {dates[startDate]}")
-          avgVol = sum([dateData[dates[i]]['volume'] for i in range(startDate,min(startDate+volAvgDays,len(dateData)))])/volAvgDays #avg of volumes over a few days
+          avgVol = sum([dateData[dates[i]]['v'] for i in range(startDate,min(startDate+volAvgDays,len(dateData)))])/volAvgDays #avg of volumes over a few days
           
           #the latest volume
-          lastVol = dateData[dates[startDate]]['volume']
+          lastVol = dateData[dates[startDate]]['v']
           #the latest highest price
-          lastPrice = dateData[dates[startDate]]['high']
+          lastPrice = dateData[dates[startDate]]['h']
   
           if(lastVol/avgVol>volGain): #much larger than normal volume
             if(verbose): print(f"{symb}\tvol gained")
             #volume had to have gained
             #if the next day's price has fallen significantly and the volume has also fallen
-            if(dateData[dates[startDate-days2wait4fall]]['high']/lastPrice-1<priceDrop and dateData[dates[startDate-days2wait4fall]]['close']<=lastVol*volLoss):
+            if(dateData[dates[startDate-days2wait4fall]]['h']/lastPrice-1<priceDrop and dateData[dates[startDate-days2wait4fall]]['c']<=lastVol*volLoss):
               if(verbose): print(f"{symb}\tprice and vol dropped on {dates[startDate-days2wait4fall]}")
               #the jump happened, the volume gained, the next day's price and volumes have fallen
               dayPrice = lastPrice
               i = 1 #increment through days looking for a jump - start with 1 day before startDate
               # check within the the last few days, check the price has risen compared to the past some days, and we're within the valid timeframe
               while(i<=checkPriceDays and lastPrice/dayPrice<checkPriceAmt and startDate+i<len(dateData)):
-                dayPrice = dateData[dates[startDate+i]]['high']
+                dayPrice = dateData[dates[startDate+i]]['h']
                 i += 1
               
               if(lastPrice/dayPrice>=checkPriceAmt): #TODO: read through this logic some more to determine where exactly to put sellDn
@@ -144,8 +144,8 @@ def goodBuys(symbList, days2look=-1, verbose=False):
                 if(not jumpedToday(symb, sellUp)): #history grabs from previous day and before, it does not grab today's info. Check that it hasn't jumped today too
                   for e in range(0,startDate):
                     #compare the high vs previous close
-                    if(verbose): print(f"{dateData[dates[e]]} - {round(dateData[dates[e]]['high']/dateData[dates[e+1]]['close'],2)} - {sellUp}")
-                    if(dateData[dates[e]]['high']/dateData[dates[e+1]]['close'] >= sellUp):
+                    if(verbose): print(f"{dateData[dates[e]]} - {round(dateData[dates[e]]['h']/dateData[dates[e+1]]['c'],2)} - {sellUp}")
+                    if(dateData[dates[e]]['h']/dateData[dates[e+1]]['close'] >= sellUp):
                       missedJump = True
                   if(not missedJump):
                     if(verbose): print(algo,symb)
