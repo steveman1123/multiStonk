@@ -1,6 +1,9 @@
 #this file contains functions that all algo files should have and their return formats
 
-import otherfxns as o
+import ndaqfxns as n
+import os,json,threading,time,configparser
+import datetime as dt
+from otherfxns import *
 
 algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 

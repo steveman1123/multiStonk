@@ -549,21 +549,28 @@ def getAllSymbs(verbose=False):
 
 
 #return stocks going through a reverse split (this list also includes ETFs)
-def reverseSplitters():
+def reverseSplitters(maxTries=-1):
   tries=0
-  try:
-    r=json.loads(robreq(url=url,headers=HEADERS).text)
-  except Exception:
-    r={}
-  
+  r={}
+  while tries<maxTries or maxTries<0:
+    try:
+      r=robreq(url=f"{BASEURL}/calendar/splits",headers=HEADERS).json()
+      break
+    except Exception:
+      tries += 1
+      print(now(),f"No connection or other error encountered in reverseSplitters. Trying again ({tries}/{maxTries})...")
+      time.sleep(3)
   out = []
   if('data' in r and r['data'] is not None and 'rows' in r['data']):
     r = r['data']['rows']
   else:
     return out
+
+  #print(r)
+  
   for e in r:
     try: #normally the data is formatted as # : # as the ratio, but sometimes it's a %
-      ratio = e['ratio'].split(" : ")
+      ratio = e['ratio'].replace(" ","").split(":")
       ratio = float(ratio[0])/float(ratio[1])
     except Exception: #this is where it'd go if it were a %
       ratio = float(e['ratio'][:-1])/100+1 #trim the % symbol and convert to a number
