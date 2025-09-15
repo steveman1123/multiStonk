@@ -1027,18 +1027,19 @@ def getInsideTrades(symb, maxTries=-1):
   return out
 
 #get the analyst ratings of a given stock
-# returns a list of format [meanRating(text), #ofBrokers(#)]
-def getRating(symb, maxTries=-1):
+# returns a list of format [meanRating(str), #ofBrokers(int)]
+def getRating(symb,maxTries=-1,verbose=False):
   tries=0
   r = None
   rate = []
   while tries<maxTries or maxTries<0:
     try:
       r = robreq(f"{BASEURL}/analyst/{symb}/ratings",headers=HEADERS,timeout=5).json()['data']
+      if(verbose): print(r)
       break
     except Exception:
       tries+=1
-      print(now(),f"No connection or other error encountered in getRating for {symb}. Trying again...")
+      print(now(),f"No connection or other error encountered in getRating for {symb}. Trying again ({tries}/{maxTries})...")
       time.sleep(3)
       continue
 
