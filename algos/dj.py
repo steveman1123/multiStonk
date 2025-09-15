@@ -145,7 +145,7 @@ def goodBuys(symbList, days2look=-1, verbose=False):
                   for e in range(0,startDate):
                     #compare the high vs previous close
                     if(verbose): print(f"{dateData[dates[e]]} - {round(dateData[dates[e]]['h']/dateData[dates[e+1]]['c'],2)} - {sellUp}")
-                    if(dateData[dates[e]]['h']/dateData[dates[e+1]]['close'] >= sellUp):
+                    if(dateData[dates[e]]['h']/dateData[dates[e+1]]['c'] >= sellUp):
                       missedJump = True
                   if(not missedJump):
                     if(verbose): print(algo,symb)
