@@ -88,7 +88,7 @@ def goodBuys(symbList, days2look=-1, verbose=False):
     
   
   #get the vol, current and opening prices of all valid stocks (invalid ones will not be returned by getPrices) - using as a filter to get rid of not tradable stocks
-  prices = n.getPrices([e+"|stocks" for e in symbList],maxTries=-1)['goodassets']
+  prices = n.getPrices({"stocks":symbList},maxTries=-1)['goodassets']
   symbList = [e.split("|")[0] for e in prices] #only look at the valid stocks
   
   if(verbose):

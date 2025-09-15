@@ -525,30 +525,30 @@ def getSymb(company,verbose=False):
 
 def getAllSymbs(verbose=False):
   allsymbsfile = c['file locations']['allSymbsFile']
-  if(verbose): print("useing allsymbs file = ",allsymbsfile)
+  if(verbose): print(now(),"using allsymbs file = ",allsymbsfile)
   pullflag = 0
 
   #if file exists and it was modified in the last week, then pull from there
   if(os.path.isfile(allsymbsfile)):
-    if(verbose): print("allsymbs file exists")
+    if(verbose): print(now(),"allsymbs file exists")
     moddate = dt.datetime.strptime(time.strftime("%Y-%m-%d",time.localtime(os.stat(allsymbsfile).st_mtime)),"%Y-%m-%d").date()
     if((dt.date.today()-moddate).days<7):
-      if(verbose): print("allsymbsfile modified in last 7 days, returning file contents")
+      if(verbose): print(now(),f"allsymbsfile modified in last 7 days ({moddate}), returning file contents")
       symbs = json.loads(open(allsymbsfile,'r').read())
       return symbs
     else:
-      if(verbose): print("allsymbs file exists, but modified more than one week ago, pulling new data")
+      if(verbose): print(now(),f"allsymbs file exists, but modified more than one week ago ({moddate}), pulling new data")
       pullflag = 1
   else:
-    if(verbose): print("allsymbs file does not exist, pulling new data")
+    if(verbose): print(now(),"allsymbs file does not exist, pulling new data")
     pullflag = 1
 
 
   if(pullflag):
     cs = {}
     for i in range(65,91): #ASCII A-Z
-      if(verbose): print(chr(i),end=" - ",flush=True)
-      r = requests.get(f"http://www.advfn.com/nasdaq/nasdaq.asp?companies={chr(i)}",headers={"User-Agent":'test/1.0'},timeout=500).text
+      if(verbose): print(now(),chr(i),end=" - ",flush=True)
+      r = robreq(f"http://www.advfn.com/nasdaq/nasdaq.asp?companies={chr(i)}",headers=HEADERS).text
 
       table = r.split("Info</th>")[1].split("</table")[0]
       s = bs(table, features="html.parser")
@@ -569,7 +569,8 @@ def getAllSymbs(verbose=False):
     return cs
 
   else:
-    if(verbose): print("Read from allsymbs file, but this message shouldn't be displayed")
+    #somehow got through reading the file without returning or changing pullflag
+    print("yo wtf")
 
 
 
@@ -687,15 +688,21 @@ def nextTradeDate(verbose=False):
   
 
 #return dict of current prices of assets
-#symblist = list format of symb|assetclass
+#symb = doct of format {assetclass:[symbs]}
 #maxTries = number of tries to attempt to connect to api
 #verbose = verbosity
 #output dict {"goodassets":{"symb|assetclass":{price,vol,open}}, "badassets":[symb,...]}
 #TODO: change symblist in and out to be a dict of format {assetclass:[symbs]}
-def getPrices(symbList,maxTries=-1,verbose=False):
+def getPrices(symbs,maxTries=-1,verbose=False):
   #ensure there are no spaces in the query
   #TODO: should check for other illegal characters using regex
   #symbList = [e.replace(" ","") for e in symbList]
+
+  symbList = []
+  for k,v in symbs.items():
+    symbList += [e+"|"+k for e in v]
+
+  print(symbList)
 
   maxSymbs = 20 #api cannot do more than 20 at a time, so loop through requests
   d = [] #init data var
@@ -731,15 +738,14 @@ def getPrices(symbList,maxTries=-1,verbose=False):
   #isolate the symbols and prices and add any incomplete to the bad assets
   for e in d: #for every symb in the data
     #ensure that all data is present and valid
-    if(e['volume'] is not None and len(e['volume'])>0 and e['lastSalePrice'] is not None and len(e['lastSalePrice'])>0 and e['netChange'] is not None and len(e['netChange'])>0):
+    if(e['volume'] is not None and e['lastSalePrice'] is not None and len(e['lastSalePrice'])>0 and e['netChange'] is not None and len(e['netChange'])>0):
       # if(verbose): print(e)
       #TODO: maybe store lastSalePrice and vol as variables?
       prices['goodassets'][f"{e['symbol']}|{e['assetClass']}"] = {
-                                                'price':float(e['lastSalePrice'].replace("$","").replace(",","")),
-                                                'vol':int(e['volume'].replace(",","")),
-                                                'open':float(e['lastSalePrice'].replace("$","").replace(",",""))-(float(e['netChange']) if 
-                                                e['netChange']!='UNCH' else 0)
-                                                }
+        'price':float(e['lastSalePrice'].replace("$","").replace(",","")),
+        'vol':int(e['volume'].replace(",","")) if len(e['volume'])>0 else 0,
+        'open':float(e['lastSalePrice'].replace("$","").replace(",",""))-(float(e['netChange']) if e['netChange']!='UNCH' else 0)
+      }
     else:
       prices['badassets'] += [e['symbol']]
   
@@ -749,6 +755,7 @@ def getPrices(symbList,maxTries=-1,verbose=False):
 
 #localtime = datetime object
 #localtz = pytz.timezone("tzstring")
+#returns datetetime object in utc timezone aware
 def toutc(localtime,localtz):
   return localtz.localize(localtime).astimezone(pytz.utc)
 

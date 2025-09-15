@@ -51,7 +51,26 @@ def goodBuys(symbList, days2look=-1, verbose=False):
   ### get stocks in the price limit
   #get all stocks
   allstocks = n.getAllSymbs()
-  
+
+  #get prices in this date range
+  enddate = dt.date.today()
+  startdate = enddate-dt.timedelta(days=30)
+
+  #only look at stocks within our price range
+  minprice = 5
+  maxprice = 30
+
+
+  #get current prices of everything
+  n.getPrices(allstocks)
+
+
+  for s in allstocks.keys():
+    hist = n.getHistory(s,startdate,enddate)
+    if(minprice <= hist[max[hist.keys()]['c'] <= maxprice):
+
+    else:
+      if(verbose): print(now(),"price is out of range")
   return out
 
 #perform the same checks as goodSell but multiplexed for fewer requests

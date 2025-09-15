@@ -509,7 +509,7 @@ def checkTriggered(verbose=False):
     #attempt to get prices for all stocks to sell
     prices = {"error":""}
     while "error" in prices:
-      prices = n.getPrices([e.split("|")[1]+"|stocks" for e in list(triggeredStocks)],verbose=verbose)
+      prices = n.getPrices({"stocks":[e.split("|")[1] for e in list(triggeredStocks)]},verbose=verbose)
       print("prices: ",prices)
       if("error" in prices):
         #remove all triggered stocks that end with the errored stock
