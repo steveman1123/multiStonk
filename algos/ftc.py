@@ -7,7 +7,7 @@ import os,json,threading,time,configparser
 import datetime as dt
 from otherfxns import *
 
-algo = o.os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
+algo = os.path.basename(__file__).split('.')[0] #name of the algo based on the file name
 
 #initiate the algo with the path to the config file
 def init(configFile):
@@ -15,13 +15,13 @@ def init(configFile):
   #set the multi config file
   #TODO: add error if the file doesn't exist.
   #TODO: in otherfxns, from configparser import ConfigParser (since I don't think we use anthing else)
-  c = o.configparser.ConfigParser()
+  c = configparser.ConfigParser()
   c.read(configFile)
   
   #stocks held by this algo according to the records
-  lock = o.threading.Lock()
+  lock = threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
+  posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
 
 
@@ -42,7 +42,7 @@ def goodBuys(symbList, days2look=-1, verbose=False):
   #within price limit
   #earnings coming up
   #consistantly beats earnings
-  #earnings consistsntly increasing
+  #earnings consistantly increasing
   #rating is good
   #institution activity has more increases thsn decreases
   #EMA is increasing?
@@ -51,40 +51,71 @@ def goodBuys(symbList, days2look=-1, verbose=False):
   ### get stocks in the price limit
   #get all stocks
   allstocks = n.getAllSymbs()
+  if(verbose): print(n.now(),f"found {len(allstocks)} available stocks")
 
   #get prices in this date range
   enddate = dt.date.today()
   startdate = enddate-dt.timedelta(days=30)
 
   #only look at stocks within our price range
-  minprice = 5
-  maxprice = 30
+  minprice = float(c[algo]["minprice"])
+  maxprice = float(c[algo]["maxprice"])
 
+  #min ratings needed to consider the stock
+  minratings = int(c[algo]["minratings"])
 
   #get current prices of everything
-  n.getPrices(allstocks)
+  allprices = n.getPrices(allstocks)['goodassets']
+  if(verbose): print(n.now(),f"got prices for {len(allprices)} stocks")
 
+  #for each good asset
+  for s,d in allprices.items():
+    #ensure in price range
+    if(minprice <= d['price'] <= maxprice):
+      if(verbose): print(n.now(),f"{s} in price range ({minprice} <= {d['price']} <= {maxprice})")
+      rating = n.getRating(s)
+      print(rating)
 
-  for s in allstocks.keys():
-    hist = n.getHistory(s,startdate,enddate)
-    if(minprice <= hist[max[hist.keys()]['c'] <= maxprice):
+      #check the rating is good
+      if(rating[0].lower() in ["buy"] and rating[1]>=minratings):
+        if(verbose): print(n.now(),f"{s} has a good rating with at least {minraters} ratings")
+
+        #check institutional trading is increased
+        instact = n.getInstAct(s)
+        #TODO: check that this is some % of the volume
+        if(instact['increased']['shares']>instact['decreased']['shares']):
+          if(verbose): print(n.now(),f"{s} has increased institutional activity")
+          out.append(s)
+          #TODO: incorporate more functions
+          #earnfcast = n.getEarnFcast(s)
+          #earnsurp = n.getEarnSurp(s)
+          #insider = n.getInsideTrades(s)
+        else:
+          if(verbose): print(n.now(),f"{s} has insufficient institutional activity")
+
 
     else:
       if(verbose): print(now(),"price is out of range")
   return out
 
 #perform the same checks as goodSell but multiplexed for fewer requests
+#symbList is a list of stocks ready to be sold
 #return dict of {symb:goodSell (-1=sellDn, 0=hold, 1=sellUp)}
-#TODO: thi should probably be adjusted?
-def goodSells(symbList, verbose=False): #symbList is a list of stocks ready to be sold
-  lock = o.threading.Lock()
+#TODO: this should probably be adjusted?
+def goodSells(symbList,verbose=False):
+  lock = threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo] #load up the stock data for the algo
+  #load up the stock data for the algo
+  posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
-  symbList = [e for e in symbList if e in posList] #only look at the stocks that are in the algo
-  buyPrices = {s:float(posList[s]['buyPrice']) for s in symbList} #get buyPrices {symb:buyPrce}
-  prices = o.getPrices([s+"|stocks" for s in symbList]) #currently format of {symb|assetclass:{price,vol,open}}
-  prices = {s.split("|")[0]:prices[s] for s in prices} #now format of {symb:{price,vol,open}}
+  #only look at the stocks that are in the algo
+  symbList = [e for e in symbList if e in posList]
+  #get buyPrices {symb:buyPrce}
+  buyPrices = {s:float(posList[s]['buyPrice']) for s in symbList}
+  #currently format of {symb|assetclass:{price,vol,open}}
+  prices = n.getPrices({"stocks":symbList})['goodassets']
+  #now format of {symb:{price,vol,open}}
+  prices = {s.split("|")[0]:prices[s] for s in prices}
   
   gs = {}
   for s in symbList:
@@ -120,31 +151,35 @@ def getUnsortedList(verbose=False, maxTries=3):
 
 #get the sellUp value for a given symbol (default to the main value)
 def sellUp(symb=""):
-  lock = o.threading.Lock()
+  lock = threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
+  posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
   mainSellUp = float(c[algo]['sellUp']) #primary sellUp value
   
   if(symb in posList):
-    sellUp = mainSellUp #account for change sellUp value here based on date or other params here
+    #account for change sellUp value here based on date or other params here
+    sellUp = mainSellUp
   else:
+    #default value
     sellUp = mainSellUp
   return sellUp
 
 
 #get the sellDn value for a given symbol (default to the main value)
 def sellDn(symb=""):
-  lock = o.threading.Lock()
+  lock = threading.Lock()
   lock.acquire()
-  posList = o.json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
+  posList = json.loads(open(c['file locations']['posList'],'r').read())['algos'][algo]
   lock.release()
   
-  mainSellDn = float(c[algo]['sellDn']) #primary sellDn value
+  #primary sellDn value
+  mainSellDn = float(c[algo]['sellDn'])
   
   if(symb in posList):
-    sellDn = mainSellDn #account for change sellDn value here based on date or other params here
+    #account for change sellDn value here based on date or other params here
+    sellDn = mainSellDn
   else:
     sellDn = mainSellDn
   return sellDn

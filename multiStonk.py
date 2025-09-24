@@ -350,7 +350,7 @@ def getTradableCash(totalCash, maxPortVal,verbose=False):
     tradablec = totalCash-minCash2hold*minCashMargin
   #eg maxportval=260, maxcash2hold=0.2, totalcash>52 = trade totalcash-52
   else:
-    if(verbose): print(n.now(),f"total cash > max cash ({totalCash} > {maxPortVal*maxCash2hold}")
+    if(verbose): print(n.now(),f"total cash > max cash ({totalCash} > {maxPortVal*maxCash2hold})")
     tradablec = totalCash-max(maxPortVal*maxCash2hold,minCash2hold*minCashMargin)
 
   if(verbose): print(n.now(),f"tradable cash: {tradablec}")
