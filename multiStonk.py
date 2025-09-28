@@ -644,7 +644,7 @@ def sell(stock, algo, verbose=False):
   #check that it actually sold
   if(sellAttempts<maxAttempts and 'status' in r and r['status'] in ["accepted",'pending_new','filled','done_for_day','new']):
     if(verbose): print(f"status is {r['status']}")
-    cashList[algo]['earned'] += sellPrice*sharesHeld #update the cash earned by the sale
+    cashList[algo]['earned'] += round(sellPrice*sharesHeld,3) #update the cash earned by the sale
     posList[algo][stock] = { #update the entry in posList
         "sharesHeld":0,
         "lastTradeDate":str(dt.date.today()),
@@ -690,7 +690,7 @@ def sell(stock, algo, verbose=False):
     f.close()
 
   #update trades file
-  tradedata = [str(round(time.time(),4)),"sell",str(sharesHeld),stock,algo,str(r['status'])]
+  tradedata = [str(round(time.time(),3)),"sell",str(round(sharesHeld,2)),str(round(sellPrice,2)),stock,algo,str(r['status'])]
   open(c['file locations']['tradeLog'],'a').write(",".join(tradedata)+"\n")
 
   lock.release()
@@ -722,7 +722,7 @@ def buy(shares, stock, algo, buyPrice):
         "note":algoList[algo][stock] if stock in algoList[algo] else ""
       }
       
-    cashList[algo]['invested'] += buyPrice*shares
+    cashList[algo]['invested'] += round(buyPrice*shares,3)
 
     #update posList file
     open(c['file locations']['posList'],'w').write(json.dumps({'algos':posList,'cash':cashList},indent=2))
@@ -731,7 +731,7 @@ def buy(shares, stock, algo, buyPrice):
     print(f"Order to buy {shares} shares of {stock} not accepted")
 
   #update trades file
-  tradedata = [str(round(time.time(),4)),"buy",stock,algo,r['status']]
+  tradedata = [str(round(time.time(),3)),"buy",str(round(shares,2)),str(round(posList[algo][stock]["buyPrice"],2)),stock,algo,str(r['status'])]
   open(c['file locations']['tradeLog'],'a').write(",".join(tradedata)+"\n")
 
   lock.release()
