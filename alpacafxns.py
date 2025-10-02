@@ -265,10 +265,16 @@ def createOrder(symb, #stock ticker symbol
 
   #execute the order
   tries=0
-  while tries<maxTries:
+  while tries<maxTries or maxTries<0:
     try:
       if(enabled):
-        r = n.robreq(ORDERSURL, method="post", jsondata=order, headers=HEADERS, timeout=5, maxTries=-1).json()
+        r = n.robreq(ORDERSURL, method="post", jsondata=order, headers=HEADERS, timeout=5, maxTries=-1)
+        if(r.status_code == 200):
+          r = r.json()
+        else:
+          r = {'status':"ERROR - "+r.status_code}
+        if('status' not in r):
+          r['status'] = 'FAILED'
       else:
         print("TRADING DISABLED. Order requested:",json.dumps(order))
         r = order
@@ -276,6 +282,7 @@ def createOrder(symb, #stock ticker symbol
       break
     except Exception:
       print(f"No connection, or other error encountered in createOrder. Trying again ({tries+1}/{maxTries})...")
+      if(verbose): print(json.dumps(r,indent=2))
       tries+=1
       time.sleep(3)
       continue

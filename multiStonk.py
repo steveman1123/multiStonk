@@ -731,7 +731,7 @@ def buy(shares, stock, algo, buyPrice):
     print(f"Order to buy {shares} shares of {stock} not accepted")
 
   #update trades file
-  tradedata = [str(round(time.time(),3)),"buy",str(round(shares,2)),str(round(posList[algo][stock]["buyPrice"],2)),stock,algo,str(r['status'])]
+  tradedata = [str(round(time.time(),3)),"buy",str(round(shares,2)),str(round(buyPrice,2)),stock,algo,str(r['status'])]
   open(c['file locations']['tradeLog'],'a').write(",".join(tradedata)+"\n")
 
   lock.release()
