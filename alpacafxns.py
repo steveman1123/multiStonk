@@ -266,13 +266,14 @@ def createOrder(symb, #stock ticker symbol
   #execute the order
   tries=0
   while tries<maxTries or maxTries<0:
+    r = {}
     try:
       if(enabled):
         r = n.robreq(ORDERSURL, method="post", jsondata=order, headers=HEADERS, timeout=5, maxTries=-1)
         if(r.status_code == 200):
           r = r.json()
         else:
-          r = {'status':"ERROR - "+r.status_code}
+          r = {'status':f"ERROR - {r.status_code}"}
         if('status' not in r):
           r['status'] = 'FAILED'
       else:
