@@ -3,7 +3,7 @@
 
 print("\nStarting up...")
 
-verbose=True
+verbose = False
 
 #install any missing packages
 from installpkgs import installreq
